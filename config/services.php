@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'dadata' => [
+        'token' => env('DADATA_API_TOKEN'),
+    ],
+
 ];

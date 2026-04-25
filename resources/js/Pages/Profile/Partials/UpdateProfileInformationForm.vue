@@ -20,6 +20,10 @@ const form = useForm({
     name: user.name,
     email: user.email,
 });
+
+const normalizeEmail = (event) => {
+    form.email = (event.target.value || '').trim().toLowerCase();
+};
 </script>
 
 <template>
@@ -62,6 +66,7 @@ const form = useForm({
                     type="email"
                     class="mt-1 block w-full"
                     v-model="form.email"
+                    @input="normalizeEmail"
                     required
                     autocomplete="username"
                 />

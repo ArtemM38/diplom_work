@@ -114,6 +114,10 @@ const submit = () => {
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-6">
                     <h3 class="font-bold text-lg mb-4 text-slate-800">Добавить на {{ dayjs(selectedDate).format('DD.MM')
                         }}</h3>
+                    <div class="flex gap-3 mb-2">
+                        <Link :href="route('admin.attendance.journal')" class="text-xs text-indigo-600 hover:underline">Открыть общий табель</Link>
+                        <Link :href="route('admin.locations')" class="text-xs text-indigo-600 hover:underline">Управление залами</Link>
+                    </div>
 
                     <form @submit.prevent="submit" class="space-y-4">
                         <div v-if="form.errors.conflict"
@@ -181,7 +185,6 @@ const submit = () => {
                                 <!-- КНОПКА ОТМЕТИТЬ (Переход в журнал) -->
                                 <Link :href="route('admin.attendance.show', s.id)"
                                     class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-600 hover:text-white transition font-bold flex items-center gap-1">
-                                <span>📝</span>
                                 <span>Журнал</span>
                                 </Link>
 
@@ -202,6 +205,7 @@ const submit = () => {
                             На этот день ничего не запланировано
                         </div>
                     </div>
+
                 </div>
             </div>
 

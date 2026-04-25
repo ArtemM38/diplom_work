@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
-use App\Models\Rank;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -57,6 +56,23 @@ class AdminDashboardController extends Controller
         return Inertia::render('Admin/AthletesList', [
             'athletes' => $athletes,
             'filters' => $request->only(['search', 'gender']),
+        ]);
+    }
+
+    public function show(Athlete $athlete)
+    {
+        $athlete->load([
+            'rankHistories.rank',
+            'refereeHistories.refereeCategory',
+            'documents',
+            'inventory',
+            'guardians',
+            'groups',
+        ]);
+
+        return Inertia::render('Admin/Athletes/Show', [
+            'athlete' => $athlete,
+            'age' => Carbon::parse($athlete->birth_date)->age,
         ]);
     }
 }

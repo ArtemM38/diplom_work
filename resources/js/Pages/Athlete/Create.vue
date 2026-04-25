@@ -1,5 +1,7 @@
 <script setup>
 import { useForm, Head } from '@inertiajs/vue3';
+import { computed, onMounted, ref, watch } from 'vue';
+import debounce from 'lodash/debounce';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -10,6 +12,18 @@ const props = defineProps({
     referee_categories: Array,
     existingGuardians: Array, // Список родителей из БД
     isParentRegistering: Boolean, // Флаг: заполняет ли это родитель
+    editingAthlete: {
+        type: Object,
+        default: null,
+    },
+    submitRoute: {
+        type: String,
+        default: null,
+    },
+    submitMethod: {
+        type: String,
+        default: 'post',
+    },
 });
 
 const form = useForm({
@@ -17,9 +31,6 @@ const form = useForm({
     last_name_nom: '',
     first_name_nom: '',
     middle_name_nom: '',
-    full_name_gen: '',
-    full_name_dat: '',
-    full_name_ins: '',
     phone: '',
     birth_date: '',
     gender: 'male',
@@ -79,12 +90,76 @@ const removeRank = (index) => form.ranks.splice(index, 1);
 const addReferee = () => form.referees.push({ referee_category_id: '', assigned_at: '' });
 const removeReferee = (index) => form.referees.splice(index, 1);
 
+const formatPhone = (value) => {
+    const digits = (value || '').replace(/\D/g, '').slice(0, 11);
+    const normalized = digits.startsWith('8') ? `7${digits.slice(1)}` : digits;
+    const d = normalized.startsWith('7') ? normalized.slice(1) : normalized;
+    let out = '+7';
+    if (d.length > 0) out += ` (${d.slice(0, 3)}`;
+    if (d.length >= 3) out += ')';
+    if (d.length > 3) out += ` ${d.slice(3, 6)}`;
+    if (d.length > 6) out += `-${d.slice(6, 8)}`;
+    if (d.length > 8) out += `-${d.slice(8, 10)}`;
+    return out;
+};
+
+const onPhoneInput = (event) => {
+    form.phone = formatPhone(event.target.value);
+};
+
+const addressSuggestions = ref([]);
+
+const fetchAddressSuggestions = debounce(async (value) => {
+    if (!value || value.length < 3) {
+        addressSuggestions.value = [];
+        return;
+    }
+
+    try {
+        const response = await fetch(`${route('address.suggest')}?query=${encodeURIComponent(value)}`);
+        const data = await response.json();
+        addressSuggestions.value = data.suggestions || [];
+    } catch {
+        addressSuggestions.value = [];
+    }
+}, 250);
+
+watch(() => form.registration_address, (value) => {
+    fetchAddressSuggestions(value);
+});
+
+const pickAddress = (value) => {
+    form.registration_address = value;
+    addressSuggestions.value = [];
+};
+
+const targetRoute = computed(() => props.submitRoute || route('athlete.store'));
+
 const submit = () => {
-    form.post(route('athlete.store'), {
+    form.submit(props.submitMethod, targetRoute.value, {
         forceFormData: true, // Обязательно для загрузки файлов
         onSuccess: () => alert('Данные успешно сохранены'),
     });
 };
+
+onMounted(() => {
+    if (!props.editingAthlete) {
+        return;
+    }
+
+    form.last_name_nom = props.editingAthlete.last_name_nom ?? '';
+    form.first_name_nom = props.editingAthlete.first_name_nom ?? '';
+    form.middle_name_nom = props.editingAthlete.middle_name_nom ?? '';
+    form.phone = props.editingAthlete.phone ?? '';
+    form.birth_date = props.editingAthlete.birth_date ?? '';
+    form.gender = props.editingAthlete.gender ?? 'male';
+    form.registration_address = props.editingAthlete.registration_address ?? '';
+    form.school_name = props.editingAthlete.school_name ?? '';
+    form.school_director_dat = props.editingAthlete.school_director_dat ?? '';
+    form.school_class = props.editingAthlete.school_class ?? '';
+    form.work_place = props.editingAthlete.work_place ?? '';
+    form.work_position = props.editingAthlete.work_position ?? '';
+});
 </script>
 
 <template>
@@ -122,25 +197,16 @@ const submit = () => {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                        <div>
-                            <InputLabel value="ФИО в Родительном п. (Петрова Петра)" />
-                            <TextInput v-model="form.full_name_gen" class="w-full text-sm" required />
-                        </div>
-                        <div>
-                            <InputLabel value="ФИО в Дательном п. (Петрову Петру)" />
-                            <TextInput v-model="form.full_name_dat" class="w-full text-sm" required />
-                        </div>
-                        <div>
-                            <InputLabel value="ФИО в Творительном п. (Петровым Петром)" />
-                            <TextInput v-model="form.full_name_ins" class="w-full text-sm" required />
-                        </div>
-                    </div>
+                    <p class="mt-4 text-xs text-slate-500">
+                        ФИО заполняется только в именительном падеже. Остальные падежи рассчитываются автоматически.
+                    </p>
 
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                         <div>
                             <InputLabel value="Телефон" />
-                            <TextInput v-model="form.phone" type="tel" class="w-full" required />
+                            <TextInput v-model="form.phone" @input="onPhoneInput" type="tel" class="w-full"
+                                placeholder="+7 (___) ___-__-__" required />
+                            <InputError class="mt-1" :message="form.errors.phone" />
                         </div>
                         <div>
                             <InputLabel value="Дата рождения" />
@@ -157,6 +223,19 @@ const submit = () => {
                             <InputLabel value="Адрес регистрации" />
                             <TextInput v-model="form.registration_address" class="w-full"
                                 placeholder="Город, улица..." />
+                            <div v-if="addressSuggestions.length" class="relative">
+                                <div class="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow">
+                                    <button
+                                        v-for="item in addressSuggestions"
+                                        :key="item.value"
+                                        type="button"
+                                        @click="pickAddress(item.value)"
+                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                    >
+                                        {{ item.value }}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

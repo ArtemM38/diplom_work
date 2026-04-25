@@ -19,6 +19,10 @@ const submit = () => {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
+
+const normalizeEmail = (event) => {
+    form.email = (event.target.value || '').trim().toLowerCase();
+};
 </script>
 
 <template>
@@ -52,7 +56,8 @@ const submit = () => {
             </div>
             <div>
                 <InputLabel for="email" value="Email" />
-                <TextInput id="email" type="email" class="mt-1 block w-full" v-model="form.email" required />
+                <TextInput id="email" type="email" class="mt-1 block w-full" v-model="form.email" @input="normalizeEmail"
+                    autocomplete="email" required />
                 <InputError class="mt-2" :message="form.errors.email" />
             </div>
             <div class="grid grid-cols-2 gap-4">

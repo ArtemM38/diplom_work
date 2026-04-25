@@ -13,8 +13,20 @@ class GroupController extends Controller
     // Список всех групп
     public function index()
     {
+        $search = request('search');
+
+        $groups = Group::withCount('athletes')
+            ->when($search, function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            })
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Admin/Groups/Index', [
-            'groups' => Group::withCount('athletes')->get()
+            'groups' => $groups,
+            'filters' => [
+                'search' => $search,
+            ],
         ]);
     }
 
@@ -34,10 +46,26 @@ class GroupController extends Controller
     // Страница управления составом группы
     public function show(Group $group)
     {
+        $athleteSearch = trim((string) request('athlete_search'));
+
+        $allAthletes = collect();
+        if ($athleteSearch !== '') {
+            $allAthletes = Athlete::select('id', 'last_name_nom', 'first_name_nom')
+                ->where(function ($q) use ($athleteSearch) {
+                    $q->where('last_name_nom', 'like', '%' . $athleteSearch . '%')
+                        ->orWhere('first_name_nom', 'like', '%' . $athleteSearch . '%');
+                })
+                ->orderBy('last_name_nom')
+                ->limit(30)
+                ->get();
+        }
+
         return Inertia::render('Admin/Groups/Show', [
-            'group' => $group->load('athletes'), // Загружаем текущих участников
-            // Список всех спортсменов для выпадающего списка (только ФИО и ID)
-            'allAthletes' => \App\Models\Athlete::select('id', 'last_name_nom', 'first_name_nom')->get()
+            'group' => $group->load('athletes'),
+            'allAthletes' => $allAthletes,
+            'filters' => [
+                'athlete_search' => $athleteSearch,
+            ],
         ]);
     }
 
@@ -59,5 +87,26 @@ class GroupController extends Controller
     {
         $group->athletes()->detach($athleteId);
         return redirect()->back()->with('success', 'Спортсмен исключен из группы');
+    }
+
+    public function update(Request $request, Group $group)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'type' => 'required|string|max:100',
+            'tariff_amount' => 'required|numeric|min:0',
+            'status' => 'required|in:active,inactive',
+        ]);
+
+        $group->update($validated);
+
+        return redirect()->back()->with('success', 'Группа обновлена');
+    }
+
+    public function destroy(Group $group)
+    {
+        $group->delete();
+
+        return redirect()->route('admin.groups')->with('success', 'Группа удалена');
     }
 }

@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, Link } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
 
@@ -111,10 +111,11 @@ const getDocClass = (doc) => {
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    📦 {{ athlete.inventory_count }} ед.
+                                 {{ athlete.inventory_count }} ед.
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <button class="text-indigo-600 hover:text-indigo-900 mr-3">Карточка</button>
+                                    <Link :href="route('admin.athletes.show', athlete.id)" class="text-slate-600 hover:text-slate-900 mr-3">Просмотр</Link>
+                                    <Link :href="route('athlete.edit', athlete.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">Редактировать</Link>
                                     <button class="text-gray-400 hover:text-gray-600">PDF</button>
                                 </td>
                             </tr>

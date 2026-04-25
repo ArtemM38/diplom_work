@@ -1,11 +1,16 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { useForm, Head, Link } from '@inertiajs/vue3';
+import { useForm, Head, Link, router } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
+import debounce from 'lodash/debounce';
 
 const props = defineProps({
     group: Object,
-    allAthletes: Array
+    allAthletes: Array,
+    filters: Object,
 });
+
+const athleteSearch = ref(props.filters?.athlete_search || '');
 
 const form = useForm({
     athlete_id: '',
@@ -22,6 +27,10 @@ const removeAthlete = (athleteId) => {
         form.delete(route('admin.groups.detach', [props.group.id, athleteId]));
     }
 };
+
+watch(athleteSearch, debounce((value) => {
+    router.get(route('admin.groups.show', props.group.id), { athlete_search: value }, { preserveState: true, replace: true });
+}, 300));
 </script>
 
 <template>
@@ -84,14 +93,24 @@ const removeAthlete = (athleteId) => {
                     <h3 class="font-bold mb-4 text-slate-800">Зачислить в группу</h3>
                     <form @submit.prevent="addAthlete" class="space-y-4">
                         <div>
+                            <label class="text-xs text-gray-500 block mb-1">Поиск спортсмена</label>
+                            <input v-model="athleteSearch" class="w-full border-gray-300 rounded-lg shadow-sm"
+                                placeholder="Фамилия или имя" />
+                        </div>
+                        <div>
                             <label class="text-xs text-gray-500 block mb-1">Выберите спортсмена</label>
                             <select v-model="form.athlete_id"
                                 class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500">
-                                <option value="">-- Выбрать из реестра --</option>
+                                <option value="">
+                                    {{ athleteSearch ? '-- Выбрать из найденных --' : '-- Введите запрос для поиска --' }}
+                                </option>
                                 <option v-for="ath in allAthletes" :key="ath.id" :value="ath.id">
                                     {{ ath.last_name_nom }} {{ ath.first_name_nom }}
                                 </option>
                             </select>
+                            <p v-if="athleteSearch && allAthletes.length === 0" class="text-xs text-gray-400 mt-1">
+                                По вашему запросу никого не найдено.
+                            </p>
                         </div>
                         <button
                             class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 transition"

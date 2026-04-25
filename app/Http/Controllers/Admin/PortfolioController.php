@@ -20,17 +20,17 @@ class PortfolioController extends Controller
     public function index(Request $request)
     {
         $athleteId = $request->integer('athlete_id');
+        $athleteSearch = $request->string('athlete_search')->toString();
 
-        $achievementsQuery = PortfolioAchievement::query()
-            ->with(['athlete', 'eventType', 'eventLevel', 'eventHost', 'resultRank'])
-            ->latest('event_date')
-            ->latest();
-
+        $achievements = collect();
         if ($athleteId) {
-            $achievementsQuery->where('athlete_id', $athleteId);
+            $achievements = PortfolioAchievement::query()
+                ->with(['athlete', 'eventType', 'eventLevel', 'eventHost', 'resultRank'])
+                ->where('athlete_id', $athleteId)
+                ->latest('event_date')
+                ->latest()
+                ->get();
         }
-
-        $achievements = $achievementsQuery->get();
 
         $ratings = Athlete::query()
             ->with('achievements.eventLevel')
@@ -69,17 +69,30 @@ class PortfolioController extends Controller
             'places_3' => PortfolioAchievement::where('result_place', 3)->count(),
         ];
 
+        $athletes = Athlete::select('id', 'last_name_nom', 'first_name_nom', 'middle_name_nom')
+            ->when($athleteSearch, function ($query) use ($athleteSearch) {
+                $query->where(function ($q) use ($athleteSearch) {
+                    $q->where('last_name_nom', 'like', '%' . $athleteSearch . '%')
+                        ->orWhere('first_name_nom', 'like', '%' . $athleteSearch . '%');
+                });
+            })
+            ->orderBy('last_name_nom')
+            ->get();
+
+        $selectedAthlete = $athleteId ? Athlete::find($athleteId) : null;
+
         return Inertia::render('Admin/Portfolio/Index', [
-            'athletes' => Athlete::select('id', 'last_name_nom', 'first_name_nom', 'middle_name_nom')->get(),
+            'athletes' => $athletes,
             'eventTypes' => EventType::all(),
             'eventLevels' => EventLevel::all(),
             'eventHosts' => EventHost::all(),
             'ranks' => Rank::all(),
             'achievements' => $achievements,
+            'selectedAthlete' => $selectedAthlete,
             'ratings' => $ratings,
             'athleteReport' => $athleteReport,
             'summaryReport' => $summaryReport,
-            'filters' => $request->only(['athlete_id']),
+            'filters' => $request->only(['athlete_id', 'athlete_search']),
         ]);
     }
 

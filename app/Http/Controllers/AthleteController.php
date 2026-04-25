@@ -6,9 +6,11 @@ use App\Models\Athlete;
 use App\Models\Guardian;
 use App\Models\Rank;
 use App\Models\RefereeCategory;
+use App\Support\RussianNameCases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class AthleteController extends Controller
@@ -45,12 +47,9 @@ class AthleteController extends Controller
             'last_name_nom' => 'required|string',
             'first_name_nom' => 'required|string',
             'middle_name_nom' => 'nullable|string',
-            'full_name_gen' => 'nullable|string',
-            'full_name_dat' => 'nullable|string',
-            'full_name_ins' => 'nullable|string',
-            'birth_date' => 'required|date',
+            'birth_date' => 'required|date|before_or_equal:' . now()->subYears(2)->toDateString(),
             'gender' => 'required|in:male,female',
-            'phone' => 'nullable|string',
+            'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
             'registration_address' => 'nullable|string',
             'school_name' => 'nullable|string',
             'school_director_dat' => 'nullable|string',
@@ -98,14 +97,16 @@ class AthleteController extends Controller
         ]);
 
         DB::transaction(function () use ($request, $validated, $user) {
+            $nameCases = RussianNameCases::buildFullNameCases(
+                $validated['last_name_nom'],
+                $validated['first_name_nom'],
+                $validated['middle_name_nom'] ?? null
+            );
 
             $athleteData = collect($validated)->only([
                 'last_name_nom',
                 'first_name_nom',
                 'middle_name_nom',
-                'full_name_gen',
-                'full_name_dat',
-                'full_name_ins',
                 'phone',
                 'birth_date',
                 'gender',
@@ -116,6 +117,9 @@ class AthleteController extends Controller
                 'work_place',
                 'work_position',
             ])->toArray();
+            $athleteData['full_name_gen'] = $nameCases['gen'];
+            $athleteData['full_name_dat'] = $nameCases['dat'];
+            $athleteData['full_name_ins'] = $nameCases['ins'];
 
             if ($user->role === 'athlete') {
                 $athleteData['user_id'] = $user->id;
@@ -193,6 +197,64 @@ class AthleteController extends Controller
         return redirect()->route('dashboard')->with('success', 'Регистрация успешно завершена!');
     }
 
+    public function edit(Athlete $athlete)
+    {
+        $user = Auth::user();
+        $canEdit = $user && ($user->role === 'admin' || $athlete->user_id === $user->id);
+
+        abort_unless($canEdit, 403);
+
+        return Inertia::render('Athlete/Create', [
+            'ranks' => Rank::all(),
+            'referee_categories' => RefereeCategory::all(),
+            'existingGuardians' => Guardian::all(),
+            'isParentRegistering' => $user?->role === 'guardian',
+            'editingAthlete' => $athlete->load(['rankHistories', 'refereeHistories', 'inventory', 'documents']),
+            'submitRoute' => route('athlete.update', $athlete),
+            'submitMethod' => 'patch',
+        ]);
+    }
+
+    public function update(Request $request, Athlete $athlete)
+    {
+        $user = Auth::user();
+        $canEdit = $user && ($user->role === 'admin' || $athlete->user_id === $user->id);
+        abort_unless($canEdit, 403);
+
+        $validated = $request->validate([
+            'last_name_nom' => 'required|string',
+            'first_name_nom' => 'required|string',
+            'middle_name_nom' => 'nullable|string',
+            'birth_date' => 'required|date|before_or_equal:' . now()->subYears(2)->toDateString(),
+            'gender' => ['required', Rule::in(['male', 'female'])],
+            'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
+            'registration_address' => 'nullable|string',
+            'school_name' => 'nullable|string',
+            'school_director_dat' => 'nullable|string',
+            'school_class' => 'nullable|string',
+            'work_place' => 'nullable|string',
+            'work_position' => 'nullable|string',
+        ]);
+
+        $nameCases = RussianNameCases::buildFullNameCases(
+            $validated['last_name_nom'],
+            $validated['first_name_nom'],
+            $validated['middle_name_nom'] ?? null
+        );
+
+        $athlete->update(array_merge($validated, [
+            'full_name_gen' => $nameCases['gen'],
+            'full_name_dat' => $nameCases['dat'],
+            'full_name_ins' => $nameCases['ins'],
+        ]));
+
+        if (in_array($user->role, ['admin', 'coach', 'accountant'])) {
+            return redirect()->route('admin.athletes.show', $athlete)->with('success', 'Данные спортсмена обновлены');
+        }
+
+        return redirect()->route('dashboard')->with('success', 'Данные спортсмена обновлены');
+    }
+
     /**
      * Форма создания анкеты Родителя
      */
@@ -212,7 +274,7 @@ class AthleteController extends Controller
 
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
-            'phone' => 'required|string',
+            'phone' => 'required|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
             'relation' => 'required|string', // Кем является (Отец/Мать)
         ]);
 

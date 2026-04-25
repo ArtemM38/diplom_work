@@ -61,4 +61,5 @@ class ScheduleController extends Controller
         $schedule->delete();
         return redirect()->back();
     }
+
 }

@@ -7,8 +7,26 @@ import InputLabel from '@/Components/InputLabel.vue';
 const form = useForm({
     full_name: '',
     phone: '',
-    relation: 'Отец', 
+    relation: 'Отец',
 });
+
+const formatPhone = (value) => {
+    const digits = (value || '').replace(/\D/g, '').slice(0, 11);
+    const normalized = digits.startsWith('8') ? `7${digits.slice(1)}` : digits;
+    const d = normalized.startsWith('7') ? normalized.slice(1) : normalized;
+
+    let out = '+7';
+    if (d.length > 0) out += ` (${d.slice(0, 3)}`;
+    if (d.length >= 3) out += ')';
+    if (d.length > 3) out += ` ${d.slice(3, 6)}`;
+    if (d.length > 6) out += `-${d.slice(6, 8)}`;
+    if (d.length > 8) out += `-${d.slice(8, 10)}`;
+    return out;
+};
+
+const onPhoneInput = (event) => {
+    form.phone = formatPhone(event.target.value);
+};
 
 const submit = () => {
     form.post(route('guardian.store'));
@@ -32,7 +50,13 @@ const submit = () => {
                 </div>
                 <div>
                     <InputLabel value="Ваш телефон" />
-                    <TextInput v-model="form.phone" class="w-full" required placeholder="+7 (___) ___-__-__" />
+                    <TextInput
+                        v-model="form.phone"
+                        class="w-full"
+                        required
+                        placeholder="+7 (___) ___-__-__"
+                        @input="onPhoneInput"
+                    />
                 </div>
                 <div>
                     <InputLabel value="Кем вы являетесь ребенку?" />

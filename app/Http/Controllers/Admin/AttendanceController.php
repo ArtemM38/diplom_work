@@ -44,6 +44,7 @@ class AttendanceController extends Controller
     {
         $search = $request->input('search');
         $athleteId = $request->integer('athlete_id');
+        $scheduleId = $request->integer('schedule_id');
 
         $athletes = Athlete::query()
             ->when($search, function ($query) use ($search) {
@@ -62,6 +63,39 @@ class AttendanceController extends Controller
             });
 
         $selectedAthlete = $athleteId ? Athlete::find($athleteId) : null;
+        $schedules = Schedule::query()
+            ->with('group')
+            ->whereNotNull('lesson_date')
+            ->orderByDesc('lesson_date')
+            ->orderByDesc('start_time')
+            ->get()
+            ->map(fn (Schedule $schedule) => [
+                'id' => $schedule->id,
+                'lesson_date' => $schedule->lesson_date,
+                'group_name' => $schedule->group?->name,
+                'start_time' => $schedule->start_time,
+                'end_time' => $schedule->end_time,
+            ]);
+
+        $scheduleAthletes = collect();
+        if ($scheduleId) {
+            $selectedSchedule = Schedule::query()
+                ->with(['group.athletes', 'attendances'])
+                ->find($scheduleId);
+
+            if ($selectedSchedule) {
+                $attendanceByAthlete = $selectedSchedule->attendances->keyBy('athlete_id');
+                $scheduleAthletes = $selectedSchedule->group?->athletes
+                    ?->map(function (Athlete $athlete) use ($attendanceByAthlete) {
+                        return [
+                            'id' => $athlete->id,
+                            'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
+                            'status' => $attendanceByAthlete->get($athlete->id)?->status ?? 'Н',
+                        ];
+                    })
+                    ->values() ?? collect();
+            }
+        }
 
         $rows = collect();
         $calendar = [];
@@ -117,6 +151,8 @@ class AttendanceController extends Controller
 
         return Inertia::render('Admin/Attendance/Journal', [
             'athletes' => $athletes,
+            'schedules' => $schedules,
+            'scheduleAthletes' => $scheduleAthletes,
             'rows' => $rows,
             'calendar' => $calendar,
             'selectedAthlete' => $selectedAthlete ? [
@@ -124,7 +160,7 @@ class AttendanceController extends Controller
                 'full_name' => trim($selectedAthlete->last_name_nom . ' ' . $selectedAthlete->first_name_nom . ' ' . ($selectedAthlete->middle_name_nom ?? '')),
             ] : null,
             'stats' => $stats,
-            'filters' => ['search' => $search, 'athlete_id' => $athleteId],
+            'filters' => ['search' => $search, 'athlete_id' => $athleteId, 'schedule_id' => $scheduleId],
         ]);
     }
 }

@@ -1,5 +1,5 @@
 <script setup>
-import { useForm, Head } from '@inertiajs/vue3';
+import { useForm, Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -47,6 +47,8 @@ const form = useForm({
     // Динамические списки
     ranks: [], // [{ rank_id: '', assigned_at: '' }]
     referees: [], // [{ referee_category_id: '', assigned_at: '' }]
+    guardian_id: null,
+    relation: '',
 
     // Инвентарь (соответствует именам в миграции)
     inventory: {
@@ -63,8 +65,6 @@ const form = useForm({
         qual_book: false,
         referee_book: false,
 
-        guardian_id: null, // Если спортсмен выбирает существующего
-        relation: '', // Например "Мать"
     },
 
     // Документы
@@ -159,6 +159,20 @@ onMounted(() => {
     form.school_class = props.editingAthlete.school_class ?? '';
     form.work_place = props.editingAthlete.work_place ?? '';
     form.work_position = props.editingAthlete.work_position ?? '';
+    form.ranks = (props.editingAthlete.rank_histories || []).map((item) => ({
+        rank_id: item.rank_id,
+        assigned_at: item.assigned_at,
+    }));
+    form.referees = (props.editingAthlete.referee_histories || []).map((item) => ({
+        referee_category_id: item.referee_category_id,
+        assigned_at: item.assigned_at,
+    }));
+    form.inventory = {
+        ...form.inventory,
+        ...(props.editingAthlete.inventory || {}),
+    };
+    form.guardian_id = props.editingAthlete.guardians?.[0]?.id ?? null;
+    form.relation = props.editingAthlete.guardians?.[0]?.relation ?? '';
 });
 </script>
 
@@ -169,6 +183,11 @@ onMounted(() => {
     <div class="py-12 bg-gray-50 min-h-screen">
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
             <form @submit.prevent="submit" class="space-y-8">
+                <div v-if="editingAthlete" class="flex justify-start">
+                    <Link :href="route('admin.athletes.show', editingAthlete.id)" class="inline-flex px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
+                        Отмена / Назад
+                    </Link>
+                </div>
 
                 <!-- БЛОК 1: Основная информация -->
                 <div class="bg-white p-6 shadow rounded-lg">
@@ -450,7 +469,7 @@ onMounted(() => {
                 <!-- Кнопка сохранения -->
                 <div class="flex justify-center">
                     <PrimaryButton :disabled="form.processing" class="w-full md:w-1/2 py-4 justify-center text-lg">
-                        {{ form.processing ? 'Сохранение...' : 'Завершить регистрацию профиля' }}
+                        {{ form.processing ? 'Сохранение...' : (editingAthlete ? 'Сохранить изменения' : 'Завершить регистрацию профиля') }}
                     </PrimaryButton>
                 </div>
 

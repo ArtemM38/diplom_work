@@ -12,6 +12,10 @@ class AdminDashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $sortByAge = $request->input('sort_age');
+        $startedFrom = $request->input('started_from');
+        $startedTo = $request->input('started_to');
+
         // 1. Начинаем запрос с подгрузкой всех связей
         $query = Athlete::with(['rankHistories.rank', 'documents', 'inventory']);
 
@@ -28,16 +32,33 @@ class AdminDashboardController extends Controller
             $query->where('gender', $request->gender);
         }
 
+        if ($startedFrom) {
+            $query->whereDate('created_at', '>=', $startedFrom);
+        }
+
+        if ($startedTo) {
+            $query->whereDate('created_at', '<=', $startedTo);
+        }
+
+        if (in_array($sortByAge, ['asc', 'desc'], true)) {
+            $query->orderBy('birth_date', $sortByAge === 'asc' ? 'desc' : 'asc');
+        } else {
+            $query->latest();
+        }
+
         // 4. Получаем данные и добавляем вычисляемые поля (возраст)
-        $athletes = $query->latest()->get()->map(function ($athlete) {
+        $athletes = $query->get()->map(function ($athlete) {
+            $age = Carbon::parse($athlete->birth_date)->age;
             return [
                 'id' => $athlete->id,
                 'full_name' => "{$athlete->last_name_nom} {$athlete->first_name_nom} {$athlete->middle_name_nom}",
                 'phone' => $athlete->phone,
                 'birth_date' => $athlete->birth_date,
-                'age' => Carbon::parse($athlete->birth_date)->age,
+                'age' => $age,
+                'age_label' => $this->formatYears($age),
                 'gender' => $athlete->gender,
                 'photo' => $athlete->photo,
+                'started_at' => optional($athlete->created_at)?->toDateString(),
                 // Берем последний присвоенный разряд
                 'current_rank' => $athlete->rankHistories->sortByDesc('assigned_at')->first()?->rank?->name ?? 'Не присвоен',
                 // Передаем статус документов
@@ -55,7 +76,7 @@ class AdminDashboardController extends Controller
 
         return Inertia::render('Admin/AthletesList', [
             'athletes' => $athletes,
-            'filters' => $request->only(['search', 'gender']),
+            'filters' => $request->only(['search', 'gender', 'sort_age', 'started_from', 'started_to']),
         ]);
     }
 
@@ -73,6 +94,21 @@ class AdminDashboardController extends Controller
         return Inertia::render('Admin/Athletes/Show', [
             'athlete' => $athlete,
             'age' => Carbon::parse($athlete->birth_date)->age,
+            'ageLabel' => $this->formatYears(Carbon::parse($athlete->birth_date)->age),
         ]);
+    }
+
+    private function formatYears(int $years): string
+    {
+        $mod100 = $years % 100;
+        if ($mod100 >= 11 && $mod100 <= 14) {
+            return $years . ' лет';
+        }
+
+        return match ($years % 10) {
+            1 => $years . ' год',
+            2, 3, 4 => $years . ' года',
+            default => $years . ' лет',
+        };
     }
 }

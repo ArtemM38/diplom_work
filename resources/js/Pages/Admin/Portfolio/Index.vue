@@ -39,6 +39,7 @@ const achievementForm = useForm({
 });
 
 const filteredAchievements = computed(() => props.achievements || []);
+const today = new Date().toISOString().split('T')[0];
 
 watch(athleteSearch, debounce((value) => {
     router.get(route('admin.portfolio'), {
@@ -188,7 +189,7 @@ const selectNextAchievement = () => {
                     </select>
                     <div class="grid grid-cols-2 gap-2">
                         <input v-model="achievementForm.event_place" placeholder="Место проведения" class="w-full border-gray-300 rounded-lg">
-                        <input v-model="achievementForm.event_date" type="date" class="w-full border-gray-300 rounded-lg">
+                        <input v-model="achievementForm.event_date" type="date" :max="today" class="w-full border-gray-300 rounded-lg">
                     </div>
                     <select v-model="achievementForm.event_level_id" class="w-full border-gray-300 rounded-lg">
                         <option value="">Уровень</option>

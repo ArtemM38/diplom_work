@@ -10,6 +10,8 @@ dayjs.locale('ru');
 
 const props = defineProps({
     athletes: Array,
+    schedules: Array,
+    scheduleAthletes: Array,
     rows: Array,
     calendar: Array,
     selectedAthlete: Object,
@@ -19,6 +21,7 @@ const props = defineProps({
 
 const search = ref(props.filters?.search || '');
 const athleteId = ref(props.filters?.athlete_id || '');
+const scheduleId = ref(props.filters?.schedule_id || '');
 const currentMonth = ref(dayjs());
 
 const calendarByDate = computed(() => {
@@ -50,11 +53,15 @@ const getBadgeClass = (status) => {
 };
 
 watch(search, debounce((value) => {
-    router.get(route('admin.attendance.journal'), { search: value, athlete_id: athleteId.value || null }, { preserveState: true, replace: true });
+    router.get(route('admin.attendance.journal'), { search: value, athlete_id: athleteId.value || null, schedule_id: scheduleId.value || null }, { preserveState: true, replace: true });
 }, 300));
 
 watch(athleteId, (value) => {
-    router.get(route('admin.attendance.journal'), { search: search.value, athlete_id: value || null }, { preserveState: true, replace: true });
+    router.get(route('admin.attendance.journal'), { search: search.value, athlete_id: value || null, schedule_id: scheduleId.value || null }, { preserveState: true, replace: true });
+});
+
+watch(scheduleId, (value) => {
+    router.get(route('admin.attendance.journal'), { search: search.value, athlete_id: athleteId.value || null, schedule_id: value || null }, { preserveState: true, replace: true });
 });
 </script>
 
@@ -83,6 +90,26 @@ watch(athleteId, (value) => {
             </div>
 
             <div class="lg:col-span-8 bg-white p-6 rounded-xl shadow-sm">
+                <div class="mb-6 border rounded-xl p-4 bg-gray-50">
+                    <h3 class="font-bold mb-3">Тренировка и отметки группы</h3>
+                    <select v-model="scheduleId" class="w-full border-gray-300 rounded-lg mb-3">
+                        <option value="">Выберите тренировку</option>
+                        <option v-for="item in schedules" :key="item.id" :value="item.id">
+                            {{ item.lesson_date }} {{ item.start_time?.substring(0, 5) }}-{{ item.end_time?.substring(0, 5) }} | {{ item.group_name || 'Без группы' }}
+                        </option>
+                    </select>
+                    <div v-if="scheduleId">
+                        <div class="text-sm text-gray-600 mb-2">Все спортсмены группы и их статусы</div>
+                        <div v-if="scheduleAthletes?.length" class="space-y-1 max-h-52 overflow-y-auto">
+                            <div v-for="item in scheduleAthletes" :key="item.id" class="flex justify-between text-sm border-b py-1">
+                                <span>{{ item.full_name }}</span>
+                                <span class="font-semibold" :class="getBadgeClass(item.status)">{{ item.status }}</span>
+                            </div>
+                        </div>
+                        <div v-else class="text-sm text-gray-400">Для этой тренировки нет спортсменов</div>
+                    </div>
+                </div>
+
                 <div v-if="!selectedAthlete" class="text-gray-500">
                     Выберите спортсмена слева, чтобы увидеть календарь явок/неявок.
                 </div>

@@ -11,19 +11,25 @@ const props = defineProps({
 
 const search = ref(props.filters.search);
 const gender = ref(props.filters.gender);
+const sortAge = ref(props.filters.sort_age || '');
+const startedFrom = ref(props.filters.started_from || '');
+const startedTo = ref(props.filters.started_to || '');
 
 // Автоматический поиск при вводе (с задержкой 300мс)
 const updateSearch = debounce(() => {
     router.get(route('admin.athletes'), { 
         search: search.value, 
-        gender: gender.value 
+        gender: gender.value,
+        sort_age: sortAge.value || null,
+        started_from: startedFrom.value || null,
+        started_to: startedTo.value || null,
     }, { 
         preserveState: true, 
         replace: true 
     });
 }, 300);
 
-watch([search, gender], updateSearch);
+watch([search, gender, sortAge, startedFrom, startedTo], updateSearch);
 
 const getDocClass = (doc) => {
     if (doc.is_expired) return 'bg-red-100 text-red-700 border-red-200';
@@ -45,7 +51,7 @@ const getDocClass = (doc) => {
                 
                 <!-- Фильтры -->
                 <div class="mb-6 flex flex-wrap gap-4 items-center justify-between bg-white p-4 rounded-lg shadow-sm">
-                    <div class="flex gap-4 items-center">
+                    <div class="flex gap-4 items-center flex-wrap">
                         <input 
                             v-model="search" 
                             type="text" 
@@ -57,6 +63,13 @@ const getDocClass = (doc) => {
                             <option value="male">Мужской</option>
                             <option value="female">Женский</option>
                         </select>
+                        <select v-model="sortAge" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500">
+                            <option value="">Возраст: по умолчанию</option>
+                            <option value="asc">Возраст: от младших</option>
+                            <option value="desc">Возраст: от старших</option>
+                        </select>
+                        <input v-model="startedFrom" type="date" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500" />
+                        <input v-model="startedTo" type="date" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500" />
                     </div>
                     <div class="text-sm text-gray-500">
                         Найдено: {{ athletes.length }} спортсменов
@@ -91,8 +104,9 @@ const getDocClass = (doc) => {
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">{{ athlete.age }} лет</div>
+                                    <div class="text-sm text-gray-900">{{ athlete.age_label }}</div>
                                     <div class="text-xs text-gray-400">{{ athlete.birth_date }}</div>
+                                    <div class="text-xs text-gray-400">Начал(а): {{ athlete.started_at || '—' }}</div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800">

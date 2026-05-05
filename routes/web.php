@@ -4,6 +4,7 @@ use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\AddressSuggestionController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AttendanceController;
+use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\PortfolioController;
@@ -27,7 +28,7 @@ Route::get('/', function () {
 });
 
 // 2. Маршруты первичной настройки (БЕЗ middleware profile.completed)
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     // Анкета спортсмена
     Route::get('/athlete/setup', [AthleteController::class, 'create'])->name('athlete.create');
     Route::post('/athlete/setup', [AthleteController::class, 'store'])->name('athlete.store');
@@ -41,7 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // 3. Основная рабочая область CRM (С middleware profile.completed)
-Route::middleware(['auth', 'verified', 'profile.completed'])->group(function () {
+Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->group(function () {
 
     // Дашборд
     Route::get('/dashboard', function () {
@@ -90,7 +91,10 @@ Route::middleware(['auth', 'verified', 'profile.completed'])->group(function () 
         Route::get('/admin/coaches', [UserManagementController::class, 'index'])->name('admin.coaches');
         Route::post('/admin/coaches', [UserManagementController::class, 'storeCoach'])->name('admin.coaches.store');
         Route::patch('/admin/coaches/{coach}', [UserManagementController::class, 'updateCoach'])->name('admin.coaches.update');
+        Route::patch('/admin/coaches/{coach}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('admin.coaches.toggle-status');
         Route::delete('/admin/coaches/{coach}', [UserManagementController::class, 'destroyCoach'])->name('admin.coaches.destroy');
+        Route::get('/admin/finance', [FinanceController::class, 'index'])->name('admin.finance');
+        Route::patch('/admin/finance/{athlete}', [FinanceController::class, 'update'])->name('admin.finance.update');
 
         Route::get('/admin/portfolio', [PortfolioController::class, 'index'])->name('admin.portfolio');
         Route::post('/admin/portfolio/hosts', [PortfolioController::class, 'storeHost'])->name('admin.portfolio.hosts.store');

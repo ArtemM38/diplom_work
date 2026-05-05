@@ -134,6 +134,7 @@ const pickAddress = (value) => {
 };
 
 const targetRoute = computed(() => props.submitRoute || route('athlete.store'));
+const today = computed(() => new Date().toISOString().slice(0, 10));
 
 const submit = () => {
     form.submit(props.submitMethod, targetRoute.value, {
@@ -229,7 +230,7 @@ onMounted(() => {
                         </div>
                         <div>
                             <InputLabel value="Дата рождения" />
-                            <TextInput v-model="form.birth_date" type="date" class="w-full" required />
+                            <TextInput v-model="form.birth_date" type="date" :max="today" class="w-full" required />
                         </div>
                         <div>
                             <InputLabel value="Пол" />
@@ -307,7 +308,7 @@ onMounted(() => {
                             </div>
                             <div>
                                 <InputLabel value="Дата" />
-                                <TextInput type="date" v-model="item.assigned_at" class="w-full text-sm" />
+                                <TextInput type="date" :max="today" v-model="item.assigned_at" class="w-full text-sm" />
                             </div>
                             <button @click="removeRank(index)" class="bg-red-100 text-red-600 p-2 rounded">✕</button>
                         </div>
@@ -331,7 +332,7 @@ onMounted(() => {
                             </div>
                             <div>
                                 <InputLabel value="Дата" />
-                                <TextInput type="date" v-model="item.assigned_at" class="w-full text-sm" />
+                                <TextInput type="date" :max="today" v-model="item.assigned_at" class="w-full text-sm" />
                             </div>
                             <button @click="removeReferee(index)" class="bg-red-100 text-red-600 p-2 rounded">✕</button>
                         </div>
@@ -348,11 +349,11 @@ onMounted(() => {
                             <div class="font-semibold">Медицинская справка</div>
                             <div>
                                 <InputLabel value="Дата выдачи" />
-                                <TextInput type="date" v-model="form.doc_medical_issue" class="w-full" />
+                                <TextInput type="date" :max="today" v-model="form.doc_medical_issue" class="w-full" />
                             </div>
                             <div>
                                 <InputLabel value="Срок действия" />
-                                <TextInput type="date" v-model="form.doc_medical_expiry" class="w-full" />
+                                <TextInput type="date" :max="today" v-model="form.doc_medical_expiry" class="w-full" />
                             </div>
                             <div>
                                 <InputLabel value="Скан (PDF/JPG)" />
@@ -365,11 +366,11 @@ onMounted(() => {
                             <div class="font-semibold">Страховой полис</div>
                             <div>
                                 <InputLabel value="Дата выдачи" />
-                                <TextInput type="date" v-model="form.doc_insurance_issue" class="w-full" />
+                                <TextInput type="date" :max="today" v-model="form.doc_insurance_issue" class="w-full" />
                             </div>
                             <div>
                                 <InputLabel value="Срок действия" />
-                                <TextInput type="date" v-model="form.doc_insurance_expiry" class="w-full" />
+                                <TextInput type="date" :max="today" v-model="form.doc_insurance_expiry" class="w-full" />
                             </div>
                             <div>
                                 <InputLabel value="Скан (PDF/JPG)" />
@@ -389,7 +390,7 @@ onMounted(() => {
                             <div class="space-y-2">
                                 <TextInput v-model="form.doc_identity_issued_by" placeholder="Кем выдан"
                                     class="w-full text-sm" />
-                                <TextInput type="date" v-model="form.doc_identity_issue_date" class="w-full text-sm" />
+                                <TextInput type="date" :max="today" v-model="form.doc_identity_issue_date" class="w-full text-sm" />
                             </div>
                             <div>
                                 <InputLabel value="Скан" />

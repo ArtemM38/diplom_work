@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Athlete;
 use App\Models\Schedule;
 use App\Models\Attendance;
+use App\Models\AthleteFinance;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -29,13 +31,58 @@ class AttendanceController extends Controller
     // Сохранить отметки
     public function store(Request $request, Schedule $schedule)
     {
-        // Принимаем массив вида { athlete_id: 'Я', athlete_id: 'Н' }
-        foreach ($request->attendance as $athleteId => $status) {
-            Attendance::updateOrCreate(
-                ['schedule_id' => $schedule->id, 'athlete_id' => $athleteId],
-                ['status' => $status]
-            );
-        }
+        $schedule->load('group.athletes');
+        $priceByAthlete = $schedule->group?->athletes
+            ?->mapWithKeys(fn ($athlete) => [$athlete->id => (float) ($athlete->pivot->training_price ?? 0)]) ?? collect();
+
+        DB::transaction(function () use ($request, $schedule, $priceByAthlete) {
+            foreach ($request->attendance as $athleteId => $status) {
+                $attendance = Attendance::updateOrCreate(
+                    ['schedule_id' => $schedule->id, 'athlete_id' => $athleteId],
+                    ['status' => $status]
+                );
+
+                // По требованиям списываем только при Я или У.
+                if (!in_array($status, ['Я', 'У'], true)) {
+                    continue;
+                }
+
+                $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athleteId], [
+                    'balance' => 0,
+                    'training_price' => 0,
+                ]);
+
+                $price = (float) ($priceByAthlete->get((int) $athleteId, 0));
+                if ($price <= 0) {
+                    continue;
+                }
+
+                $alreadyCharged = \App\Models\AthleteBalanceHistory::query()
+                    ->where('attendance_id', $attendance->id)
+                    ->where('reason', 'attendance_charge')
+                    ->exists();
+
+                if ($alreadyCharged) {
+                    continue;
+                }
+
+                $before = (float) $finance->balance;
+                $after = round($before - $price, 2);
+                $finance->update(['balance' => $after]);
+
+                \App\Models\AthleteBalanceHistory::create([
+                    'athlete_id' => $athleteId,
+                    'schedule_id' => $schedule->id,
+                    'attendance_id' => $attendance->id,
+                    'change_amount' => -$price,
+                    'balance_before' => $before,
+                    'balance_after' => $after,
+                    'reason' => 'attendance_charge',
+                    'status' => $status,
+                    'changed_by' => $request->user()?->id,
+                ]);
+            }
+        });
 
         return redirect()->route('admin.schedule')->with('success', 'Посещаемость сохранена');
     }

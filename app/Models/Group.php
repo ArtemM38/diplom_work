@@ -10,6 +10,6 @@ class Group extends Model
 
     public function athletes()
     {
-        return $this->belongsToMany(Athlete::class, 'athlete_group');
+        return $this->belongsToMany(Athlete::class, 'athlete_group')->withPivot('training_price');
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Athlete;
+use App\Models\AthleteFinance;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -73,11 +74,21 @@ class GroupController extends Controller
     public function attachAthlete(Request $request, Group $group)
     {
         $request->validate([
-            'athlete_id' => 'required|exists:athletes,id'
+            'athlete_id' => 'required|exists:athletes,id',
         ]);
 
-        // syncWithoutDetaching добавит связь, если её нет, и не затронет существующие
-        $group->athletes()->syncWithoutDetaching($request->athlete_id);
+        $athleteId = (int) $request->athlete_id;
+        $trainingPrice = (float) $group->tariff_amount;
+
+        $group->athletes()->syncWithoutDetaching([
+            $athleteId => ['training_price' => $trainingPrice],
+        ]);
+        $group->athletes()->updateExistingPivot($athleteId, ['training_price' => $trainingPrice]);
+
+        AthleteFinance::firstOrCreate(['athlete_id' => $athleteId], [
+            'balance' => 0,
+            'training_price' => 0,
+        ]);
 
         return redirect()->back()->with('success', 'Спортсмен зачислен в группу');
     }

@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // 2. Твой алиас для проверки профиля
         $middleware->alias([
             'profile.completed' => \App\Http\Middleware\EnsureProfileIsCompleted::class,
+            'active.user' => \App\Http\Middleware\EnsureUserIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

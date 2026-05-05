@@ -58,7 +58,7 @@ const submit = () => {
                             </td>
                             <td class="px-6 py-4">
                                 <div class="flex justify-center gap-2">
-                                    <button v-for="status in ['Я', 'Н', 'УН']" :key="status"
+                                    <button v-for="status in ['Я', 'У', 'Н', 'УН']" :key="status"
                                         @click="form.attendance[athlete.id] = status" type="button" :class="[
                                             'px-4 py-2 rounded-lg text-xs font-bold transition',
                                             form.attendance[athlete.id] === status

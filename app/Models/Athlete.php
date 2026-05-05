@@ -60,4 +60,14 @@ class Athlete extends Model
     {
         return $this->hasMany(PortfolioAchievement::class);
     }
+
+    public function finance()
+    {
+        return $this->hasOne(AthleteFinance::class);
+    }
+
+    public function balanceHistory()
+    {
+        return $this->hasMany(AthleteBalanceHistory::class);
+    }
 }

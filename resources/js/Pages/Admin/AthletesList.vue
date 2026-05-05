@@ -9,8 +9,8 @@ const props = defineProps({
     filters: Object
 });
 
-const search = ref(props.filters.search);
-const gender = ref(props.filters.gender);
+const search = ref(props.filters.search || '');
+const gender = ref(props.filters.gender || '');
 const sortAge = ref(props.filters.sort_age || '');
 const startedFrom = ref(props.filters.started_from || '');
 const startedTo = ref(props.filters.started_to || '');
@@ -36,6 +36,22 @@ const getDocClass = (doc) => {
     if (doc.is_warning) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
     return 'bg-green-100 text-green-700 border-green-200';
 };
+
+const applyPeriodPreset = (days) => {
+    const to = new Date();
+    const from = new Date();
+    from.setDate(to.getDate() - days);
+    startedTo.value = to.toISOString().slice(0, 10);
+    startedFrom.value = from.toISOString().slice(0, 10);
+};
+
+const resetFilters = () => {
+    search.value = '';
+    gender.value = '';
+    sortAge.value = '';
+    startedFrom.value = '';
+    startedTo.value = '';
+};
 </script>
 
 <template>
@@ -59,7 +75,7 @@ const getDocClass = (doc) => {
                             class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 w-64"
                         />
                         <select v-model="gender" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500">
-                            <option :value="null">Все полы</option>
+                            <option value="">Все полы</option>
                             <option value="male">Мужской</option>
                             <option value="female">Женский</option>
                         </select>
@@ -70,6 +86,10 @@ const getDocClass = (doc) => {
                         </select>
                         <input v-model="startedFrom" type="date" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500" />
                         <input v-model="startedTo" type="date" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500" />
+                        <button type="button" @click="applyPeriodPreset(7)" class="px-3 py-2 text-xs rounded border">7 дней</button>
+                        <button type="button" @click="applyPeriodPreset(30)" class="px-3 py-2 text-xs rounded border">30 дней</button>
+                        <button type="button" @click="applyPeriodPreset(90)" class="px-3 py-2 text-xs rounded border">90 дней</button>
+                        <button type="button" @click="resetFilters" class="px-3 py-2 text-xs rounded bg-gray-100">Сбросить фильтры</button>
                     </div>
                     <div class="text-sm text-gray-500">
                         Найдено: {{ athletes.length }} спортсменов

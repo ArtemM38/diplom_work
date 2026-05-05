@@ -48,8 +48,13 @@ const calendarDays = computed(() => {
 
 const getBadgeClass = (status) => {
     if (status === 'Я') return 'bg-green-100 text-green-700';
+    if (status === 'У') return 'bg-blue-100 text-blue-700';
     if (status === 'УН') return 'bg-yellow-100 text-yellow-700';
     return 'bg-red-100 text-red-700';
+};
+
+const toggleAthlete = (id) => {
+    athleteId.value = athleteId.value === id ? '' : id;
 };
 
 watch(search, debounce((value) => {
@@ -79,7 +84,7 @@ watch(scheduleId, (value) => {
                     <button
                         v-for="athlete in athletes"
                         :key="athlete.id"
-                        @click="athleteId = athlete.id"
+                        @click="toggleAthlete(athlete.id)"
                         class="w-full text-left p-3 rounded-lg border transition"
                         :class="athleteId === athlete.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300'"
                     >

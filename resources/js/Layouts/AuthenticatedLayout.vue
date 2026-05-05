@@ -19,15 +19,14 @@ const safeRoute = (name, fallback = '#') => {
 };
 
 const navigation = computed(() => [
-    { name: 'Дашборд', href: safeRoute('dashboard'), icon: '', roles: ['admin', 'athlete', 'guardian', 'coach'] },
     { name: 'Реестр спортсменов', href: safeRoute('admin.athletes'), icon: '', roles: ['admin', 'coach'] },
     { name: 'Портфолио', href: safeRoute('admin.portfolio'), icon: '', roles: ['admin', 'coach'] },
     { name: 'Группы и секции', href: safeRoute('admin.groups'), icon: '', roles: ['admin', 'coach'] },
     { name: 'Расписание', href: safeRoute('admin.schedule'), icon: '', roles: ['admin', 'coach', 'athlete'] },
     { name: 'Залы', href: safeRoute('admin.locations'), icon: '', roles: ['admin'] },
-    { name: 'Тренеры', href: safeRoute('admin.coaches'), icon: '', roles: ['admin'] },
+    { name: 'Пользователи', href: safeRoute('admin.coaches'), icon: '', roles: ['admin'] },
     { name: 'Табель', href: safeRoute('admin.attendance.journal'), icon: '', roles: ['admin', 'coach'] },
-    { name: 'Финансы', href: '#', icon: '', roles: ['admin', 'accountant'] },
+    { name: 'Финансы', href: safeRoute('admin.finance'), icon: '', roles: ['admin', 'accountant'] },
 ]);
 
 const isRole = (roles) => {

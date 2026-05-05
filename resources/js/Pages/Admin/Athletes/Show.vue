@@ -101,6 +101,9 @@ defineProps({
                         {{ doc.type }}: {{ doc.issue_date || '—' }} - {{ doc.expiry_date || '—' }}
                         <span v-if="doc.series || doc.number"> | {{ doc.series || '' }} {{ doc.number || '' }}</span>
                         <span v-if="doc.issued_by"> | {{ doc.issued_by }}</span>
+                        <a v-if="doc.file_path" :href="`/storage/${doc.file_path}`" target="_blank" class="ml-2 text-indigo-600 hover:underline">
+                            Открыть файл
+                        </a>
                     </div>
                     <div v-if="!athlete.documents?.length" class="text-gray-400">Нет документов</div>
                 </div>

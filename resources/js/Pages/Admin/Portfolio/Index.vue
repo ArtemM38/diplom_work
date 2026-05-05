@@ -19,6 +19,7 @@ const athleteSearch = ref(props.filters?.athlete_search || '');
 const selectedAthleteId = ref(props.filters?.athlete_id ? String(props.filters.athlete_id) : '');
 const selectedAchievement = ref(null);
 const showDetailsModal = ref(false);
+const showFormModal = ref(false);
 
 const achievementForm = useForm({
     id: null,
@@ -36,6 +37,13 @@ const achievementForm = useForm({
     certificate_id: '',
     result_description: '',
     evidence_file: null,
+});
+const hostForm = useForm({
+    id: null,
+    full_name: '',
+    rank: '',
+    city: '',
+    contacts: '',
 });
 
 const filteredAchievements = computed(() => props.achievements || []);
@@ -56,18 +64,29 @@ watch(selectedAthleteId, (value) => {
     }, { preserveState: true, replace: true });
 });
 
+const toggleAthlete = (id) => {
+    const next = selectedAthleteId.value === String(id) ? '' : String(id);
+    selectedAthleteId.value = next;
+};
+
 const saveAchievement = () => {
     if (achievementForm.id) {
         achievementForm.patch(route('admin.portfolio.achievements.update', achievementForm.id), {
             forceFormData: true,
-            onSuccess: () => resetAchievementForm(),
+            onSuccess: () => {
+                resetAchievementForm();
+                showFormModal.value = false;
+            },
         });
         return;
     }
 
     achievementForm.post(route('admin.portfolio.achievements.store'), {
         forceFormData: true,
-        onSuccess: () => resetAchievementForm(),
+        onSuccess: () => {
+            resetAchievementForm();
+            showFormModal.value = false;
+        },
     });
 };
 
@@ -93,11 +112,42 @@ const editAchievement = (item) => {
     achievementForm.certificate_id = item.certificate_id ?? '';
     achievementForm.result_description = item.result_description ?? '';
     achievementForm.evidence_file = null;
+    showFormModal.value = true;
 };
 
 const removeAchievement = (achievementId) => {
     if (!confirm('Удалить достижение?')) return;
     achievementForm.delete(route('admin.portfolio.achievements.destroy', achievementId));
+};
+
+const openCreateModal = () => {
+    resetAchievementForm();
+    showFormModal.value = true;
+};
+
+const editHost = (host) => {
+    hostForm.id = host.id;
+    hostForm.full_name = host.full_name ?? '';
+    hostForm.rank = host.rank ?? '';
+    hostForm.city = host.city ?? '';
+    hostForm.contacts = host.contacts ?? '';
+};
+
+const saveHost = () => {
+    if (hostForm.id) {
+        hostForm.patch(route('admin.portfolio.hosts.update', hostForm.id), {
+            onSuccess: () => hostForm.reset(),
+        });
+        return;
+    }
+    hostForm.post(route('admin.portfolio.hosts.store'), {
+        onSuccess: () => hostForm.reset(),
+    });
+};
+
+const removeHost = (hostId) => {
+    if (!confirm('Удалить ведущего?')) return;
+    hostForm.delete(route('admin.portfolio.hosts.destroy', hostId));
 };
 
 const showAchievementDetails = (item) => {
@@ -137,7 +187,7 @@ const selectNextAchievement = () => {
                     <button
                         v-for="a in athletes"
                         :key="a.id"
-                        @click="selectedAthleteId = String(a.id)"
+                        @click="toggleAthlete(a.id)"
                         class="w-full text-left p-3 rounded-lg border transition"
                         :class="selectedAthleteId === String(a.id) ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300'"
                     >
@@ -151,7 +201,16 @@ const selectNextAchievement = () => {
             </div>
 
             <div class="xl:col-span-2 bg-white p-6 rounded-xl shadow-sm">
-                <h3 class="font-bold mb-4">Достижения спортсмена</h3>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold">Достижения спортсмена</h3>
+                    <button
+                        v-if="selectedAthleteId"
+                        @click="openCreateModal"
+                        class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold"
+                    >
+                        + Добавить достижение
+                    </button>
+                </div>
                 <div v-if="!selectedAthleteId" class="text-sm text-gray-500 mb-4">
                     Выберите спортсмена слева, чтобы увидеть его личные достижения.
                 </div>
@@ -180,6 +239,33 @@ const selectNextAchievement = () => {
                     </tbody>
                 </table>
 
+            </div>
+        </div>
+
+        <div class="mt-6 bg-white p-6 rounded-xl shadow-sm">
+            <h3 class="font-bold mb-4">Ведущие мероприятий</h3>
+            <div class="grid md:grid-cols-5 gap-2 mb-4">
+                <input v-model="hostForm.full_name" class="border-gray-300 rounded-lg" placeholder="ФИО" />
+                <input v-model="hostForm.rank" class="border-gray-300 rounded-lg" placeholder="Спорт. разряд" />
+                <input v-model="hostForm.city" class="border-gray-300 rounded-lg" placeholder="Город" />
+                <input v-model="hostForm.contacts" class="border-gray-300 rounded-lg" placeholder="Контакты" />
+                <button @click="saveHost" class="bg-indigo-600 text-white rounded-lg px-3 py-2">
+                    {{ hostForm.id ? 'Сохранить' : 'Добавить' }}
+                </button>
+            </div>
+            <div class="space-y-2">
+                <div v-for="host in eventHosts" :key="host.id" class="border rounded-lg p-3 flex justify-between items-center text-sm">
+                    <div>{{ host.full_name }} | {{ host.rank || '—' }} | {{ host.city || '—' }} | {{ host.contacts || '—' }}</div>
+                    <div class="flex gap-2">
+                        <button @click="editHost(host)" class="px-2 py-1 rounded bg-indigo-100 text-indigo-700">Редактировать</button>
+                        <button @click="removeHost(host.id)" class="px-2 py-1 rounded bg-red-100 text-red-700">Удалить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="showFormModal" class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" @click.self="showFormModal = false">
+            <div class="bg-white w-full max-w-2xl rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto">
                 <h4 class="font-semibold mb-3">{{ achievementForm.id ? 'Редактировать достижение' : 'Добавить достижение' }}</h4>
                 <form @submit.prevent="saveAchievement" class="space-y-3">
                     <input v-model="achievementForm.event_name" placeholder="Название мероприятия" class="w-full border-gray-300 rounded-lg" required>
@@ -212,7 +298,7 @@ const selectNextAchievement = () => {
                     <input type="file" @input="achievementForm.evidence_file = $event.target.files[0]" class="w-full text-sm">
                     <div class="flex gap-2">
                         <button class="bg-green-600 text-white py-2 px-4 rounded-lg font-bold">Сохранить</button>
-                        <button type="button" @click="resetAchievementForm" class="bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-bold">Отмена</button>
+                        <button type="button" @click="showFormModal = false" class="bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-bold">Отмена</button>
                     </div>
                 </form>
             </div>

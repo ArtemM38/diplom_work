@@ -40,9 +40,7 @@ const isRole = (roles) => {
         <aside class="w-64 bg-slate-900 text-white hidden md:flex flex-col sticky top-0 h-screen shrink-0">
             <a href="/dashboard">
             <div class="p-6 flex items-center gap-3 border-b border-slate-800">
-                
-                <div class="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center font-bold">S</div>
-                <span class="text-xl font-bold tracking-wider uppercase">Sport CRM</span>
+                <span class="text-xl font-bold tracking-wider ml-5 uppercase">Sport CRM</span>
             </div>
         </a>
             <nav class="flex-1 p-4 space-y-2 mt-4 overflow-y-auto">

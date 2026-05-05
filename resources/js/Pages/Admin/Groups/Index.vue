@@ -84,7 +84,7 @@ watch(search, debounce((value) => {
                         </select>
                     </div>
                     <div>
-                        <label class="text-sm">Стоимость в месяц (руб)</label>
+                        <label class="text-sm">Стоимость за тренировку (руб)</label>
                         <input v-model="form.tariff_amount" type="number" class="w-full border-gray-300 rounded-lg">
                     </div>
                     <button class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold">Создать</button>

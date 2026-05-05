@@ -94,6 +94,11 @@ const saveEdit = () => {
         onSuccess: () => cancelEdit(),
     });
 };
+
+const removeSchedule = (scheduleId) => {
+    if (!confirm('Удалить тренировку? Это действие нельзя отменить.')) return;
+    form.delete(route('admin.schedule.destroy', scheduleId));
+};
 </script>
 
 <template>
@@ -245,7 +250,7 @@ const saveEdit = () => {
                                 <button v-else @click="saveEdit" class="px-2 py-1 rounded bg-emerald-100 text-emerald-700">Сохранить</button>
                                 <button v-if="editingScheduleId === s.id" @click="cancelEdit" class="px-2 py-1 rounded bg-gray-100 text-gray-700">Отмена</button>
 
-                                <button @click="form.delete(route('admin.schedule.destroy', s.id))"
+                                <button @click="removeSchedule(s.id)"
                                     class="text-red-300 hover:text-red-600 transition p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">

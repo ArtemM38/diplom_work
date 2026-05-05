@@ -40,11 +40,8 @@ const submit = () => {
 
         <!-- Заголовок и логотип -->
         <div class="mb-8 text-center">
-            <div
-                class="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 text-white rounded-2xl shadow-lg mb-4 text-3xl font-bold">
-                S
-            </div>
-            <h1 class="text-2xl font-bold text-gray-900">Добро пожаловать</h1>
+            
+            <h1 class="text-2xl font-bold mt-10 text-gray-900">Добро пожаловать</h1>
             <p class="text-sm text-gray-500 mt-1">Войдите в свой аккаунт</p>
         </div>
 

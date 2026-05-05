@@ -48,18 +48,16 @@ class GroupController extends Controller
     public function show(Group $group)
     {
         $athleteSearch = trim((string) request('athlete_search'));
-
-        $allAthletes = collect();
-        if ($athleteSearch !== '') {
-            $allAthletes = Athlete::select('id', 'last_name_nom', 'first_name_nom')
-                ->where(function ($q) use ($athleteSearch) {
+        $allAthletes = Athlete::select('id', 'last_name_nom', 'first_name_nom')
+            ->when($athleteSearch !== '', function ($query) use ($athleteSearch) {
+                $query->where(function ($q) use ($athleteSearch) {
                     $q->where('last_name_nom', 'like', '%' . $athleteSearch . '%')
                         ->orWhere('first_name_nom', 'like', '%' . $athleteSearch . '%');
-                })
-                ->orderBy('last_name_nom')
-                ->limit(30)
-                ->get();
-        }
+                });
+            })
+            ->orderBy('last_name_nom')
+            ->limit(300)
+            ->get();
 
         return Inertia::render('Admin/Groups/Show', [
             'group' => $group->load('athletes'),

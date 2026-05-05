@@ -427,7 +427,10 @@ onMounted(() => {
                 </div>
                 <!-- Кнопка сохранения -->
                 <div class="flex justify-center">
-                <Link :href="route('admin.athletes.show', editingAthlete.id)" class="inline-flex px-4 py-2 mr-10 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
+                <Link
+                        v-if="editingAthlete?.id"
+                        :href="route('admin.athletes.show', editingAthlete.id)"
+                        class="inline-flex px-4 py-2 mr-10 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
                         Отмена / Назад
                     </Link>
                     <PrimaryButton :disabled="form.processing" class="w-full md:w-1/2 py-4 justify-center text-lg">

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('athlete_id')->constrained()->onDelete('cascade');
 
             // Статус по ТЗ: Явка/Н/УН
-            $table->enum('status', ['Я', 'Н', 'УН'])->default('Н');
+            $table->enum('status', ['Я', 'Н', 'У'])->default('Н');
 
             $table->timestamps();
         });

@@ -9,14 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('athlete_group', function (Blueprint $table) {
-            $table->decimal('training_price', 10, 2)->default(0)->after('group_id');
+            if (!Schema::hasColumn('athlete_group', 'training_price')) {
+                $table->decimal('training_price', 10, 2)->default(0);
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('athlete_group', function (Blueprint $table) {
-            $table->dropColumn('training_price');
+            if (Schema::hasColumn('athlete_group', 'training_price')) {
+                $table->dropColumn('training_price');
+            }
         });
     }
 };

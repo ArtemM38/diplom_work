@@ -114,7 +114,7 @@ const filteredMembers = () => {
                             <select v-model="form.athlete_id"
                                 class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500">
                                 <option value="">
-                                    {{ athleteSearch ? '-- Выбрать из найденных --' : '-- Введите запрос для поиска --' }}
+                                    {{ athleteSearch ? '-- Выбрать из найденных --' : '-- Выберите спортсмена из списка --' }}
                                 </option>
                                 <option v-for="ath in allAthletes" :key="ath.id" :value="ath.id">
                                     {{ ath.last_name_nom }} {{ ath.first_name_nom }}

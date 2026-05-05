@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Schedule;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -92,6 +93,23 @@ class UserManagementController extends Controller
 
     public function toggleStatus(User $coach)
     {
+        if ($coach->is_active && $coach->role === 'coach') {
+            $hasFutureSchedules = Schedule::query()
+                ->where('coach_id', $coach->id)
+                ->where(function ($q) {
+                    $q->whereDate('lesson_date', '>', now()->toDateString())
+                        ->orWhere(function ($inner) {
+                            $inner->whereDate('lesson_date', now()->toDateString())
+                                ->whereTime('start_time', '>', now()->format('H:i:s'));
+                        });
+                })
+                ->exists();
+
+            if ($hasFutureSchedules) {
+                return redirect()->back()->with('error', 'Нельзя деактивировать тренера: у него есть будущие тренировки.');
+            }
+        }
+
         $coach->is_active = !$coach->is_active;
         $coach->save();
 

@@ -13,9 +13,23 @@ use Inertia\Inertia;
 
 class AttendanceController extends Controller
 {
+    private function scheduleStarted(Schedule $schedule): bool
+    {
+        if (!$schedule->lesson_date || !$schedule->start_time) {
+            return false;
+        }
+
+        $start = \Carbon\Carbon::parse($schedule->lesson_date . ' ' . $schedule->start_time);
+        return now()->greaterThanOrEqualTo($start);
+    }
+
     // Открыть страницу отметки для конкретной тренировки
     public function show(Schedule $schedule)
     {
+        if (!$this->scheduleStarted($schedule)) {
+            return redirect()->route('admin.schedule')->with('error', 'Отметку можно ставить только после начала тренировки.');
+        }
+
         // Загружаем тренировку вместе с группой и её спортсменами
         $schedule->load(['group.athletes', 'attendances']);
 
@@ -31,6 +45,10 @@ class AttendanceController extends Controller
     // Сохранить отметки
     public function store(Request $request, Schedule $schedule)
     {
+        if (!$this->scheduleStarted($schedule)) {
+            return redirect()->route('admin.schedule')->with('error', 'Отметку можно сохранять только после начала тренировки.');
+        }
+
         $schedule->load('group.athletes');
         $priceByAthlete = $schedule->group?->athletes
             ?->mapWithKeys(fn ($athlete) => [$athlete->id => (float) ($athlete->pivot->training_price ?? 0)]) ?? collect();
@@ -42,14 +60,13 @@ class AttendanceController extends Controller
                     ['status' => $status]
                 );
 
-                // По требованиям списываем только при Я или У.
-                if (!in_array($status, ['Я', 'У'], true)) {
+                // Списываем при Я и Н.
+                if (!in_array($status, ['Я', 'Н'], true)) {
                     continue;
                 }
 
                 $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athleteId], [
                     'balance' => 0,
-                    'training_price' => 0,
                 ]);
 
                 $price = (float) ($priceByAthlete->get((int) $athleteId, 0));
@@ -59,7 +76,6 @@ class AttendanceController extends Controller
 
                 $alreadyCharged = \App\Models\AthleteBalanceHistory::query()
                     ->where('attendance_id', $attendance->id)
-                    ->where('reason', 'attendance_charge')
                     ->exists();
 
                 if ($alreadyCharged) {
@@ -70,6 +86,15 @@ class AttendanceController extends Controller
                 $after = round($before - $price, 2);
                 $finance->update(['balance' => $after]);
 
+                $reasonText = 'Списание за тренировку';
+                if ($schedule->group?->name && $schedule->lesson_date) {
+                    $reasonText = sprintf(
+                        'Списание за тренировку, группа "%s", дата %s',
+                        $schedule->group->name,
+                        $schedule->lesson_date
+                    );
+                }
+
                 \App\Models\AthleteBalanceHistory::create([
                     'athlete_id' => $athleteId,
                     'schedule_id' => $schedule->id,
@@ -77,7 +102,7 @@ class AttendanceController extends Controller
                     'change_amount' => -$price,
                     'balance_before' => $before,
                     'balance_after' => $after,
-                    'reason' => 'attendance_charge',
+                    'reason' => $reasonText,
                     'status' => $status,
                     'changed_by' => $request->user()?->id,
                 ]);
@@ -166,7 +191,7 @@ class AttendanceController extends Controller
             $stats = [
                 'present' => $rows->where('status', 'Я')->count(),
                 'absent' => $rows->where('status', 'Н')->count(),
-                'excused' => $rows->where('status', 'УН')->count(),
+                'excused' => $rows->where('status', 'У')->count(),
             ];
 
             $schedules = Schedule::query()

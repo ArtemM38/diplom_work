@@ -26,6 +26,6 @@ class InactiveAccountTest extends TestCase
 
         $this->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Auth\/InactiveAccount');
+            ->assertSee('Аккаунт неактивен');
     }
 }

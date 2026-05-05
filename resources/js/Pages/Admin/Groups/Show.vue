@@ -11,6 +11,7 @@ const props = defineProps({
 });
 
 const athleteSearch = ref(props.filters?.athlete_search || '');
+const memberSearch = ref('');
 
 const form = useForm({
     athlete_id: '',
@@ -31,6 +32,14 @@ const removeAthlete = (athleteId) => {
 watch(athleteSearch, debounce((value) => {
     router.get(route('admin.groups.show', props.group.id), { athlete_search: value }, { preserveState: true, replace: true });
 }, 300));
+
+const filteredMembers = () => {
+    const q = memberSearch.value.trim().toLowerCase();
+    if (!q) return props.group.athletes;
+    return props.group.athletes.filter((athlete) =>
+        `${athlete.last_name_nom} ${athlete.first_name_nom}`.toLowerCase().includes(q)
+    );
+};
 </script>
 
 <template>
@@ -56,6 +65,9 @@ watch(athleteSearch, debounce((value) => {
                             Всего: {{ group.athletes.length }}
                         </span>
                     </div>
+                    <div class="px-6 py-3 border-b bg-gray-50">
+                        <input v-model="memberSearch" class="w-full border-gray-300 rounded-lg shadow-sm" placeholder="Поиск в составе группы..." />
+                    </div>
 
                     <table class="w-full">
                         <thead class="bg-gray-50 border-b">
@@ -66,7 +78,7 @@ watch(athleteSearch, debounce((value) => {
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            <tr v-for="athlete in group.athletes" :key="athlete.id" class="hover:bg-gray-50">
+                            <tr v-for="athlete in filteredMembers()" :key="athlete.id" class="hover:bg-gray-50">
                                 <td class="px-6 py-4">
                                     <div class="font-medium text-gray-900">
                                         {{ athlete.last_name_nom }} {{ athlete.first_name_nom }}
@@ -79,9 +91,9 @@ watch(athleteSearch, debounce((value) => {
                                     </button>
                                 </td>
                             </tr>
-                            <tr v-if="group.athletes.length === 0">
+                            <tr v-if="filteredMembers().length === 0">
                                 <td colspan="2" class="px-6 py-10 text-center text-gray-400 italic">
-                                    В этой группе пока нет спортсменов
+                                    По вашему фильтру никого не найдено
                                 </td>
                             </tr>
                         </tbody>

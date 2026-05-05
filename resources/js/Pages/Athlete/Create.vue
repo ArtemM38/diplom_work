@@ -2,6 +2,7 @@
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -181,14 +182,13 @@ onMounted(() => {
 
     <Head title="Регистрация спортсмена" />
 
-    <div class="py-12 bg-gray-50 min-h-screen">
+    <AuthenticatedLayout>
+        <template #header>
+            {{ editingAthlete ? 'Редактирование карточки спортсмена' : 'Регистрация спортсмена' }}
+        </template>
+        <div class="py-6">
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
             <form @submit.prevent="submit" class="space-y-8">
-                <div v-if="editingAthlete" class="flex justify-start">
-                    <Link :href="route('admin.athletes.show', editingAthlete.id)" class="inline-flex px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
-                        Отмена / Назад
-                    </Link>
-                </div>
 
                 <!-- БЛОК 1: Основная информация -->
                 <div class="bg-white p-6 shadow rounded-lg">
@@ -425,50 +425,11 @@ onMounted(() => {
                             required />
                     </div>
                 </div>
-
-                <!-- БЛОК 5: Инвентарь и Экипировка -->
-                <div class="bg-white p-6 shadow rounded-lg">
-                    <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2">4. Инвентарь / Экипировка / Документы
-                    </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                        <div>
-                            <p class="font-bold mb-2 text-sm text-gray-600">Спорт. инвентарь</p>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.weapon_case"
-                                    class="rounded mr-2"> Чехол для оружия</label>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.jo"
-                                    class="rounded mr-2"> Дзё</label>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.boken"
-                                    class="rounded mr-2"> Бокен</label>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.tanto"
-                                    class="rounded mr-2"> Танто</label>
-                        </div>
-                        <div>
-                            <p class="font-bold mb-2 text-sm text-gray-600">Экипировка</p>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.tshirt"
-                                    class="rounded mr-2"> Футболка</label>
-                            <label class="flex items-center"><input type="checkbox"
-                                    v-model="form.inventory.olympic_jacket" class="rounded mr-2"> Олимпийка</label>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.cap"
-                                    class="rounded mr-2"> Бейсболка</label>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.backpack"
-                                    class="rounded mr-2"> Рюкзак</label>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.shoe_bag"
-                                    class="rounded mr-2"> Мешок для сменки</label>
-                        </div>
-                        <div>
-                            <p class="font-bold mb-2 text-sm text-gray-600">Документы</p>
-                            <label class="flex items-center"><input type="checkbox"
-                                    v-model="form.inventory.budo_passport" class="rounded mr-2"> Будо-паспорт</label>
-                            <label class="flex items-center"><input type="checkbox" v-model="form.inventory.qual_book"
-                                    class="rounded mr-2"> Зачетная книжка</label>
-                            <label class="flex items-center"><input type="checkbox"
-                                    v-model="form.inventory.referee_book" class="rounded mr-2"> Книжка судьи</label>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Кнопка сохранения -->
                 <div class="flex justify-center">
+                <Link :href="route('admin.athletes.show', editingAthlete.id)" class="inline-flex px-4 py-2 mr-10 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
+                        Отмена / Назад
+                    </Link>
                     <PrimaryButton :disabled="form.processing" class="w-full md:w-1/2 py-4 justify-center text-lg">
                         {{ form.processing ? 'Сохранение...' : (editingAthlete ? 'Сохранить изменения' : 'Завершить регистрацию профиля') }}
                     </PrimaryButton>
@@ -477,6 +438,7 @@ onMounted(() => {
             </form>
         </div>
     </div>
+    </AuthenticatedLayout>
 </template>
 
 <style scoped>

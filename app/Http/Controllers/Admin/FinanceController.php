@@ -76,7 +76,6 @@ class FinanceController extends Controller
 
         $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athlete->id], [
             'balance' => 0,
-            'training_price' => 0,
         ]);
 
         $oldBalance = (float) $finance->balance;

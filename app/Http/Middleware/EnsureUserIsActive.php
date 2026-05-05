@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserIsActive
@@ -14,7 +13,7 @@ class EnsureUserIsActive
         $user = $request->user();
 
         if ($user && !$user->is_active && !$request->routeIs('logout')) {
-            return Inertia::render('Auth/InactiveAccount')->toResponse($request);
+            return response()->view('auth.inactive');
         }
 
         return $next($request);

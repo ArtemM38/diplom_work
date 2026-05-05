@@ -30,7 +30,6 @@ class FinanceOperationsTest extends TestCase
         AthleteFinance::create([
             'athlete_id' => $athlete->id,
             'balance' => 1000,
-            'training_price' => 0,
         ]);
 
         $this->actingAs($admin)->patch(route('admin.finance.update', $athlete), [

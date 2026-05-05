@@ -9,7 +9,6 @@ class AthleteFinance extends Model
     protected $fillable = [
         'athlete_id',
         'balance',
-        'training_price',
     ];
 
     public function athlete()

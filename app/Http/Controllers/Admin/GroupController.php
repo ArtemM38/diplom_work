@@ -87,7 +87,6 @@ class GroupController extends Controller
 
         AthleteFinance::firstOrCreate(['athlete_id' => $athleteId], [
             'balance' => 0,
-            'training_price' => 0,
         ]);
 
         return redirect()->back()->with('success', 'Спортсмен зачислен в группу');

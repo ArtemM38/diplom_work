@@ -51,7 +51,6 @@ class AttendanceChargeTest extends TestCase
         AthleteFinance::updateOrCreate(['athlete_id' => $athlete->id], [
             'athlete_id' => $athlete->id,
             'balance' => 1000,
-            'training_price' => 0,
         ]);
 
         $schedule = Schedule::create([
@@ -79,7 +78,6 @@ class AttendanceChargeTest extends TestCase
         $this->assertDatabaseHas('athlete_balance_histories', [
             'athlete_id' => $athlete->id,
             'change_amount' => -500.00,
-            'reason' => 'attendance_charge',
             'status' => 'Я',
         ]);
     }

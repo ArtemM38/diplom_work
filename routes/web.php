@@ -78,6 +78,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
 
         Route::get('/admin/schedule', [ScheduleController::class, 'index'])->name('admin.schedule');
         Route::post('/admin/schedule', [ScheduleController::class, 'store'])->name('admin.schedule.store');
+        Route::patch('/admin/schedule/{schedule}', [ScheduleController::class, 'update'])->name('admin.schedule.update');
         Route::delete('/admin/schedule/{schedule}', [ScheduleController::class, 'destroy'])->name('admin.schedule.destroy');
         Route::get('/admin/locations', [LocationController::class, 'index'])->name('admin.locations');
         Route::post('/admin/locations', [LocationController::class, 'store'])->name('admin.locations.store');

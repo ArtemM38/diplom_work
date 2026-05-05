@@ -44,6 +44,16 @@ const form = useForm({
     end_time: '',
     lesson_type: 'group',
 });
+const editForm = useForm({
+    lesson_date: '',
+    group_id: '',
+    location_id: '',
+    coach_id: '',
+    start_time: '',
+    end_time: '',
+    lesson_type: 'group',
+});
+const editingScheduleId = ref(null);
 
 // Клик по дню в календаре
 const selectDay = (date) => {
@@ -55,6 +65,33 @@ const selectDay = (date) => {
 const submit = () => {
     form.post(route('admin.schedule.store'), {
         onSuccess: () => form.reset('start_time', 'end_time'),
+    });
+};
+
+const canMarkAttendance = (schedule) => {
+    const startDateTime = dayjs(`${schedule.lesson_date} ${schedule.start_time}`);
+    return dayjs().isAfter(startDateTime) || dayjs().isSame(startDateTime);
+};
+
+const startEdit = (schedule) => {
+    editingScheduleId.value = schedule.id;
+    editForm.lesson_date = schedule.lesson_date;
+    editForm.group_id = schedule.group_id;
+    editForm.location_id = schedule.location_id;
+    editForm.coach_id = schedule.coach_id;
+    editForm.start_time = schedule.start_time?.substring(0, 5);
+    editForm.end_time = schedule.end_time?.substring(0, 5);
+};
+
+const cancelEdit = () => {
+    editingScheduleId.value = null;
+    editForm.reset();
+};
+
+const saveEdit = () => {
+    if (!editingScheduleId.value) return;
+    editForm.patch(route('admin.schedule.update', editingScheduleId.value), {
+        onSuccess: () => cancelEdit(),
     });
 };
 </script>
@@ -172,7 +209,7 @@ const submit = () => {
                         <div v-for="s in schedules.filter(s => s.lesson_date === selectedDate)" :key="s.id"
                             class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-3 text-xs border border-transparent hover:border-indigo-200 transition shadow-sm">
 
-                            <div class="flex flex-col flex-1">
+                            <div class="flex flex-col flex-1" v-if="editingScheduleId !== s.id">
                                 <span class="font-bold text-indigo-700">{{ s.start_time.substring(0, 5) }} - {{
                                     s.end_time.substring(0, 5) }}</span>
                                 <span class="text-slate-600">
@@ -180,15 +217,34 @@ const submit = () => {
                                     | {{ s.group.name }}
                                 </span>
                             </div>
+                            <div v-else class="grid grid-cols-2 gap-2 flex-1">
+                                <input v-model="editForm.start_time" type="time" class="border-gray-300 rounded-lg" />
+                                <input v-model="editForm.end_time" type="time" class="border-gray-300 rounded-lg" />
+                                <select v-model="editForm.group_id" class="border-gray-300 rounded-lg">
+                                    <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+                                </select>
+                                <select v-model="editForm.location_id" class="border-gray-300 rounded-lg">
+                                    <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                                </select>
+                                <select v-model="editForm.coach_id" class="border-gray-300 rounded-lg col-span-2">
+                                    <option v-for="c in coaches" :key="c.id" :value="c.id">{{ c.name }}</option>
+                                </select>
+                            </div>
 
                             <div class="flex items-center gap-2 ml-2">
                                 <!-- КНОПКА ОТМЕТИТЬ (Переход в журнал) -->
-                                <Link :href="route('admin.attendance.show', s.id)"
+                                <Link v-if="canMarkAttendance(s)" :href="route('admin.attendance.show', s.id)"
                                     class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-600 hover:text-white transition font-bold flex items-center gap-1">
                                 <span>Журнал</span>
                                 </Link>
+                                <span v-else class="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-400 font-semibold">
+                                    Доступно после тренировки
+                                </span>
 
-                                <!-- КНОПКА УДАЛЕНИЯ -->
+                                <button v-if="editingScheduleId !== s.id" @click="startEdit(s)" class="text-indigo-500 hover:text-indigo-700 transition p-1">✎</button>
+                                <button v-else @click="saveEdit" class="px-2 py-1 rounded bg-emerald-100 text-emerald-700">Сохранить</button>
+                                <button v-if="editingScheduleId === s.id" @click="cancelEdit" class="px-2 py-1 rounded bg-gray-100 text-gray-700">Отмена</button>
+
                                 <button @click="form.delete(route('admin.schedule.destroy', s.id))"
                                     class="text-red-300 hover:text-red-600 transition p-1">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"

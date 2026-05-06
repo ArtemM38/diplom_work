@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class AddressSuggestionController extends Controller
 {
@@ -18,14 +19,26 @@ class AddressSuggestionController extends Controller
             return response()->json(['suggestions' => []]);
         }
 
-        $response = Http::withHeaders([
+        $http = Http::withHeaders([
             'Authorization' => 'Token ' . $token,
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
-        ])->post('https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address', [
-            'query' => $request->string('query')->toString(),
-            'count' => 8,
         ]);
+
+        // На некоторых локальных Windows-сборках OpenSSL не доверяет цепочке DaData.
+        if (app()->environment('local')) {
+            $http = $http->withoutVerifying();
+        }
+
+        try {
+            $response = $http->post('https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address', [
+                'query' => $request->string('query')->toString(),
+                'count' => 8,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('DaData request failed', ['message' => $e->getMessage()]);
+            return response()->json(['suggestions' => []], 200);
+        }
 
         if ($response->failed()) {
             return response()->json(['suggestions' => []], 200);

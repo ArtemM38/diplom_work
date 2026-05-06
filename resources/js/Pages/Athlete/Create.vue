@@ -2,7 +2,7 @@
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import GuestLayout from '@/Layouts/GuestLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -182,10 +182,10 @@ onMounted(() => {
 
     <Head title="Регистрация спортсмена" />
 
-    <AuthenticatedLayout>
-        <template #header>
-            {{ editingAthlete ? 'Редактирование карточки спортсмена' : 'Регистрация спортсмена' }}
-        </template>
+    <GuestLayout>
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-900">{{ editingAthlete ? 'Редактирование карточки спортсмена' : 'Регистрация спортсмена' }}</h1>
+        </div>
         <div class="py-6">
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
             <form @submit.prevent="submit" class="space-y-8">
@@ -441,7 +441,7 @@ onMounted(() => {
             </form>
         </div>
     </div>
-    </AuthenticatedLayout>
+    </GuestLayout>
 </template>
 
 <style scoped>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AthleteController;
+use App\Http\Controllers\AthleteDocumentsController;
 use App\Http\Controllers\AddressSuggestionController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AttendanceController;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Models\Athlete;
+use App\Models\Schedule;
 
 // 1. Главная страница (Логин)
 Route::get('/', function () {
@@ -51,9 +53,35 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
             ->with(['rankHistories.rank', 'refereeHistories.refereeCategory', 'documents', 'inventory'])
             ->first();
 
+        $athleteSchedule = collect();
+        if ($athlete) {
+            $groupIds = $athlete->groups()->pluck('groups.id');
+            $athleteSchedule = Schedule::query()
+                ->with(['group', 'location', 'coach'])
+                ->when(request('from'), fn ($q) => $q->whereDate('lesson_date', '>=', request('from')))
+                ->when(request('to'), fn ($q) => $q->whereDate('lesson_date', '<=', request('to')))
+                ->when(request('group_id'), fn ($q) => $q->where('group_id', request('group_id')))
+                ->whereIn('group_id', $groupIds)
+                ->orderBy('lesson_date')
+                ->orderBy('start_time')
+                ->get()
+                ->map(fn ($s) => [
+                    'id' => $s->id,
+                    'lesson_date' => $s->lesson_date,
+                    'start_time' => $s->start_time,
+                    'end_time' => $s->end_time,
+                    'group' => $s->group?->name,
+                    'location' => $s->location?->name,
+                    'coach' => $s->coach?->name,
+                ]);
+        }
+
         return Inertia::render('Dashboard', [
             'athlete' => $athlete,
-            'userRole' => $user->role
+            'userRole' => $user->role,
+            'athleteSchedule' => $athleteSchedule,
+            'scheduleFilters' => request()->only(['from', 'to', 'group_id']),
+            'athleteGroups' => $athlete?->groups()->select('groups.id', 'groups.name')->get() ?? [],
         ]);
     })->name('dashboard');
 
@@ -61,6 +89,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');
+    Route::get('/athlete/documents/template/{template}/word', [AthleteDocumentsController::class, 'downloadWord'])->name('athlete.documents.word');
 
 
     // АДМИН-ПАНЕЛЬ

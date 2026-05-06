@@ -34,6 +34,7 @@ class GroupController extends Controller
     // Сохранение новой группы
     public function store(Request $request)
     {
+        abort_if($request->user()?->role === 'accountant', 403);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',
@@ -71,6 +72,7 @@ class GroupController extends Controller
     // Зачисление спортсмена в группу
     public function attachAthlete(Request $request, Group $group)
     {
+        abort_if($request->user()?->role === 'accountant', 403);
         $request->validate([
             'athlete_id' => 'required|exists:athletes,id',
         ]);
@@ -93,12 +95,21 @@ class GroupController extends Controller
     // Исключение из группы
     public function detachAthlete(Group $group, $athleteId)
     {
+        abort_if(request()->user()?->role === 'accountant', 403);
         $group->athletes()->detach($athleteId);
         return redirect()->back()->with('success', 'Спортсмен исключен из группы');
     }
 
     public function update(Request $request, Group $group)
     {
+        if ($request->user()?->role === 'accountant') {
+            $validated = $request->validate([
+                'tariff_amount' => 'required|numeric|min:0',
+            ]);
+            $group->update(['tariff_amount' => $validated['tariff_amount']]);
+            return redirect()->back()->with('success', 'Стоимость тренировки обновлена');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:100',
@@ -113,6 +124,7 @@ class GroupController extends Controller
 
     public function destroy(Group $group)
     {
+        abort_if(request()->user()?->role === 'accountant', 403);
         $group->delete();
 
         return redirect()->route('admin.groups')->with('success', 'Группа удалена');

@@ -17,6 +17,11 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class PortfolioController extends Controller
 {
+    private function ensureCanEdit(Request $request): void
+    {
+        abort_if($request->user()?->role === 'accountant', 403);
+    }
+
     public function index(Request $request)
     {
         $athleteId = $request->integer('athlete_id');
@@ -98,6 +103,7 @@ class PortfolioController extends Controller
 
     public function storeHost(Request $request)
     {
+        $this->ensureCanEdit($request);
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
             'rank' => 'nullable|string|max:255',
@@ -113,6 +119,7 @@ class PortfolioController extends Controller
 
     public function updateHost(Request $request, EventHost $host)
     {
+        $this->ensureCanEdit($request);
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
             'rank' => 'nullable|string|max:255',
@@ -128,6 +135,7 @@ class PortfolioController extends Controller
 
     public function destroyHost(EventHost $host)
     {
+        $this->ensureCanEdit(request());
         $host->delete();
 
         return back()->with('success', 'Ведущий удален');
@@ -135,6 +143,7 @@ class PortfolioController extends Controller
 
     public function storeAchievement(Request $request)
     {
+        $this->ensureCanEdit($request);
         $validated = $request->validate([
             'athlete_id' => 'required|exists:athletes,id',
             'event_name' => 'required|string|max:255',
@@ -164,6 +173,7 @@ class PortfolioController extends Controller
 
     public function updateAchievement(Request $request, PortfolioAchievement $achievement)
     {
+        $this->ensureCanEdit($request);
         $validated = $request->validate([
             'athlete_id' => 'required|exists:athletes,id',
             'event_name' => 'required|string|max:255',
@@ -196,6 +206,7 @@ class PortfolioController extends Controller
 
     public function destroyAchievement(PortfolioAchievement $achievement)
     {
+        $this->ensureCanEdit(request());
         if ($achievement->evidence_file_path) {
             Storage::disk('public')->delete($achievement->evidence_file_path);
         }

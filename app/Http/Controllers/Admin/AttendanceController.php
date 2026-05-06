@@ -45,6 +45,8 @@ class AttendanceController extends Controller
     // Сохранить отметки
     public function store(Request $request, Schedule $schedule)
     {
+        abort_if($request->user()?->role === 'accountant', 403);
+
         if (!$this->scheduleStarted($schedule)) {
             return redirect()->route('admin.schedule')->with('error', 'Отметку можно сохранять только после начала тренировки.');
         }

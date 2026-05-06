@@ -58,7 +58,7 @@ class AttendanceChargeTest extends TestCase
             'location_id' => $location->id,
             'coach_id' => $coach->id,
             'day_of_week' => 1,
-            'lesson_date' => now()->toDateString(),
+            'lesson_date' => now()->subDay()->toDateString(),
             'start_time' => '10:00:00',
             'end_time' => '11:00:00',
             'lesson_type' => 'group',

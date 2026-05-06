@@ -40,9 +40,11 @@ const submit = () => {
 
         <!-- Заголовок и логотип -->
         <div class="mb-8 text-center">
-            
-            <h1 class="text-2xl font-bold mt-10 text-gray-900">Добро пожаловать</h1>
-            <p class="text-sm text-gray-500 mt-1">Войдите в свой аккаунт</p>
+            <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 text-white font-bold text-lg shadow">
+                CRM
+            </div>
+            <h1 class="text-2xl font-bold mt-4 text-slate-900">Sport CRM</h1>
+            <p class="text-sm text-slate-500 mt-1">Войдите в свой аккаунт</p>
         </div>
 
         <!-- Успешный статус (например, после сброса пароля) -->

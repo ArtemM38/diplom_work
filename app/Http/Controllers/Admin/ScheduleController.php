@@ -40,6 +40,8 @@ class ScheduleController extends Controller
 
     public function store(Request $request)
     {
+        abort_if($request->user()?->role === 'accountant', 403);
+
         $request->validate([
             'group_id' => 'required|exists:groups,id',
             'location_id' => 'required|exists:locations,id',
@@ -70,6 +72,8 @@ class ScheduleController extends Controller
 
     public function update(Request $request, Schedule $schedule)
     {
+        abort_if($request->user()?->role === 'accountant', 403);
+
         $request->validate([
             'group_id' => 'required|exists:groups,id',
             'location_id' => 'required|exists:locations,id',
@@ -99,6 +103,7 @@ class ScheduleController extends Controller
 
     public function destroy(Schedule $schedule)
     {
+        abort_if(request()->user()?->role === 'accountant', 403);
         $schedule->delete();
         return redirect()->back();
     }

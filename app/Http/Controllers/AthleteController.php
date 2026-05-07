@@ -213,6 +213,9 @@ class AthleteController extends Controller
             'editingAthlete' => $athlete->load(['rankHistories', 'refereeHistories', 'inventory', 'documents']),
             'submitRoute' => route('athlete.update', $athlete),
             'submitMethod' => 'patch',
+            'cancelRoute' => $user?->role === 'admin'
+                ? route('admin.athletes.show', $athlete)
+                : route('dashboard'),
         ]);
     }
 

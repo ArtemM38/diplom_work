@@ -48,6 +48,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
 
     // Дашборд
     Route::get('/dashboard', function () {
+        /** @var \App\Models\User $user */
         $user = Auth::user();
         $athlete = $user->athlete()
             ->with(['rankHistories.rank', 'refereeHistories.refereeCategory', 'documents', 'inventory'])
@@ -89,6 +90,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/athlete/schedule-calendar', [ScheduleController::class, 'athleteCalendar'])->name('athlete.schedule.calendar');
     Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');
     Route::get('/athlete/documents/template/{template}/word', [AthleteDocumentsController::class, 'downloadWord'])->name('athlete.documents.word');
 

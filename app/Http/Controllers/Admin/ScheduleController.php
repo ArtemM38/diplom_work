@@ -38,6 +38,31 @@ class ScheduleController extends Controller
         ]);
     }
 
+    public function athleteCalendar(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user?->role === 'athlete', 403);
+
+        $athlete = $user->athlete;
+        if (!$athlete) {
+            return Inertia::render('Athlete/ScheduleCalendar', [
+                'schedules' => [],
+            ]);
+        }
+
+        $groupIds = $athlete->groups()->pluck('groups.id');
+        $schedules = Schedule::query()
+            ->with(['group', 'location', 'coach'])
+            ->whereIn('group_id', $groupIds)
+            ->orderBy('lesson_date')
+            ->orderBy('start_time')
+            ->get();
+
+        return Inertia::render('Athlete/ScheduleCalendar', [
+            'schedules' => $schedules,
+        ]);
+    }
+
     public function store(Request $request)
     {
         abort_if($request->user()?->role === 'accountant', 403);

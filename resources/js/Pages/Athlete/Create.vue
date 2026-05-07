@@ -2,7 +2,6 @@
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import { computed, onMounted, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
@@ -24,6 +23,10 @@ const props = defineProps({
     submitMethod: {
         type: String,
         default: 'post',
+    },
+    cancelRoute: {
+        type: String,
+        default: null,
     },
 });
 
@@ -109,6 +112,8 @@ const onPhoneInput = (event) => {
 };
 
 const addressSuggestions = ref([]);
+const showAddressSuggestions = ref(false);
+const suppressAddressSuggestOnce = ref(false);
 
 const fetchAddressSuggestions = debounce(async (value) => {
     if (!value || value.length < 3) {
@@ -126,15 +131,22 @@ const fetchAddressSuggestions = debounce(async (value) => {
 }, 250);
 
 watch(() => form.registration_address, (value) => {
+    if (suppressAddressSuggestOnce.value) {
+        suppressAddressSuggestOnce.value = false;
+        return;
+    }
     fetchAddressSuggestions(value);
 });
 
 const pickAddress = (value) => {
+    suppressAddressSuggestOnce.value = true;
     form.registration_address = value;
     addressSuggestions.value = [];
+    showAddressSuggestions.value = false;
 };
 
 const targetRoute = computed(() => props.submitRoute || route('athlete.store'));
+const targetCancelRoute = computed(() => props.cancelRoute || route('dashboard'));
 const today = computed(() => new Date().toISOString().slice(0, 10));
 
 const submit = () => {
@@ -182,14 +194,16 @@ onMounted(() => {
 
     <Head title="Регистрация спортсмена" />
 
-    <AuthenticatedLayout>
-        <template #header>
-            {{ editingAthlete ? 'Редактирование карточки спортсмена' : 'Регистрация спортсмена' }}
-        </template>
-        <div class="py-6">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8">
+    <div class="min-h-screen bg-gray-100 py-8 px-4">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-6">
+                <h1 class="text-2xl font-bold text-slate-900">{{ editingAthlete ? 'Редактирование карточки спортсмена' : 'Регистрация спортсмена' }}</h1>
+                <p class="text-sm text-slate-500 mt-1">Заполните профиль спортсмена</p>
+            </div>
+        </div>
+        <div class="py-2">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
             <form @submit.prevent="submit" class="space-y-8">
-
                 <!-- БЛОК 1: Основная информация -->
                 <div class="bg-white p-6 shadow rounded-lg">
                     <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2">1. Личные данные</h2>
@@ -242,13 +256,16 @@ onMounted(() => {
                         <div>
                             <InputLabel value="Адрес регистрации" />
                             <TextInput v-model="form.registration_address" class="w-full"
+                                @focus="showAddressSuggestions = true"
+                                @blur="setTimeout(() => (showAddressSuggestions = false), 120)"
                                 placeholder="Город, улица..." />
-                            <div v-if="addressSuggestions.length" class="relative">
+                            <div v-if="showAddressSuggestions && addressSuggestions.length" class="relative">
                                 <div class="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow">
                                     <button
                                         v-for="item in addressSuggestions"
                                         :key="item.value"
                                         type="button"
+                                        @mousedown.prevent
                                         @click="pickAddress(item.value)"
                                         class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
                                     >
@@ -429,7 +446,7 @@ onMounted(() => {
                 <div class="flex justify-center">
                 <Link
                         v-if="editingAthlete?.id"
-                        :href="route('admin.athletes.show', editingAthlete.id)"
+                        :href="targetCancelRoute"
                         class="inline-flex px-4 py-2 mr-10 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
                         Отмена / Назад
                     </Link>
@@ -441,7 +458,7 @@ onMounted(() => {
             </form>
         </div>
     </div>
-    </AuthenticatedLayout>
+    </div>
 </template>
 
 <style scoped>

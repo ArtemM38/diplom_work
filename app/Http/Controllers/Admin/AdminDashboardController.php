@@ -47,9 +47,9 @@ class AdminDashboardController extends Controller
             $query->latest();
         }
 
-        // 4. Получаем данные и добавляем вычисляемые поля (возраст)
-        $athletes = $query->get()->map(function ($athlete) {
+        $athletes = $query->paginate(15)->withQueryString()->through(function ($athlete) {
             $age = Carbon::parse($athlete->birth_date)->age;
+
             return [
                 'id' => $athlete->id,
                 'full_name' => "{$athlete->last_name_nom} {$athlete->first_name_nom} {$athlete->middle_name_nom}",
@@ -60,9 +60,7 @@ class AdminDashboardController extends Controller
                 'gender' => $athlete->gender,
                 'photo' => $athlete->photo,
                 'started_at' => optional($athlete->created_at)?->toDateString(),
-                // Берем последний присвоенный разряд
                 'current_rank' => $athlete->rankHistories->sortByDesc('assigned_at')->first()?->rank?->name ?? 'Не присвоен',
-                // Передаем статус документов
                 'documents' => $athlete->documents->map(function ($doc) {
                     return [
                         'type' => $doc->type,
@@ -71,7 +69,7 @@ class AdminDashboardController extends Controller
                         'is_warning' => $doc->expiry_date ? Carbon::parse($doc->expiry_date)->diffInDays(now()) < 14 : false,
                     ];
                 }),
-                'inventory_count' => collect($athlete->inventory)->filter(fn($val) => $val === true || $val === 1)->count(),
+                'inventory_count' => collect($athlete->inventory)->filter(fn ($val) => $val === true || $val === 1)->count(),
             ];
         });
 

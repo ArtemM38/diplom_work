@@ -22,7 +22,8 @@ class LocationController extends Controller
                     });
                 })
                 ->orderBy('name')
-                ->get(),
+                ->paginate(20)
+                ->withQueryString(),
             'filters' => ['search' => $search],
         ]);
     }

@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
@@ -9,7 +10,7 @@ import 'dayjs/locale/ru';
 dayjs.locale('ru');
 
 const props = defineProps({
-    athletes: Array,
+    athletes: Object,
     schedules: Array,
     scheduleAthletes: Array,
     rows: Array,
@@ -18,6 +19,8 @@ const props = defineProps({
     stats: Object,
     filters: Object,
 });
+
+const athletesList = computed(() => props.athletes?.data ?? []);
 
 const search = ref(props.filters?.search || '');
 const athleteId = ref(props.filters?.athlete_id || '');
@@ -81,7 +84,7 @@ watch(scheduleId, (value) => {
 
                 <div class="space-y-2 max-h-[550px] overflow-y-auto">
                     <button
-                        v-for="athlete in athletes"
+                        v-for="athlete in athletesList"
                         :key="athlete.id"
                         @click="toggleAthlete(athlete.id)"
                         class="w-full text-left p-3 rounded-lg border transition"
@@ -89,8 +92,9 @@ watch(scheduleId, (value) => {
                     >
                         {{ athlete.full_name }}
                     </button>
-                    <p v-if="athletes.length === 0" class="text-sm text-gray-400">По запросу никого не найдено</p>
+                    <p v-if="athletesList.length === 0" class="text-sm text-gray-400">По запросу никого не найдено</p>
                 </div>
+                <Pagination class="mt-3" :links="athletes.links" :meta="athletes" />
             </div>
 
             <div class="lg:col-span-8 bg-white p-6 rounded-xl shadow-sm">

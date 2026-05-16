@@ -1,10 +1,12 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
 
-const props = defineProps({ locations: Array, filters: Object });
+const props = defineProps({ locations: Object, filters: Object });
+const locationsList = computed(() => props.locations?.data ?? []);
 const search = ref(props.filters?.search || '');
 
 const createForm = useForm({ name: '', address: '' });
@@ -50,7 +52,7 @@ watch(search, debounce((value) => {
 
             <div class="lg:col-span-2 space-y-3">
                 <input v-model="search" class="w-full border-slate-300 rounded-xl" placeholder="Поиск по названию или адресу..." />
-                <div v-for="location in locations" :key="location.id" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2">
+                <div v-for="location in locationsList" :key="location.id" class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 space-y-2">
                     <div class="grid md:grid-cols-2 gap-2">
                         <input v-model="location.name" placeholder="Название" class="border-slate-300 rounded-xl" />
                         <input v-model="location.address" placeholder="Адрес" class="border-slate-300 rounded-xl" />
@@ -60,6 +62,7 @@ watch(search, debounce((value) => {
                         <button @click="removeLocation(location.id)" class="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm">Удалить</button>
                     </div>
                 </div>
+                <Pagination :links="locations.links" :meta="locations" />
             </div>
         </div>
     </AuthenticatedLayout>

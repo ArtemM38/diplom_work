@@ -7,32 +7,22 @@ use App\Models\Schedule;
 use App\Models\Group;
 use App\Models\Location;
 use App\Models\User;
+use App\Support\ScheduleAccess;
+use App\Support\ScheduleConflictChecker;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ScheduleController extends Controller
 {
-    private function hasConflict(Request $request, ?int $ignoreScheduleId = null): bool
-    {
-        return Schedule::query()
-            ->when($ignoreScheduleId, fn ($q) => $q->where('id', '!=', $ignoreScheduleId))
-            ->where('lesson_date', $request->lesson_date)
-            ->where(function ($q) use ($request) {
-                $q->where('location_id', $request->location_id)
-                    ->orWhere('coach_id', $request->coach_id);
-            })
-            ->where(function ($q) use ($request) {
-                $q->where('start_time', '<', $request->end_time)
-                    ->where('end_time', '>', $request->start_time);
-            })
-            ->exists();
-    }
-
     public function index()
     {
         return Inertia::render('Admin/Schedule/Index', [
-            'schedules' => Schedule::with(['group', 'location', 'coach'])->get(),
-            'groups' => Group::where('status', 'active')->get(),
+            'schedules' => Schedule::with(['group', 'location', 'coach'])->get()->map(fn (Schedule $s) => [
+                ...$s->toArray(),
+                'can_delete' => ScheduleAccess::canDelete($s),
+                'can_mark_attendance' => ScheduleAccess::canMarkAttendance($s),
+            ]),
+            'groups' => Group::visible()->where('status', 'active')->get(),
             'locations' => Location::all(),
             'coaches' => User::withRole('coach')->where('is_active', true)->get(),
         ]);
@@ -44,7 +34,7 @@ class ScheduleController extends Controller
         abort_unless($user?->hasRole('athlete'), 403);
 
         $athlete = $user->athlete;
-        if (!$athlete) {
+        if (! $athlete) {
             return Inertia::render('Athlete/ScheduleCalendar', [
                 'schedules' => [],
             ]);
@@ -71,7 +61,7 @@ class ScheduleController extends Controller
             'group_id' => 'required|exists:groups,id',
             'location_id' => 'required|exists:locations,id',
             'coach_id' => 'required|exists:users,id',
-            'lesson_date' => 'required|date', // Обязательная дата
+            'lesson_date' => 'required|date',
             'start_time' => 'required',
             'end_time' => 'required|after:start_time',
         ]);
@@ -80,18 +70,19 @@ class ScheduleController extends Controller
             ->withRole('coach')
             ->where('is_active', true)
             ->exists();
-        if (!$isActiveCoach) {
+        if (! $isActiveCoach) {
             return back()->withErrors(['coach_id' => 'Можно выбрать только активного тренера.']);
         }
 
-        // Вычисляем день недели (1-7) из даты для совместимости
         $dayOfWeek = \Carbon\Carbon::parse($request->lesson_date)->dayOfWeekIso;
 
-        if ($this->hasConflict($request)) {
-            return back()->withErrors(['conflict' => 'В этот день зал или тренер уже заняты в это время!']);
+        $conflicts = ScheduleConflictChecker::conflicts($request);
+        if ($conflicts !== []) {
+            return back()->withErrors(['conflict' => ScheduleConflictChecker::message($conflicts)]);
         }
 
         Schedule::create(array_merge($request->all(), ['day_of_week' => $dayOfWeek]));
+
         return back()->with('success', 'Занятие создано');
     }
 
@@ -112,12 +103,13 @@ class ScheduleController extends Controller
             ->withRole('coach')
             ->where('is_active', true)
             ->exists();
-        if (!$isActiveCoach) {
+        if (! $isActiveCoach) {
             return back()->withErrors(['coach_id' => 'Можно выбрать только активного тренера.']);
         }
 
-        if ($this->hasConflict($request, $schedule->id)) {
-            return back()->withErrors(['conflict' => 'В этот день зал или тренер уже заняты в это время!']);
+        $conflicts = ScheduleConflictChecker::conflicts($request, $schedule->id);
+        if ($conflicts !== []) {
+            return back()->withErrors(['conflict' => ScheduleConflictChecker::message($conflicts)]);
         }
 
         $dayOfWeek = \Carbon\Carbon::parse($request->lesson_date)->dayOfWeekIso;
@@ -128,9 +120,14 @@ class ScheduleController extends Controller
 
     public function destroy(Schedule $schedule)
     {
-        abort_if(request()->user()?->role === 'accountant', 403);
-        $schedule->delete();
-        return redirect()->back();
-    }
+        abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
 
+        if (! ScheduleAccess::canDelete($schedule)) {
+            return redirect()->back()->with('error', 'Удалить тренировку можно не позднее чем за 10 минут до начала.');
+        }
+
+        $schedule->delete();
+
+        return redirect()->back()->with('success', 'Тренировка удалена');
+    }
 }

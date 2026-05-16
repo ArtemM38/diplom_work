@@ -41,10 +41,10 @@ class UserManagementController extends Controller
                         });
                 });
             })
-            ->get()
-            ->sortBy('display_name', SORT_NATURAL | SORT_FLAG_CASE)
-            ->values()
-            ->map(fn (User $user) => [
+            ->orderBy('name')
+            ->paginate(20)
+            ->withQueryString()
+            ->through(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'display_name' => $user->display_name,

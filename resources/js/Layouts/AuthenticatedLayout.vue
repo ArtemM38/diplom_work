@@ -60,7 +60,7 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
         <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 bg-black/40 md:hidden" @click="mobileMenuOpen = false"></div>
         <aside
             :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
-            class="w-64 bg-slate-900 text-white fixed z-50 md:static md:translate-x-0 flex flex-col h-screen shrink-0 transition-transform duration-200"
+            class="w-64 bg-slate-900 text-white fixed z-50 md:sticky md:top-0 md:translate-x-0 flex flex-col min-h-screen shrink-0 transition-transform duration-200"
         >
             <a href="/dashboard">
                 <div class="p-6 flex items-center gap-3 border-b border-slate-800">
@@ -92,7 +92,7 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
             </div>
         </aside>
 
-        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div class="flex-1 flex flex-col min-w-0 min-h-screen bg-gray-50">
             <header class="bg-white shadow-sm border-b h-16 flex items-center justify-between px-4 md:px-8 shrink-0">
                 <button class="md:hidden p-2 rounded border" @click="mobileMenuOpen = !mobileMenuOpen">☰</button>
                 <h2 class="text-lg font-semibold text-gray-700">
@@ -132,7 +132,7 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
                 </div>
             </header>
 
-            <main class="flex-1 overflow-y-auto p-4 md:p-8 bg-gray-50">
+            <main class="flex-1 p-4 md:p-8">
                 <slot />
             </main>
         </div>

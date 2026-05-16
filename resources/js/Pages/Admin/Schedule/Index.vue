@@ -68,10 +68,9 @@ const submit = () => {
     });
 };
 
-const canMarkAttendance = (schedule) => {
-    const startDateTime = dayjs(`${schedule.lesson_date} ${schedule.start_time}`);
-    return dayjs().isAfter(startDateTime) || dayjs().isSame(startDateTime);
-};
+const canMarkAttendance = (schedule) => schedule.can_mark_attendance === true;
+
+const canDeleteSchedule = (schedule) => schedule.can_delete === true;
 
 const startEdit = (schedule) => {
     editingScheduleId.value = schedule.id;
@@ -95,9 +94,13 @@ const saveEdit = () => {
     });
 };
 
-const removeSchedule = (scheduleId) => {
-    if (!confirm('Удалить тренировку? Это действие нельзя отменить.')) return;
-    form.delete(route('admin.schedule.destroy', scheduleId));
+const removeSchedule = (schedule) => {
+    if (!canDeleteSchedule(schedule)) {
+        alert('Удалить тренировку можно не позднее чем за 10 минут до начала.');
+        return;
+    }
+    if (!confirm('Удалить тренировку?')) return;
+    form.delete(route('admin.schedule.destroy', schedule.id));
 };
 </script>
 
@@ -222,7 +225,9 @@ const removeSchedule = (scheduleId) => {
                                     | {{ s.group.name }}
                                 </span>
                             </div>
-                            <div v-else class="grid grid-cols-2 gap-2 flex-1">
+                            <div v-else class="flex-1 space-y-2">
+                                <p v-if="editForm.errors.conflict" class="text-red-600 text-xs bg-red-50 p-2 rounded">{{ editForm.errors.conflict }}</p>
+                                <div class="grid grid-cols-2 gap-2">
                                 <input v-model="editForm.start_time" type="time" class="border-gray-300 rounded-lg" />
                                 <input v-model="editForm.end_time" type="time" class="border-gray-300 rounded-lg" />
                                 <select v-model="editForm.group_id" class="border-gray-300 rounded-lg">
@@ -234,6 +239,7 @@ const removeSchedule = (scheduleId) => {
                                 <select v-model="editForm.coach_id" class="border-gray-300 rounded-lg col-span-2">
                                     <option v-for="c in coaches" :key="c.id" :value="c.id">{{ c.name }}</option>
                                 </select>
+                                </div>
                             </div>
 
                             <div class="flex items-center gap-2 ml-2">
@@ -242,16 +248,21 @@ const removeSchedule = (scheduleId) => {
                                     class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-600 hover:text-white transition font-bold flex items-center gap-1">
                                 <span>Журнал</span>
                                 </Link>
-                                <span v-else class="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-400 font-semibold">
-                                    Доступно после тренировки
+                                <span v-else class="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-400 font-semibold" title="Журнал открывается за 10 минут до начала">
+                                    Журнал с −10 мин
                                 </span>
 
                                 <button v-if="editingScheduleId !== s.id" @click="startEdit(s)" class="text-indigo-500 hover:text-indigo-700 transition p-1">✎</button>
                                 <button v-else @click="saveEdit" class="px-2 py-1 rounded bg-emerald-100 text-emerald-700">Сохранить</button>
                                 <button v-if="editingScheduleId === s.id" @click="cancelEdit" class="px-2 py-1 rounded bg-gray-100 text-gray-700">Отмена</button>
 
-                                <button @click="removeSchedule(s.id)"
-                                    class="text-red-300 hover:text-red-600 transition p-1">
+                                <button
+                                    @click="removeSchedule(s)"
+                                    :disabled="!canDeleteSchedule(s)"
+                                    :class="canDeleteSchedule(s) ? 'text-red-400 hover:text-red-600' : 'text-gray-300 cursor-not-allowed'"
+                                    class="transition p-1"
+                                    :title="canDeleteSchedule(s) ? 'Удалить' : 'Удаление недоступно (менее 10 мин до начала)'"
+                                >
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                                         viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

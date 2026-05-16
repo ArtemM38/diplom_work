@@ -1,13 +1,16 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
 import { Head, router, Link } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
 
 const props = defineProps({
-    athletes: Array,
-    filters: Object
+    athletes: Object,
+    filters: Object,
 });
+
+const athletesList = computed(() => props.athletes?.data ?? []);
 
 const search = ref(props.filters.search || '');
 const gender = ref(props.filters.gender || '');
@@ -62,8 +65,8 @@ const resetFilters = () => {
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">Реестр спортсменов</h2>
         </template>
 
-        <div class="py-12">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+        <div>
+            <div class="max-w-7xl mx-auto">
                 
                 <!-- Фильтры -->
                 <div class="mb-6 flex flex-wrap gap-4 items-center justify-between bg-white p-4 rounded-lg shadow-sm">
@@ -75,7 +78,7 @@ const resetFilters = () => {
                             class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 w-64"
                         />
                         <select v-model="gender" class="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500">
-                            <option value="">Все полы</option>
+                            <option value="">Пол: любой</option>
                             <option value="male">Мужской</option>
                             <option value="female">Женский</option>
                         </select>
@@ -92,7 +95,7 @@ const resetFilters = () => {
                         <button type="button" @click="resetFilters" class="px-3 py-2 text-xs rounded bg-gray-100">Сбросить фильтры</button>
                     </div>
                     <div class="text-sm text-gray-500">
-                        Найдено: {{ athletes.length }} спортсменов
+                        Найдено: {{ athletes.total ?? athletesList.length }} спортсменов
                     </div>
                 </div>
 
@@ -110,7 +113,7 @@ const resetFilters = () => {
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="athlete in athletes" :key="athlete.id" class="hover:bg-gray-50 transition">
+                            <tr v-for="athlete in athletesList" :key="athlete.id" class="hover:bg-gray-50 transition">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="flex-shrink-0 h-10 w-10">
@@ -156,9 +159,10 @@ const resetFilters = () => {
                         </tbody>
                     </table>
                     
-                    <div v-if="athletes.length === 0" class="p-8 text-center text-gray-500 italic">
+                    <div v-if="athletesList.length === 0" class="p-8 text-center text-gray-500 italic">
                         Ничего не найдено...
                     </div>
+                    <Pagination :links="athletes.links" :meta="athletes" />
                 </div>
             </div>
         </div>

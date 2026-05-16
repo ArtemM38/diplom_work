@@ -1,10 +1,12 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
 
-const props = defineProps({ users: Array, roles: Array, roleLabels: Object, filters: Object });
+const props = defineProps({ users: Object, roles: Array, roleLabels: Object, filters: Object });
+const usersList = computed(() => props.users?.data ?? []);
 const search = ref(props.filters?.search || '');
 const roleFilter = ref(props.filters?.role || 'all');
 const activeFilter = ref(props.filters?.active || 'all');
@@ -117,7 +119,7 @@ watch([roleFilter, activeFilter], () => {
                 </div>
 
                 <div
-                    v-for="user in users"
+                    v-for="user in usersList"
                     :key="user.id"
                     class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3"
                 >
@@ -170,6 +172,7 @@ watch([roleFilter, activeFilter], () => {
                         <Link :href="route('admin.users.show', user.id)" class="ml-auto text-sm text-indigo-600 self-center hover:underline">Профиль →</Link>
                     </div>
                 </div>
+                <Pagination :links="users.links" :meta="users" />
             </div>
         </div>
     </AuthenticatedLayout>

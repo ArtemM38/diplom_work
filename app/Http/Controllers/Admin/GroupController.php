@@ -11,30 +11,36 @@ use Inertia\Inertia;
 
 class GroupController extends Controller
 {
-    // Список всех групп
     public function index()
     {
         $search = request('search');
+        $showArchived = request('show_archived') === '1';
 
-        $groups = Group::withCount('athletes')
-            ->when($search, function ($query) use ($search) {
-                $query->where('name', 'like', '%' . $search . '%');
-            })
-            ->orderBy('name')
-            ->get();
+        $query = Group::withCount('athletes')
+            ->when($search, fn ($q) => $q->where('name', 'like', '%' . $search . '%'));
+
+        if ($showArchived) {
+            $query->withTrashed()->where(function ($q) {
+                $q->where('status', 'archived')->orWhereNotNull('deleted_at');
+            });
+        } else {
+            $query->visible();
+        }
+
+        $groups = $query->orderBy('name')->paginate(15)->withQueryString();
 
         return Inertia::render('Admin/Groups/Index', [
             'groups' => $groups,
             'filters' => [
                 'search' => $search,
+                'show_archived' => $showArchived,
             ],
         ]);
     }
 
-    // Сохранение новой группы
     public function store(Request $request)
     {
-        abort_if($request->user()?->role === 'accountant', 403);
+        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',
@@ -42,10 +48,10 @@ class GroupController extends Controller
         ]);
 
         Group::create($validated);
+
         return redirect()->back()->with('success', 'Группа создана');
     }
 
-    // Страница управления составом группы
     public function show(Group $group)
     {
         $athleteSearch = trim((string) request('athlete_search'));
@@ -57,8 +63,8 @@ class GroupController extends Controller
                 });
             })
             ->orderBy('last_name_nom')
-            ->limit(300)
-            ->get();
+            ->paginate(30)
+            ->withQueryString();
 
         return Inertia::render('Admin/Groups/Show', [
             'group' => $group->load('athletes'),
@@ -69,10 +75,9 @@ class GroupController extends Controller
         ]);
     }
 
-    // Зачисление спортсмена в группу
     public function attachAthlete(Request $request, Group $group)
     {
-        abort_if($request->user()?->role === 'accountant', 403);
+        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
         $request->validate([
             'athlete_id' => 'required|exists:athletes,id',
         ]);
@@ -92,21 +97,22 @@ class GroupController extends Controller
         return redirect()->back()->with('success', 'Спортсмен зачислен в группу');
     }
 
-    // Исключение из группы
     public function detachAthlete(Group $group, $athleteId)
     {
-        abort_if(request()->user()?->role === 'accountant', 403);
+        abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
         $group->athletes()->detach($athleteId);
+
         return redirect()->back()->with('success', 'Спортсмен исключен из группы');
     }
 
     public function update(Request $request, Group $group)
     {
-        if ($request->user()?->role === 'accountant') {
+        if ($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach'])) {
             $validated = $request->validate([
                 'tariff_amount' => 'required|numeric|min:0',
             ]);
             $group->update(['tariff_amount' => $validated['tariff_amount']]);
+
             return redirect()->back()->with('success', 'Стоимость тренировки обновлена');
         }
 
@@ -114,7 +120,7 @@ class GroupController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:100',
             'tariff_amount' => 'required|numeric|min:0',
-            'status' => 'required|in:active,inactive',
+            'status' => 'required|in:active,inactive,archived',
         ]);
 
         $group->update($validated);
@@ -124,7 +130,18 @@ class GroupController extends Controller
 
     public function destroy(Group $group)
     {
-        abort_if(request()->user()?->role === 'accountant', 403);
+        abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
+
+        if ($group->hasTrainingHistory()) {
+            $group->update([
+                'status' => 'archived',
+                'archived_at' => now(),
+            ]);
+            $group->delete();
+
+            return redirect()->route('admin.groups')->with('success', 'Группа перенесена в архив (были тренировки или списания).');
+        }
+
         $group->delete();
 
         return redirect()->route('admin.groups')->with('success', 'Группа удалена');

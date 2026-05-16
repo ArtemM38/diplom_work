@@ -7,48 +7,34 @@ use App\Models\Athlete;
 use App\Models\Schedule;
 use App\Models\Attendance;
 use App\Models\AthleteFinance;
+use App\Support\ScheduleAccess;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class AttendanceController extends Controller
 {
-    private function scheduleStarted(Schedule $schedule): bool
-    {
-        if (!$schedule->lesson_date || !$schedule->start_time) {
-            return false;
-        }
-
-        $start = \Carbon\Carbon::parse($schedule->lesson_date . ' ' . $schedule->start_time);
-        return now()->greaterThanOrEqualTo($start);
-    }
-
-    // Открыть страницу отметки для конкретной тренировки
     public function show(Schedule $schedule)
     {
-        if (!$this->scheduleStarted($schedule)) {
-            return redirect()->route('admin.schedule')->with('error', 'Отметку можно ставить только после начала тренировки.');
+        if (! ScheduleAccess::canMarkAttendance($schedule)) {
+            return redirect()->route('admin.schedule')->with('error', 'Отметку можно ставить не ранее чем за 10 минут до начала тренировки.');
         }
 
-        // Загружаем тренировку вместе с группой и её спортсменами
         $schedule->load(['group.athletes', 'attendances']);
 
         return Inertia::render('Admin/Attendance/Mark', [
             'schedule' => $schedule,
-            // Передаем существующих спортсменов группы
             'athletes' => $schedule->group->athletes,
-            // Передаем уже сохраненные отметки (если они есть)
-            'existingAttendances' => $schedule->attendances->pluck('status', 'athlete_id')
+            'existingAttendances' => $schedule->attendances->pluck('status', 'athlete_id'),
         ]);
     }
 
-    // Сохранить отметки
     public function store(Request $request, Schedule $schedule)
     {
-        abort_if($request->user()?->role === 'accountant', 403);
+        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
 
-        if (!$this->scheduleStarted($schedule)) {
-            return redirect()->route('admin.schedule')->with('error', 'Отметку можно сохранять только после начала тренировки.');
+        if (! ScheduleAccess::canMarkAttendance($schedule)) {
+            return redirect()->route('admin.schedule')->with('error', 'Отметку можно сохранять не ранее чем за 10 минут до начала тренировки.');
         }
 
         $schedule->load('group.athletes');
@@ -62,8 +48,7 @@ class AttendanceController extends Controller
                     ['status' => $status]
                 );
 
-                // Списываем при Я и Н.
-                if (!in_array($status, ['Я', 'Н'], true)) {
+                if (! in_array($status, ['Я', 'Н'], true)) {
                     continue;
                 }
 
@@ -128,8 +113,9 @@ class AttendanceController extends Controller
                 });
             })
             ->orderBy('last_name_nom')
-            ->get()
-            ->map(function (Athlete $athlete) {
+            ->paginate(20)
+            ->withQueryString()
+            ->through(function (Athlete $athlete) {
                 return [
                     'id' => $athlete->id,
                     'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
@@ -142,6 +128,7 @@ class AttendanceController extends Controller
             ->whereNotNull('lesson_date')
             ->orderByDesc('lesson_date')
             ->orderByDesc('start_time')
+            ->limit(200)
             ->get()
             ->map(fn (Schedule $schedule) => [
                 'id' => $schedule->id,
@@ -196,16 +183,16 @@ class AttendanceController extends Controller
                 'excused' => $rows->where('status', 'У')->count(),
             ];
 
-            $schedules = Schedule::query()
+            $schedulesForCalendar = Schedule::query()
                 ->with('group')
-                ->whereHas('group.athletes', fn($q) => $q->where('athletes.id', $athleteId))
+                ->whereHas('group.athletes', fn ($q) => $q->where('athletes.id', $athleteId))
                 ->whereNotNull('lesson_date')
                 ->orderBy('lesson_date')
                 ->get();
 
             $attendanceBySchedule = $attendances->keyBy('schedule_id');
 
-            $calendar = $schedules
+            $calendar = $schedulesForCalendar
                 ->groupBy('lesson_date')
                 ->map(function ($daySchedules, $date) use ($attendanceBySchedule) {
                     return [

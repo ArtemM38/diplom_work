@@ -1,11 +1,14 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
 import { useForm, Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
 
-const props = defineProps({ groups: Array, filters: Object });
+const props = defineProps({ groups: Object, filters: Object });
 const search = ref(props.filters?.search || '');
+const showArchived = ref(props.filters?.show_archived || false);
+const groupsList = computed(() => props.groups?.data ?? []);
 
 const form = useForm({
     name: '',
@@ -51,15 +54,22 @@ const updateGroup = (group) => {
     });
 };
 
-const removeGroup = (groupId) => {
-    if (confirm('Удалить группу полностью?')) {
-        router.delete(route('admin.groups.destroy', groupId));
+const removeGroup = (group) => {
+    const msg = group.status === 'archived' || group.deleted_at
+        ? 'Группа уже в архиве.'
+        : 'Удалить группу? Если были тренировки или списания, группа будет перенесена в архив.';
+    if (confirm(msg)) {
+        router.delete(route('admin.groups.destroy', group.id));
     }
 };
 
-watch(search, debounce((value) => {
-    router.get(route('admin.groups'), { search: value }, { preserveState: true, replace: true });
+watch(search, debounce(() => {
+    router.get(route('admin.groups'), { search: search.value, show_archived: showArchived.value ? '1' : null }, { preserveState: true, replace: true });
 }, 300));
+
+watch(showArchived, () => {
+    router.get(route('admin.groups'), { search: search.value, show_archived: showArchived.value ? '1' : null }, { preserveState: true, replace: true });
+});
 </script>
 
 <template>
@@ -95,7 +105,11 @@ watch(search, debounce((value) => {
             <div class="md:col-span-2 space-y-4">
                 <input v-model="search" type="text" placeholder="Поиск групп..."
                     class="w-full border-gray-300 rounded-lg" />
-                <div v-for="group in groups" :key="group.id"
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" v-model="showArchived" />
+                    Показать архив
+                </label>
+                <div v-for="group in groupsList" :key="group.id"
                     class="bg-white p-6 rounded-xl shadow-sm flex justify-between items-center gap-4">
                     <div class="flex-1">
                         <template v-if="editingId === group.id">
@@ -108,10 +122,13 @@ watch(search, debounce((value) => {
                         </template>
                         <template v-else>
                             <h4 class="text-lg font-bold text-slate-800">{{ group.name }}</h4>
-                            <p class="text-sm text-gray-500">{{ group.type }} • {{ group.tariff_amount }} руб/мес</p>
+                            <p class="text-sm text-gray-500">{{ group.type }} • {{ group.tariff_amount }} руб/тренировка</p>
                         </template>
-                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mt-2 inline-block">
+                        <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full mt-2 inline-block mr-1">
                             Спортсменов: {{ group.athletes_count }}
+                        </span>
+                        <span v-if="group.status === 'archived' || group.deleted_at" class="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full mt-2 inline-block">
+                            Архив
                         </span>
                     </div>
                     <div class="flex gap-2">
@@ -120,13 +137,14 @@ watch(search, debounce((value) => {
                             <button @click="cancelEdit" class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg">Отмена</button>
                         </template>
                         <button v-else @click="startEdit(group)" class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg">Редактировать</button>
-                        <button @click="removeGroup(group.id)" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg">Удалить</button>
+                        <button v-if="group.status !== 'archived' && !group.deleted_at" @click="removeGroup(group)" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg">Удалить</button>
                         <Link :href="route('admin.groups.show', group.id)"
                             class="bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition">
                             Управлять составом →
                         </Link>
                     </div>
                 </div>
+                <Pagination :links="groups.links" :meta="groups" />
             </div>
         </div>
     </AuthenticatedLayout>

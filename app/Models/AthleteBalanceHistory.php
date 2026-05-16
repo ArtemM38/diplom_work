@@ -22,4 +22,9 @@ class AthleteBalanceHistory extends Model
     {
         return $this->belongsTo(Athlete::class);
     }
+
+    public function schedule()
+    {
+        return $this->belongsTo(Schedule::class);
+    }
 }

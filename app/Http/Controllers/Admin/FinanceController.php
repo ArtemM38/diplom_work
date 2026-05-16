@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
 use App\Models\AthleteFinance;
+use App\Models\AthleteBalanceHistory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -14,36 +15,61 @@ class FinanceController extends Controller
     {
         $search = $request->input('search');
         $athleteId = $request->integer('athlete_id');
+        $userActive = $request->input('user_active', 'all');
+        $operation = $request->input('operation', 'all');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $historySort = $request->input('history_sort', 'desc');
 
         $athletes = Athlete::query()
-            ->with('finance')
+            ->with(['finance', 'user:id,is_active'])
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('last_name_nom', 'like', '%' . $search . '%')
                         ->orWhere('first_name_nom', 'like', '%' . $search . '%');
                 });
             })
+            ->when($userActive === 'active', function ($query) {
+                $query->where(function ($q) {
+                    $q->whereNull('user_id')
+                        ->orWhereHas('user', fn ($u) => $u->where('is_active', true));
+                });
+            })
+            ->when($userActive === 'inactive', function ($query) {
+                $query->whereHas('user', fn ($u) => $u->where('is_active', false));
+            })
             ->orderBy('last_name_nom')
-            ->get()
-            ->map(function (Athlete $athlete) {
+            ->paginate(20)
+            ->withQueryString()
+            ->through(function (Athlete $athlete) {
                 return [
                     'id' => $athlete->id,
                     'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
                     'balance' => (float) ($athlete->finance?->balance ?? 0),
+                    'user_active' => $athlete->user_id ? (bool) $athlete->user?->is_active : null,
                 ];
             });
 
         $selectedAthlete = null;
         $history = [];
         if ($athleteId) {
-            $athlete = Athlete::with(['finance', 'balanceHistory' => fn ($q) => $q->latest()->limit(100)])->find($athleteId);
+            $athlete = Athlete::with('finance')->find($athleteId);
             if ($athlete) {
                 $selectedAthlete = [
                     'id' => $athlete->id,
                     'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
                     'balance' => (float) ($athlete->finance?->balance ?? 0),
                 ];
-                $history = $athlete->balanceHistory->map(fn ($item) => [
+
+                $historyQuery = AthleteBalanceHistory::query()
+                    ->where('athlete_id', $athlete->id)
+                    ->when($operation === 'add', fn ($q) => $q->where('change_amount', '>', 0))
+                    ->when($operation === 'subtract', fn ($q) => $q->where('change_amount', '<', 0))
+                    ->when($dateFrom, fn ($q) => $q->whereDate('created_at', '>=', $dateFrom))
+                    ->when($dateTo, fn ($q) => $q->whereDate('created_at', '<=', $dateTo))
+                    ->orderBy('created_at', $historySort === 'asc' ? 'asc' : 'desc');
+
+                $history = $historyQuery->paginate(25)->withQueryString()->through(fn ($item) => [
                     'id' => $item->id,
                     'created_at' => optional($item->created_at)?->setTimezone('Asia/Irkutsk')->format('Y-m-d H:i'),
                     'change_amount' => (float) $item->change_amount,
@@ -51,7 +77,7 @@ class FinanceController extends Controller
                     'balance_after' => (float) $item->balance_after,
                     'reason' => $item->reason,
                     'status' => $item->status,
-                ])->values();
+                ]);
             }
         }
 
@@ -62,6 +88,11 @@ class FinanceController extends Controller
             'filters' => [
                 'search' => $search,
                 'athlete_id' => $athleteId,
+                'user_active' => $userActive,
+                'operation' => $operation,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'history_sort' => $historySort,
             ],
         ]);
     }

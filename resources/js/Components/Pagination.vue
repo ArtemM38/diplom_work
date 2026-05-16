@@ -11,6 +11,23 @@ defineProps({
         default: null,
     },
 });
+
+const translateLabel = (label) => {
+    if (!label) return '';
+    const text = String(label).trim();
+    const map = {
+        '&laquo; Previous': 'Назад',
+        'Previous': 'Назад',
+        'Next &raquo;': 'Вперёд',
+        'Next': 'Вперёд',
+    };
+    if (map[text]) return map[text];
+    return text
+        .replace(/&laquo;/g, '«')
+        .replace(/&raquo;/g, '»')
+        .replace(/Previous/g, 'Назад')
+        .replace(/Next/g, 'Вперёд');
+};
 </script>
 
 <template>
@@ -29,13 +46,15 @@ defineProps({
                     :class="link.active
                         ? 'bg-indigo-600 text-white border-indigo-600'
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'"
-                    v-html="link.label"
-                />
+                >
+                    {{ translateLabel(link.label) }}
+                </Link>
                 <span
                     v-else
                     class="px-3 py-1.5 text-sm rounded-lg border border-slate-100 text-slate-300"
-                    v-html="link.label"
-                />
+                >
+                    {{ translateLabel(link.label) }}
+                </span>
             </template>
         </nav>
     </div>

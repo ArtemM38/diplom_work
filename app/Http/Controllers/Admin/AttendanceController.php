@@ -109,8 +109,7 @@ class AttendanceController extends Controller
         $groupId = $request->integer('group_id');
         $scheduleId = $request->integer('schedule_id');
         $calendarMonth = $request->input('calendar_month', now()->format('Y-m'));
-        $statsMonth = (int) $request->input('stats_month', now()->month);
-        $statsYear = (int) $request->input('stats_year', now()->year);
+        $statsPeriod = $request->input('stats_period', 'month');
 
         $athletes = Athlete::query()
             ->when($search, function ($query) use ($search) {
@@ -131,7 +130,7 @@ class AttendanceController extends Controller
 
         $selectedAthlete = null;
         $calendar = [];
-        $stats = ['present' => 0, 'absent' => 0, 'excused' => 0, 'month' => $statsMonth, 'year' => $statsYear];
+        $stats = ['present' => 0, 'absent' => 0, 'excused' => 0, 'period' => $statsPeriod];
         $rows = collect();
 
         if ($viewMode === 'athletes' && $athleteId) {
@@ -142,8 +141,14 @@ class AttendanceController extends Controller
                     'full_name' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? '')),
                 ];
 
-                $periodStart = Carbon::create($statsYear, $statsMonth, 1)->startOfDay();
-                $periodEnd = $periodStart->copy()->endOfMonth();
+                [$calYear, $calMonth] = array_pad(explode('-', $calendarMonth), 2, now()->format('m'));
+                if ($statsPeriod === 'year') {
+                    $periodStart = Carbon::create(now()->year, 1, 1)->startOfDay();
+                    $periodEnd = Carbon::create(now()->year, 12, 31)->endOfDay();
+                } else {
+                    $periodStart = Carbon::create(now()->year, (int) $calMonth, 1)->startOfDay();
+                    $periodEnd = $periodStart->copy()->endOfMonth();
+                }
 
                 $periodAttendances = Attendance::with(['schedule.group'])
                     ->where('athlete_id', $athleteId)
@@ -154,8 +159,7 @@ class AttendanceController extends Controller
                     'present' => $periodAttendances->where('status', 'Я')->count(),
                     'absent' => $periodAttendances->where('status', 'Н')->count(),
                     'excused' => $periodAttendances->where('status', 'У')->count(),
-                    'month' => $statsMonth,
-                    'year' => $statsYear,
+                    'period' => $statsPeriod,
                 ];
 
                 $rows = $periodAttendances->map(fn (Attendance $a) => [
@@ -268,8 +272,7 @@ class AttendanceController extends Controller
                 'group_id' => $groupId,
                 'schedule_id' => $scheduleId,
                 'calendar_month' => $calendarMonth,
-                'stats_month' => $statsMonth,
-                'stats_year' => $statsYear,
+                'stats_period' => $statsPeriod,
             ],
         ]);
     }

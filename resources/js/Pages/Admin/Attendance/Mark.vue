@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { useForm, Head } from '@inertiajs/vue3';
+import { useForm, Head, Link } from '@inertiajs/vue3';
 import { onMounted } from 'vue';
 
 const props = defineProps({
@@ -30,7 +30,10 @@ const submit = () => {
     <Head title="Отметка посещаемости" />
     <AuthenticatedLayout>
         <template #header>
-            Отметка группы: {{ schedule.group.name }} ({{ schedule.lesson_date }})
+            <div class="flex items-center gap-4">
+                <Link :href="route('admin.attendance.journal')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">← Назад</Link>
+                <span>Отметка группы: {{ schedule.group.name }} ({{ schedule.lesson_date }})</span>
+            </div>
         </template>
 
         <div class="max-w-4xl mx-auto py-12">

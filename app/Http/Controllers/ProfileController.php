@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\RoleLabels;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        $user = $request->user()->load(['athlete', 'guardian']);
+        $user = $request->user()->load(['athlete', 'guardian.athletes']);
 
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
@@ -28,11 +29,30 @@ class ProfileController extends Controller
                     'name' => $user->name,
                     'email' => $user->email,
                     'role' => $user->role,
+                    'role_label' => RoleLabels::labelsList($user->getRolesList()),
                 ],
                 'athlete' => $user->athlete,
                 'guardian' => $user->guardian,
+                'children' => $user->guardian?->athletes ?? [],
             ],
         ]);
+    }
+
+    public function updateGuardian(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user->hasRole('guardian') && $user->guardian, 403);
+
+        $validated = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'phone' => 'required|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
+            'relation' => 'required|string|max:255',
+        ]);
+
+        $user->guardian->update($validated);
+        $user->update(['name' => $validated['full_name']]);
+
+        return Redirect::route('profile.edit')->with('status', 'guardian-updated');
     }
 
     /**

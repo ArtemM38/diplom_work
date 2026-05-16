@@ -11,7 +11,15 @@ const props = defineProps({
     ranks: Array,
     referee_categories: Array,
     existingGuardians: Array, // Список родителей из БД
-    isParentRegistering: Boolean, // Флаг: заполняет ли это родитель
+    isParentRegistering: Boolean,
+    prefilledName: {
+        type: Object,
+        default: null,
+    },
+    guardianRelation: {
+        type: String,
+        default: '',
+    },
     editingAthlete: {
         type: Object,
         default: null,
@@ -157,6 +165,13 @@ const submit = () => {
 };
 
 onMounted(() => {
+    if (!props.editingAthlete && props.prefilledName) {
+        form.last_name_nom = props.prefilledName.last_name_nom ?? '';
+        form.first_name_nom = props.prefilledName.first_name_nom ?? '';
+        form.middle_name_nom = props.prefilledName.middle_name_nom ?? '';
+        return;
+    }
+
     if (!props.editingAthlete) {
         return;
     }
@@ -436,10 +451,11 @@ onMounted(() => {
                     </div>
 
                     <!-- Если залогинен родитель -->
-                    <div v-else>
-                        <p class="text-blue-800 font-medium">Вы регистрируете ребенка. Укажите вашу степень родства:</p>
-                        <TextInput v-model="form.relation" placeholder="Мать / Отец / Опекун" class="mt-2 w-full"
-                            required />
+                    <div v-else class="rounded-lg bg-white/80 px-4 py-3 text-blue-900">
+                        <p class="font-medium">Вы регистрируете ребёнка как законный представитель.</p>
+                        <p v-if="guardianRelation" class="text-sm mt-1 text-blue-700">
+                            Степень родства: <span class="font-semibold">{{ guardianRelation }}</span>
+                        </p>
                     </div>
                 </div>
                 <!-- Кнопка сохранения -->

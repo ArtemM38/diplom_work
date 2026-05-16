@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Guardian;
 use App\Models\Rank;
 use App\Models\RefereeCategory;
+use App\Support\FullNameParser;
 use App\Support\RussianNameCases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,31 +17,30 @@ use Inertia\Inertia;
 
 class AthleteController extends Controller
 {
-    /**
-     * Форма создания анкеты спортсмена
-     */
     public function create()
     {
         $user = Auth::user();
-        if ($user->role === 'athlete' && $user->athlete) {
+        if ($user->hasRole('athlete') && $user->athlete) {
             return redirect()->route('dashboard');
         }
+
+        $prefilledName = $user->hasRole('athlete') ? FullNameParser::parse($user->name) : null;
+        $guardian = $user->guardian;
 
         return Inertia::render('Athlete/Create', [
             'ranks' => Rank::all(),
             'referee_categories' => RefereeCategory::all(),
             'existingGuardians' => Guardian::all(),
-            'isParentRegistering' => $user->role === 'guardian',
+            'isParentRegistering' => $user->hasRole('guardian'),
+            'prefilledName' => $prefilledName,
+            'guardianRelation' => $guardian?->relation ?? '',
         ]);
     }
 
-    /**
-     * Сохранение анкеты спортсмена (ребенка)
-     */
     public function store(Request $request)
     {
         $user = Auth::user();
-        if ($user->role === 'athlete' && $user->athlete) {
+        if ($user->hasRole('athlete') && $user->athlete) {
             return redirect()->route('dashboard')->with('info', 'Анкета спортсмена уже создана');
         }
 
@@ -122,7 +122,7 @@ class AthleteController extends Controller
             $athleteData['full_name_dat'] = $nameCases['dat'];
             $athleteData['full_name_ins'] = $nameCases['ins'];
 
-            if ($user->role === 'athlete') {
+            if ($user->hasRole('athlete')) {
                 $athleteData['user_id'] = $user->id;
             }
 
@@ -134,7 +134,7 @@ class AthleteController extends Controller
 
             if ($request->guardian_id) {
                 $athlete->guardians()->syncWithoutDetaching([$request->guardian_id]);
-            } elseif ($user->role === 'guardian') {
+            } elseif ($user->hasRole('guardian')) {
                 $guardian = $user->guardian;
                 if ($guardian) {
                     $athlete->guardians()->syncWithoutDetaching([$guardian->id]);
@@ -201,7 +201,11 @@ class AthleteController extends Controller
     public function edit(Athlete $athlete)
     {
         $user = Auth::user();
-        $canEdit = $user && ($user->role === 'admin' || $athlete->user_id === $user->id);
+        $canEdit = $user && (
+            $user->hasRole('admin')
+            || $athlete->user_id === $user->id
+            || ($user->hasRole('guardian') && $user->guardian?->athletes()->where('athletes.id', $athlete->id)->exists())
+        );
 
         abort_unless($canEdit, 403);
 
@@ -209,11 +213,11 @@ class AthleteController extends Controller
             'ranks' => Rank::all(),
             'referee_categories' => RefereeCategory::all(),
             'existingGuardians' => Guardian::all(),
-            'isParentRegistering' => $user?->role === 'guardian',
+            'isParentRegistering' => $user?->hasRole('guardian'),
             'editingAthlete' => $athlete->load(['rankHistories', 'refereeHistories', 'inventory', 'documents']),
             'submitRoute' => route('athlete.update', $athlete),
             'submitMethod' => 'patch',
-            'cancelRoute' => $user?->role === 'admin'
+            'cancelRoute' => $user?->hasRole('admin')
                 ? route('admin.athletes.show', $athlete)
                 : route('dashboard'),
         ]);
@@ -222,7 +226,11 @@ class AthleteController extends Controller
     public function update(Request $request, Athlete $athlete)
     {
         $user = Auth::user();
-        $canEdit = $user && ($user->role === 'admin' || $athlete->user_id === $user->id);
+        $canEdit = $user && (
+            $user->hasRole('admin')
+            || $athlete->user_id === $user->id
+            || ($user->hasRole('guardian') && $user->guardian?->athletes()->where('athletes.id', $athlete->id)->exists())
+        );
         abort_unless($canEdit, 403);
 
         $validated = $request->validate([
@@ -371,7 +379,7 @@ class AthleteController extends Controller
             }
         });
 
-        if (in_array($user->role, ['admin', 'coach', 'accountant'])) {
+        if ($user->hasAnyRole(['admin', 'coach', 'accountant'])) {
             return redirect()->route('admin.athletes.show', $athlete)->with('success', 'Данные спортсмена обновлены');
         }
 
@@ -383,7 +391,11 @@ class AthleteController extends Controller
      */
     public function createGuardian()
     {
-        return Inertia::render('Guardian/Create');
+        $user = Auth::user();
+
+        return Inertia::render('Guardian/Create', [
+            'prefilledFullName' => $user?->name ?? '',
+        ]);
     }
 
     /**
@@ -407,6 +419,8 @@ class AthleteController extends Controller
             'phone' => $validated['phone'],
             'relation' => $validated['relation'],
         ]);
+
+        Auth::user()->update(['name' => $validated['full_name']]);
 
         // После создания профиля родителя — сразу на создание анкеты ребенка
         return redirect()->route('athlete.create')->with('info', 'Теперь заполните данные вашего ребенка');

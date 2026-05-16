@@ -103,7 +103,7 @@ watch(search, debounce((value) => {
                             <p class="text-sm text-gray-500 mt-2">
                                 <input v-model="draft.type" class="border-gray-200 rounded w-40 mr-2" />
                                 <input v-model="draft.tariff_amount" type="number" class="border-gray-200 rounded w-32 mr-2" />
-                                руб/мес
+                                руб/тренировка
                             </p>
                         </template>
                         <template v-else>

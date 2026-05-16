@@ -32,7 +32,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(), // Laravel должен отдавать юзера здесь
+                'user' => $request->user()?->loadMissing(['athlete', 'guardian']),
             ],
             // Добавь это, если хочешь видеть сообщения об успехе
             'flash' => [

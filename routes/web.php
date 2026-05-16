@@ -50,8 +50,16 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::get('/dashboard', function () {
         /** @var \App\Models\User $user */
         $user = Auth::user();
+        $guardian = null;
+        $guardianAthletes = collect();
+
+        if ($user->hasRole('guardian')) {
+            $guardian = $user->guardian?->load(['athletes.rankHistories.rank', 'athletes.documents', 'athletes.groups']);
+            $guardianAthletes = $guardian?->athletes ?? collect();
+        }
+
         $athlete = $user->athlete()
-            ->with(['rankHistories.rank', 'refereeHistories.refereeCategory', 'documents', 'inventory'])
+            ->with(['rankHistories.rank', 'refereeHistories.refereeCategory', 'documents', 'inventory', 'groups'])
             ->first();
 
         $athleteSchedule = collect();
@@ -79,7 +87,10 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
 
         return Inertia::render('Dashboard', [
             'athlete' => $athlete,
+            'guardian' => $guardian,
+            'guardianAthletes' => $guardianAthletes,
             'userRole' => $user->role,
+            'userRoles' => $user->getRolesList(),
             'athleteSchedule' => $athleteSchedule,
             'scheduleFilters' => request()->only(['from', 'to', 'group_id']),
             'athleteGroups' => $athlete?->groups()->select('groups.id', 'groups.name')->get() ?? [],
@@ -89,6 +100,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     // Маршруты ПРОФИЛЯ (Которых не хватало для выпадающего меню)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/profile/guardian', [ProfileController::class, 'updateGuardian'])->name('profile.guardian.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/athlete/schedule-calendar', [ScheduleController::class, 'athleteCalendar'])->name('athlete.schedule.calendar');
     Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');
@@ -99,6 +111,9 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::middleware(['can:access-admin-panel'])->group(function () {
         Route::get('/admin/athletes', [AdminDashboardController::class, 'index'])->name('admin.athletes');
         Route::get('/admin/athletes/{athlete}', [AdminDashboardController::class, 'show'])->name('admin.athletes.show');
+        Route::post('/admin/athletes/{athlete}/guardians', [AdminDashboardController::class, 'storeGuardian'])->name('admin.athletes.guardians.store');
+        Route::patch('/admin/athletes/{athlete}/guardians/{guardian}', [AdminDashboardController::class, 'updateGuardian'])->name('admin.athletes.guardians.update');
+        Route::get('/admin/users/{user}', [UserManagementController::class, 'show'])->name('admin.users.show');
 
         Route::get('/admin/groups', [GroupController::class, 'index'])->name('admin.groups');
         Route::post('/admin/groups', [GroupController::class, 'store'])->name('admin.groups.store');

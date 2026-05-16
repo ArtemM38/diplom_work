@@ -24,7 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
         Gate::define('access-admin-panel', function (User $user) {
-            return in_array($user->role, ['admin', 'coach', 'accountant']);
+            return $user->hasAnyRole(['admin', 'coach', 'accountant']);
         });
     }
 }

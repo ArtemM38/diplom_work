@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
+use App\Models\Guardian;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Carbon\Carbon;
@@ -96,6 +97,35 @@ class AdminDashboardController extends Controller
             'age' => Carbon::parse($athlete->birth_date)->age,
             'ageLabel' => $this->formatYears(Carbon::parse($athlete->birth_date)->age),
         ]);
+    }
+
+    public function storeGuardian(Request $request, Athlete $athlete)
+    {
+        $validated = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
+            'relation' => 'required|string|max:255',
+        ]);
+
+        $guardian = Guardian::create($validated);
+        $athlete->guardians()->syncWithoutDetaching([$guardian->id]);
+
+        return back()->with('success', 'Законный представитель добавлен');
+    }
+
+    public function updateGuardian(Request $request, Athlete $athlete, Guardian $guardian)
+    {
+        abort_unless($athlete->guardians()->where('guardians.id', $guardian->id)->exists(), 404);
+
+        $validated = $request->validate([
+            'full_name' => 'required|string|max:255',
+            'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
+            'relation' => 'required|string|max:255',
+        ]);
+
+        $guardian->update($validated);
+
+        return back()->with('success', 'Данные представителя обновлены');
     }
 
     private function formatYears(int $years): string

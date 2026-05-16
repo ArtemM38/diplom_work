@@ -34,14 +34,14 @@ class ScheduleController extends Controller
             'schedules' => Schedule::with(['group', 'location', 'coach'])->get(),
             'groups' => Group::where('status', 'active')->get(),
             'locations' => Location::all(),
-            'coaches' => User::where('role', 'coach')->where('is_active', true)->get(),
+            'coaches' => User::withRole('coach')->where('is_active', true)->get(),
         ]);
     }
 
     public function athleteCalendar(Request $request)
     {
         $user = $request->user();
-        abort_unless($user?->role === 'athlete', 403);
+        abort_unless($user?->hasRole('athlete'), 403);
 
         $athlete = $user->athlete;
         if (!$athlete) {
@@ -65,7 +65,7 @@ class ScheduleController extends Controller
 
     public function store(Request $request)
     {
-        abort_if($request->user()?->role === 'accountant', 403);
+        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
 
         $request->validate([
             'group_id' => 'required|exists:groups,id',
@@ -77,7 +77,7 @@ class ScheduleController extends Controller
         ]);
 
         $isActiveCoach = User::where('id', $request->coach_id)
-            ->where('role', 'coach')
+            ->withRole('coach')
             ->where('is_active', true)
             ->exists();
         if (!$isActiveCoach) {
@@ -97,7 +97,7 @@ class ScheduleController extends Controller
 
     public function update(Request $request, Schedule $schedule)
     {
-        abort_if($request->user()?->role === 'accountant', 403);
+        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
 
         $request->validate([
             'group_id' => 'required|exists:groups,id',
@@ -109,7 +109,7 @@ class ScheduleController extends Controller
         ]);
 
         $isActiveCoach = User::where('id', $request->coach_id)
-            ->where('role', 'coach')
+            ->withRole('coach')
             ->where('is_active', true)
             ->exists();
         if (!$isActiveCoach) {

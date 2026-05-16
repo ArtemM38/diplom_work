@@ -1,32 +1,44 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 
 const props = defineProps({
     athlete: Object,
+    guardian: Object,
+    guardianAthletes: Array,
     userRole: String,
+    userRoles: Array,
     athleteSchedule: Array,
     athleteGroups: Array,
     scheduleFilters: Object,
 });
 
+const isAthlete = computed(() => props.userRoles?.includes('athlete') || props.userRole === 'athlete');
+const isGuardian = computed(() => props.userRoles?.includes('guardian') || props.userRole === 'guardian');
+
 const isExpiring = (date) => {
     if (!date) return false;
     const expiry = new Date(date);
     const today = new Date();
-    const diffTime = expiry - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
     return diffDays < 14;
 };
+
+const childFullName = (child) =>
+    `${child.last_name_nom} ${child.first_name_nom} ${child.middle_name_nom || ''}`.trim();
 
 const from = ref(props.scheduleFilters?.from || '');
 const to = ref(props.scheduleFilters?.to || '');
 const groupId = ref(props.scheduleFilters?.group_id || '');
 
 watch([from, to, groupId], () => {
-    if (props.userRole !== 'athlete') return;
-    router.get(route('dashboard'), { from: from.value || null, to: to.value || null, group_id: groupId.value || null }, { preserveState: true, replace: true });
+    if (!isAthlete.value) return;
+    router.get(
+        route('dashboard'),
+        { from: from.value || null, to: to.value || null, group_id: groupId.value || null },
+        { preserveState: true, replace: true },
+    );
 });
 </script>
 
@@ -34,28 +46,96 @@ watch([from, to, groupId], () => {
     <Head title="Личный кабинет" />
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">Мой профиль</h2>
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ isGuardian ? 'Мой ребёнок' : 'Мой профиль' }}
+            </h2>
         </template>
 
-        <div class="py-6">
-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6 flex items-center gap-6">
-                    <img :src="athlete?.photo ? '/storage/' + athlete.photo : 'https://ui-avatars.com/api/?name=' + athlete?.first_name_nom"
-                        class="w-24 h-24 rounded-full object-cover border-4 border-indigo-100">
+        <div class="py-6 max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+            <!-- Guardian block -->
+            <template v-if="isGuardian">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">Ваши данные</h3>
+                            <p class="text-sm text-slate-500">{{ guardian?.full_name }} · {{ guardian?.relation }}</p>
+                            <p class="text-sm text-slate-600">{{ guardian?.phone }}</p>
+                        </div>
+                        <Link :href="route('profile.edit')" class="text-indigo-600 text-sm font-medium hover:underline">Редактировать</Link>
+                    </div>
+                </div>
+
+                <div v-if="!guardianAthletes?.length" class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
+                    <p class="text-amber-900 font-medium">Данные ребёнка ещё не заполнены</p>
+                    <Link :href="route('athlete.create')" class="inline-block mt-3 text-indigo-600 font-medium hover:underline">Заполнить анкету ребёнка</Link>
+                </div>
+
+                <div v-for="child in guardianAthletes" :key="child.id" class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100">
+                    <div class="p-6 flex flex-col md:flex-row md:items-center gap-6">
+                        <div class="w-24 h-24 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl font-bold text-indigo-700 overflow-hidden shrink-0">
+                            <img v-if="child.photo" :src="'/storage/' + child.photo" class="w-full h-full object-cover" alt="" />
+                            <span v-else>{{ child.first_name_nom?.[0] }}</span>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-2xl font-bold text-slate-900">{{ childFullName(child) }}</h3>
+                            <p class="text-slate-500 text-sm mt-1">Дата рождения: {{ child.birth_date || '—' }}</p>
+                            <p class="text-slate-600 text-sm mt-1">Телефон: {{ child.phone || '—' }}</p>
+                            <div class="mt-2 inline-block bg-indigo-600 text-white text-xs px-3 py-1 rounded-full">
+                                {{ child.rank_histories?.[0]?.rank?.name || 'Без разряда' }}
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-3">
+                                <span v-for="g in child.groups" :key="g.id" class="text-xs px-2 py-1 bg-slate-100 rounded-full">{{ g.name }}</span>
+                            </div>
+                        </div>
+                        <Link
+                            :href="route('athlete.edit', child.id)"
+                            class="shrink-0 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+                        >
+                            Редактировать данные ребёнка
+                        </Link>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4 px-6 pb-6">
+                        <div class="rounded-xl bg-slate-50 p-4 text-sm">
+                            <h4 class="font-semibold mb-2">Документы</h4>
+                            <div v-for="doc in child.documents" :key="doc.id" class="flex justify-between mb-1">
+                                <span class="capitalize">{{ doc.type === 'medical' ? 'Медсправка' : doc.type }}</span>
+                                <span :class="isExpiring(doc.expiry_date) ? 'text-red-600 font-bold' : 'text-green-600'">до {{ doc.expiry_date || '—' }}</span>
+                            </div>
+                            <p v-if="!child.documents?.length" class="text-slate-400">Нет документов</p>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 p-4 text-sm space-y-1">
+                            <h4 class="font-semibold mb-2">Контакты</h4>
+                            <p><b>Адрес:</b> {{ child.registration_address || '—' }}</p>
+                            <p><b>Школа:</b> {{ child.school_name || '—' }}</p>
+                            <p><b>Класс:</b> {{ child.school_class || '—' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Athlete block -->
+            <template v-if="isAthlete && athlete">
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-2xl p-6 flex items-center gap-6 border border-slate-100">
+                    <img
+                        :src="athlete?.photo ? '/storage/' + athlete.photo : 'https://ui-avatars.com/api/?name=' + athlete?.first_name_nom"
+                        class="w-24 h-24 rounded-full object-cover border-4 border-indigo-100"
+                        alt=""
+                    />
                     <div>
                         <h3 class="text-2xl font-bold">{{ athlete?.last_name_nom }} {{ athlete?.first_name_nom }}</h3>
                         <p class="text-gray-500">Дата рождения: {{ athlete?.birth_date || '—' }}</p>
                         <div class="mt-2 inline-block bg-indigo-600 text-white text-xs px-3 py-1 rounded-full">
                             {{ athlete?.rank_histories?.[0]?.rank?.name || 'Без разряда' }}
                         </div>
-                        <div class="mt-3" v-if="athlete?.id">
+                        <div class="mt-3">
                             <Link :href="route('athlete.edit', athlete.id)" class="text-indigo-600 hover:underline text-sm">Редактировать профиль</Link>
                         </div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 shadow-sm sm:rounded-lg">
+                    <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
                         <h4 class="font-bold mb-4 border-b pb-2">Статус документов</h4>
                         <div v-for="doc in athlete?.documents" :key="doc.id" class="flex justify-between items-center mb-2">
                             <span class="capitalize">{{ doc.type === 'medical' ? 'Медсправка' : 'Документ' }}</span>
@@ -63,7 +143,7 @@ watch([from, to, groupId], () => {
                         </div>
                         <div v-if="!athlete?.documents?.length" class="text-gray-400 text-sm">Документы не загружены</div>
                     </div>
-                    <div class="bg-white p-6 shadow-sm sm:rounded-lg">
+                    <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
                         <h4 class="font-bold mb-4 border-b pb-2">Информация</h4>
                         <div class="text-sm text-gray-700 space-y-1">
                             <div><b>Телефон:</b> {{ athlete?.phone || '—' }}</div>
@@ -73,8 +153,8 @@ watch([from, to, groupId], () => {
                     </div>
                 </div>
 
-                <div v-if="userRole === 'athlete'" class="bg-white p-6 shadow-sm sm:rounded-lg">
-                    <h4 class="font-bold mb-4 border-b pb-2">Мое расписание</h4>
+                <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
+                    <h4 class="font-bold mb-4 border-b pb-2">Моё расписание</h4>
                     <div class="grid md:grid-cols-3 gap-3 mb-4">
                         <input v-model="from" type="date" class="border-gray-300 rounded-lg" />
                         <input v-model="to" type="date" class="border-gray-300 rounded-lg" />
@@ -86,16 +166,16 @@ watch([from, to, groupId], () => {
                     <div v-if="!athleteSchedule?.length" class="text-sm text-gray-400">Тренировок по фильтру не найдено</div>
                     <div v-else class="space-y-2">
                         <div v-for="item in athleteSchedule" :key="item.id" class="border rounded-lg p-3 text-sm">
-                            <div class="font-semibold">{{ item.lesson_date }} {{ item.start_time?.substring(0,5) }}-{{ item.end_time?.substring(0,5) }}</div>
+                            <div class="font-semibold">{{ item.lesson_date }} {{ item.start_time?.substring(0, 5) }}-{{ item.end_time?.substring(0, 5) }}</div>
                             <div class="text-gray-600">{{ item.group }} | {{ item.location }} | Тренер: {{ item.coach }}</div>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="userRole === 'athlete'" class="bg-white p-6 shadow-sm sm:rounded-lg">
+                <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
                     <h4 class="font-bold mb-4 border-b pb-2">Типовые заявления и согласия</h4>
                     <div class="grid md:grid-cols-2 gap-3">
-                        <div v-for="n in [1,2,3,4]" :key="n" class="border rounded-lg p-3 flex items-center justify-between">
+                        <div v-for="n in [1, 2, 3, 4]" :key="n" class="border rounded-lg p-3 flex items-center justify-between">
                             <span>Приложение {{ n }}</span>
                             <div class="flex gap-2">
                                 <a :href="route('athlete.documents.pdf', n)" class="text-indigo-600 hover:underline text-sm">PDF</a>
@@ -104,7 +184,7 @@ watch([from, to, groupId], () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </template>
         </div>
     </AuthenticatedLayout>
 </template>

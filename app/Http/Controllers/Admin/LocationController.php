@@ -15,7 +15,12 @@ class LocationController extends Controller
 
         return Inertia::render('Admin/Locations/Index', [
             'locations' => Location::query()
-                ->when($search, fn($q) => $q->where('name', 'like', '%' . $search . '%'))
+                ->when($search, function ($q) use ($search) {
+                    $q->where(function ($query) use ($search) {
+                        $query->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('address', 'like', '%' . $search . '%');
+                    });
+                })
                 ->orderBy('name')
                 ->get(),
             'filters' => ['search' => $search],
@@ -26,6 +31,7 @@ class LocationController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'address' => 'nullable|string|max:500',
         ]);
 
         Location::create($validated);
@@ -37,6 +43,7 @@ class LocationController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'address' => 'nullable|string|max:500',
         ]);
 
         $location->update($validated);

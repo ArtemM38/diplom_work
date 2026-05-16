@@ -14,17 +14,21 @@ class EnsureProfileIsCompleted
         if (Auth::check()) {
             $user = Auth::user();
 
-            // Если спортсмен без анкеты
-            if ($user->role === 'athlete' && !$user->athlete) {
-                if (!$request->is('athlete/setup*') && !$request->routeIs('logout')) {
+            if ($user->hasRole('athlete') && ! $user->athlete) {
+                if (! $request->is('athlete/setup*') && ! $request->routeIs('logout')) {
                     return redirect()->route('athlete.create');
                 }
             }
 
-            // Если родитель без анкеты (надо будет создать GuardianController)
-            if ($user->role === 'guardian' && !$user->guardian) {
-                if (!$request->is('guardian/setup*') && !$request->routeIs('logout')) {
+            if ($user->hasRole('guardian') && ! $user->guardian) {
+                if (! $request->is('guardian/setup*') && ! $request->routeIs('logout')) {
                     return redirect()->route('guardian.create');
+                }
+            }
+
+            if ($user->hasRole('guardian') && $user->guardian && $user->guardian->athletes()->count() === 0) {
+                if (! $request->is('athlete/setup*') && ! $request->routeIs('logout')) {
+                    return redirect()->route('athlete.create');
                 }
             }
         }
@@ -32,3 +36,5 @@ class EnsureProfileIsCompleted
     }
     
 }
+
+

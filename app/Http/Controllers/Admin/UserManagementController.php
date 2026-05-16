@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Support\RoleLabels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -97,18 +96,24 @@ class UserManagementController extends Controller
             'password' => 'required|string|min:8',
             'roles' => 'required|array|min:1',
             'roles.*' => Rule::in(['admin', 'accountant', 'coach', 'athlete', 'guardian']),
-            'is_active' => 'required|boolean',
+            'is_active' => 'sometimes|boolean',
         ]);
 
         $roles = array_values(array_unique($validated['roles']));
 
+        if (empty($roles)) {
+            return redirect()->back()
+                ->withErrors(['roles' => 'Выберите хотя бы одну роль.'])
+                ->withInput();
+        }
+
         User::create([
             'name' => $validated['name'],
             'email' => strtolower($validated['email']),
-            'password' => Hash::make($validated['password']),
+            'password' => $validated['password'],
             'role' => $roles[0],
             'roles' => $roles,
-            'is_active' => $validated['is_active'],
+            'is_active' => $request->boolean('is_active'),
         ]);
 
         return redirect()->back()->with('success', 'Аккаунт добавлен');
@@ -135,7 +140,7 @@ class UserManagementController extends Controller
         $coach->syncRoles($validated['roles']);
 
         if (! empty($validated['password'])) {
-            $coach->password = Hash::make($validated['password']);
+            $coach->password = $validated['password'];
         }
 
         $coach->save();

@@ -23,6 +23,9 @@ const createForm = useForm({
 
 const toggleCreateRole = (role) => {
     if (createForm.roles.includes(role)) {
+        if (createForm.roles.length <= 1) {
+            return;
+        }
         createForm.roles = createForm.roles.filter((r) => r !== role);
     } else {
         createForm.roles = [...createForm.roles, role];
@@ -41,8 +44,17 @@ const toggleUserRole = (user, role) => {
 };
 
 const createCoach = () => {
+    if (!createForm.roles.length) {
+        createForm.setError('roles', 'Выберите хотя бы одну роль.');
+        return;
+    }
     createForm.post(route('admin.coaches.store'), {
-        onSuccess: () => createForm.reset('name', 'email', 'password'),
+        preserveScroll: true,
+        onSuccess: () => {
+            createForm.reset();
+            createForm.roles = ['coach'];
+            createForm.is_active = true;
+        },
     });
 };
 
@@ -86,6 +98,9 @@ watch([roleFilter, activeFilter], () => {
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
                 <h3 class="font-bold mb-4 text-slate-800">Создать аккаунт</h3>
                 <form @submit.prevent="createCoach" class="space-y-3">
+                    <div v-if="Object.keys(createForm.errors).length" class="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700 space-y-1">
+                        <p v-for="(msg, key) in createForm.errors" :key="key">{{ msg }}</p>
+                    </div>
                     <input v-model="createForm.name" placeholder="ФИО" class="w-full border-slate-300 rounded-xl" required />
                     <input v-model="createForm.email" type="email" placeholder="Email" class="w-full border-slate-300 rounded-xl" required />
                     <input v-model="createForm.password" type="password" placeholder="Пароль" class="w-full border-slate-300 rounded-xl" required />

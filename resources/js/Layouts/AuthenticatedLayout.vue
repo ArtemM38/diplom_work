@@ -45,6 +45,7 @@ const navigation = computed(() => [
     { name: 'Группы и секции', href: safeRoute('admin.groups'), roles: ['admin', 'coach', 'accountant'] },
     { name: 'Расписание', href: safeRoute('admin.schedule'), roles: ['admin', 'coach'] },
     { name: 'Моё расписание', href: safeRoute('athlete.schedule.calendar', safeRoute('dashboard')), roles: ['athlete'] },
+    { name: 'Моё портфолио', href: safeRoute('athlete.portfolio', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Мой ребёнок', href: safeRoute('dashboard'), roles: ['guardian'] },
     { name: 'Залы', href: safeRoute('admin.locations'), roles: ['admin'] },
     { name: 'Пользователи', href: safeRoute('admin.coaches'), roles: ['admin'] },
@@ -105,8 +106,20 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
                             <span class="inline-flex rounded-md">
                                 <button
                                     type="button"
-                                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150"
+                                    class="inline-flex items-center gap-2 px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150"
                                 >
+                                    <img
+                                        v-if="user?.avatar_url"
+                                        :src="user.avatar_url"
+                                        class="w-8 h-8 rounded-full object-cover border border-slate-200"
+                                        alt=""
+                                    />
+                                    <span
+                                        v-else
+                                        class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold"
+                                    >
+                                        {{ (user?.display_name || user?.name || '?')[0] }}
+                                    </span>
                                     {{ user?.display_name || user?.name || 'Загрузка...' }}
                                     <svg
                                         class="ms-2 -me-0.5 h-4 w-4"

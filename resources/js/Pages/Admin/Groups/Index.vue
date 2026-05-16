@@ -5,7 +5,12 @@ import { useForm, Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
 
-const props = defineProps({ groups: Object, filters: Object });
+const props = defineProps({
+    groups: Object,
+    filters: Object,
+    canCreateGroups: { type: Boolean, default: true },
+    tariffOnlyMode: { type: Boolean, default: false },
+});
 const search = ref(props.filters?.search || '');
 const showArchived = ref(props.filters?.show_archived || false);
 const groupsList = computed(() => props.groups?.data ?? []);
@@ -44,14 +49,22 @@ const cancelEdit = () => {
 };
 
 const updateGroup = (group) => {
-    router.patch(route('admin.groups.update', group.id), {
-        name: draft.name,
-        type: draft.type,
-        tariff_amount: draft.tariff_amount,
-        status: draft.status,
-    }, {
+    const payload = props.tariffOnlyMode
+        ? { tariff_amount: draft.tariff_amount }
+        : {
+            name: draft.name,
+            type: draft.type,
+            tariff_amount: draft.tariff_amount,
+            status: draft.status,
+        };
+    router.patch(route('admin.groups.update', group.id), payload, {
         onSuccess: () => cancelEdit(),
     });
+};
+
+const startTariffEdit = (group) => {
+    editingId.value = group.id;
+    draft.tariff_amount = group.tariff_amount;
 };
 
 const removeGroup = (group) => {
@@ -78,7 +91,7 @@ watch(showArchived, () => {
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Форма создания -->
-            <div class="bg-white p-6 rounded-xl shadow-sm h-fit">
+            <div v-if="canCreateGroups" class="bg-white p-6 rounded-xl shadow-sm h-fit">
                 <h3 class="font-bold mb-4">Создать новую группу</h3>
                 <form @submit.prevent="submit" class="space-y-4">
                     <div>
@@ -102,7 +115,7 @@ watch(showArchived, () => {
             </div>
 
             <!-- Список групп -->
-            <div class="md:col-span-2 space-y-4">
+            <div :class="canCreateGroups ? 'md:col-span-2' : 'md:col-span-3'" class="space-y-4">
                 <input v-model="search" type="text" placeholder="Поиск групп..."
                     class="w-full border-gray-300 rounded-lg" />
                 <label class="flex items-center gap-2 text-sm text-slate-600">
@@ -112,11 +125,18 @@ watch(showArchived, () => {
                 <div v-for="group in groupsList" :key="group.id"
                     class="bg-white p-6 rounded-xl shadow-sm flex justify-between items-center gap-4">
                     <div class="flex-1">
-                        <template v-if="editingId === group.id">
+                        <template v-if="editingId === group.id && !tariffOnlyMode">
                             <input v-model="draft.name" class="text-lg font-bold text-slate-800 border-gray-200 rounded w-full" />
                             <p class="text-sm text-gray-500 mt-2">
                                 <input v-model="draft.type" class="border-gray-200 rounded w-40 mr-2" />
                                 <input v-model="draft.tariff_amount" type="number" class="border-gray-200 rounded w-32 mr-2" />
+                                руб/тренировка
+                            </p>
+                        </template>
+                        <template v-else-if="editingId === group.id && tariffOnlyMode">
+                            <h4 class="text-lg font-bold text-slate-800">{{ group.name }}</h4>
+                            <p class="text-sm text-gray-500 mt-2 flex items-center gap-2">
+                                <input v-model="draft.tariff_amount" type="number" class="border-gray-200 rounded w-32" />
                                 руб/тренировка
                             </p>
                         </template>
@@ -136,9 +156,15 @@ watch(showArchived, () => {
                             <button @click="updateGroup(group)" class="bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg">Сохранить</button>
                             <button @click="cancelEdit" class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg">Отмена</button>
                         </template>
-                        <button v-else @click="startEdit(group)" class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg">Редактировать</button>
-                        <button v-if="group.status !== 'archived' && !group.deleted_at" @click="removeGroup(group)" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg">Удалить</button>
-                        <Link :href="route('admin.groups.show', group.id)"
+                        <button
+                            v-else
+                            @click="tariffOnlyMode ? startTariffEdit(group) : startEdit(group)"
+                            class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg"
+                        >
+                            {{ tariffOnlyMode ? 'Изменить стоимость' : 'Редактировать' }}
+                        </button>
+                        <button v-if="!tariffOnlyMode && group.status !== 'archived' && !group.deleted_at" @click="removeGroup(group)" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg">Удалить</button>
+                        <Link v-if="!tariffOnlyMode" :href="route('admin.groups.show', group.id)"
                             class="bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition">
                             Управлять составом →
                         </Link>

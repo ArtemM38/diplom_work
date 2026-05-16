@@ -19,7 +19,15 @@ class PortfolioController extends Controller
 {
     private function ensureCanEdit(Request $request): void
     {
-        abort_if($request->user()?->role === 'accountant', 403);
+        $user = $request->user();
+        abort_if($user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']), 403);
+    }
+
+    private function isReadOnly(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']);
     }
 
     public function index(Request $request)
@@ -87,6 +95,7 @@ class PortfolioController extends Controller
         $selectedAthlete = $athleteId ? Athlete::find($athleteId) : null;
 
         return Inertia::render('Admin/Portfolio/Index', [
+            'readOnly' => $this->isReadOnly($request),
             'athletes' => $athletes,
             'eventTypes' => EventType::all(),
             'eventLevels' => EventLevel::all(),

@@ -11,6 +11,7 @@ const props = defineProps({
     userRoles: Array,
     athleteSchedule: Array,
     athleteGroups: Array,
+    athleteGuardians: Array,
     scheduleFilters: Object,
 });
 
@@ -132,6 +133,38 @@ watch([from, to, groupId], () => {
                             <Link :href="route('athlete.edit', athlete.id)" class="text-indigo-600 hover:underline text-sm">Редактировать профиль</Link>
                         </div>
                     </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
+                        <h4 class="font-bold mb-4 border-b pb-2">Мои группы</h4>
+                        <div v-if="athleteGroups?.length" class="flex flex-wrap gap-2">
+                            <span v-for="g in athleteGroups" :key="g.id" class="text-sm px-3 py-1 bg-indigo-50 text-indigo-800 rounded-full">{{ g.name }}</span>
+                        </div>
+                        <p v-else class="text-sm text-gray-400">Вы не состоите в группах</p>
+                    </div>
+                    <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
+                        <div class="flex justify-between items-center mb-4 border-b pb-2">
+                            <h4 class="font-bold">Законные представители</h4>
+                        </div>
+                        <div v-if="athleteGuardians?.length" class="space-y-3">
+                            <div v-for="g in athleteGuardians" :key="g.id" class="text-sm border rounded-lg p-3">
+                                <p class="font-semibold text-slate-800">{{ g.full_name }}</p>
+                                <p class="text-slate-500">{{ g.relation }} · {{ g.phone }}</p>
+                            </div>
+                        </div>
+                        <p v-else class="text-sm text-gray-400">Не указаны</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h4 class="font-bold">Портфолио</h4>
+                        <p class="text-sm text-slate-500 mt-1">Достижения и результаты соревнований</p>
+                    </div>
+                    <Link :href="route('athlete.portfolio')" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">
+                        Открыть портфолио
+                    </Link>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -6,6 +6,26 @@ import UpdateProfileInformationForm from './Partials/UpdateProfileInformationFor
 import { Head, useForm } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
+const avatarForm = useForm({ avatar: null });
+const avatarPreview = ref(null);
+
+const onAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    avatarForm.avatar = file;
+    avatarPreview.value = URL.createObjectURL(file);
+};
+
+const uploadAvatar = () => {
+    avatarForm.post(route('profile.avatar.update'), {
+        forceFormData: true,
+        onSuccess: () => {
+            avatarForm.reset();
+            avatarPreview.value = null;
+        },
+    });
+};
+
 const props = defineProps({
     mustVerifyEmail: { type: Boolean },
     status: { type: String },
@@ -36,6 +56,28 @@ const childName = (child) => `${child.last_name_nom} ${child.first_name_nom} ${c
         </template>
 
         <div class="py-8 max-w-4xl mx-auto space-y-6">
+            <div class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Аватар</h3>
+                <div class="flex flex-wrap items-center gap-6">
+                    <img
+                        :src="avatarPreview || profileData?.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.user?.name || 'U')}`"
+                        class="w-20 h-20 rounded-full object-cover border-4 border-indigo-100"
+                        alt=""
+                    />
+                    <form @submit.prevent="uploadAvatar" class="flex flex-wrap items-end gap-3">
+                        <input type="file" accept="image/*" @change="onAvatarChange" class="text-sm" />
+                        <button
+                            type="submit"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                            :disabled="!avatarForm.avatar || avatarForm.processing"
+                        >
+                            Загрузить
+                        </button>
+                    </form>
+                </div>
+                <p v-if="status === 'avatar-updated'" class="text-sm text-green-600 mt-2">Аватар обновлён</p>
+            </div>
+
             <div class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-medium text-gray-900">Аккаунт</h3>

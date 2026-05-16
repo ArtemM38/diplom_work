@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AthleteController;
+use App\Http\Controllers\AthletePortfolioController;
 use App\Http\Controllers\AthleteDocumentsController;
 use App\Http\Controllers\AddressSuggestionController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -59,8 +60,15 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         }
 
         $athlete = $user->athlete()
-            ->with(['rankHistories.rank', 'refereeHistories.refereeCategory', 'documents', 'inventory', 'groups'])
+            ->with(['rankHistories.rank', 'refereeHistories.refereeCategory', 'documents', 'inventory', 'groups', 'guardians'])
             ->first();
+
+        $athleteGuardians = $athlete?->guardians?->map(fn ($g) => [
+            'id' => $g->id,
+            'full_name' => $g->full_name,
+            'phone' => $g->phone,
+            'relation' => $g->relation,
+        ]) ?? collect();
 
         $athleteSchedule = collect();
         if ($athlete) {
@@ -93,7 +101,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
             'userRoles' => $user->getRolesList(),
             'athleteSchedule' => $athleteSchedule,
             'scheduleFilters' => request()->only(['from', 'to', 'group_id']),
-            'athleteGroups' => $athlete?->groups()->select('groups.id', 'groups.name')->get() ?? [],
+            'athleteGroups' => $athlete?->groups ?? collect(),
+            'athleteGuardians' => $athleteGuardians,
         ]);
     })->name('dashboard');
 
@@ -101,6 +110,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::patch('/profile/guardian', [ProfileController::class, 'updateGuardian'])->name('profile.guardian.update');
+    Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
+    Route::get('/athlete/portfolio', [AthletePortfolioController::class, 'index'])->name('athlete.portfolio');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/athlete/schedule-calendar', [ScheduleController::class, 'athleteCalendar'])->name('athlete.schedule.calendar');
     Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');

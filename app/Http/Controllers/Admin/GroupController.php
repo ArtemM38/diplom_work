@@ -29,8 +29,12 @@ class GroupController extends Controller
 
         $groups = $query->orderBy('name')->paginate(15)->withQueryString();
 
+        $user = request()->user();
+
         return Inertia::render('Admin/Groups/Index', [
             'groups' => $groups,
+            'canCreateGroups' => $user && (! $user->hasRole('accountant') || $user->hasAnyRole(['admin', 'coach'])),
+            'tariffOnlyMode' => $user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']),
             'filters' => [
                 'search' => $search,
                 'show_archived' => $showArchived,
@@ -40,7 +44,7 @@ class GroupController extends Controller
 
     public function store(Request $request)
     {
-        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+        abort_unless($request->user() && (! $request->user()->hasRole('accountant') || $request->user()->hasAnyRole(['admin', 'coach'])), 403);
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'type' => 'required|string',

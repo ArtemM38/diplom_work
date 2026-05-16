@@ -50,13 +50,14 @@ class AthleteController extends Controller
             'middle_name_nom' => 'nullable|string',
             'birth_date' => 'required|date|before_or_equal:today',
             'gender' => 'required|in:male,female',
+            'occupation_type' => 'required|in:study,work',
             'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
             'registration_address' => 'nullable|string',
-            'school_name' => 'nullable|string',
-            'school_director_dat' => 'nullable|string',
-            'school_class' => 'nullable|string',
-            'work_place' => 'nullable|string',
-            'work_position' => 'nullable|string',
+            'school_name' => 'nullable|required_if:occupation_type,study|string',
+            'school_director_dat' => 'nullable|required_if:occupation_type,study|string',
+            'school_class' => 'nullable|required_if:occupation_type,study|string',
+            'work_place' => 'nullable|required_if:occupation_type,work|string',
+            'work_position' => 'nullable|required_if:occupation_type,work|string',
             'photo' => 'nullable|file|image|max:4096',
 
             'guardian_id' => 'nullable|exists:guardians,id',
@@ -97,6 +98,8 @@ class AthleteController extends Controller
             'doc_identity_issue_date' => 'nullable|date|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issued_by',
         ]);
 
+        $validated = $this->applyOccupationFields($validated);
+
         DB::transaction(function () use ($request, $validated, $user) {
             $nameCases = RussianNameCases::buildFullNameCases(
                 $validated['last_name_nom'],
@@ -111,6 +114,7 @@ class AthleteController extends Controller
                 'phone',
                 'birth_date',
                 'gender',
+                'occupation_type',
                 'registration_address',
                 'school_name',
                 'school_director_dat',
@@ -239,13 +243,13 @@ class AthleteController extends Controller
             'middle_name_nom' => 'nullable|string',
             'birth_date' => 'required|date|before_or_equal:today',
             'gender' => ['required', Rule::in(['male', 'female'])],
+            'occupation_type' => 'required|in:study,work',
             'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
             'registration_address' => 'nullable|string',
-            'school_name' => 'nullable|string',
-            'school_director_dat' => 'nullable|string',
-            'school_class' => 'nullable|string',
-            'work_place' => 'nullable|string',
-            'work_position' => 'nullable|string',
+            'school_name' => 'nullable|required_if:occupation_type,study|string',
+            'school_class' => 'nullable|required_if:occupation_type,study|string',
+            'work_place' => 'nullable|required_if:occupation_type,work|string',
+            'work_position' => 'nullable|required_if:occupation_type,work|string',
             'photo' => 'nullable|file|image|max:4096',
             'guardian_id' => 'nullable|exists:guardians,id',
             'relation' => 'nullable|string|max:255',
@@ -281,6 +285,8 @@ class AthleteController extends Controller
             'doc_identity_issue_date' => 'nullable|date|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issued_by',
         ]);
 
+        $validated = $this->applyOccupationFields($validated);
+
         DB::transaction(function () use ($request, $validated, $athlete) {
             $nameCases = RussianNameCases::buildFullNameCases(
                 $validated['last_name_nom'],
@@ -295,6 +301,7 @@ class AthleteController extends Controller
                 'phone',
                 'birth_date',
                 'gender',
+                'occupation_type',
                 'registration_address',
                 'school_name',
                 'school_director_dat',
@@ -424,5 +431,23 @@ class AthleteController extends Controller
 
         // После создания профиля родителя — сразу на создание анкеты ребенка
         return redirect()->route('athlete.create')->with('info', 'Теперь заполните данные вашего ребенка');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function applyOccupationFields(array $validated): array
+    {
+        if (($validated['occupation_type'] ?? '') === 'study') {
+            $validated['work_place'] = null;
+            $validated['work_position'] = null;
+        } elseif (($validated['occupation_type'] ?? '') === 'work') {
+            $validated['school_name'] = null;
+            $validated['school_director_dat'] = null;
+            $validated['school_class'] = null;
+        }
+
+        return $validated;
     }
 }

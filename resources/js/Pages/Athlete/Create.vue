@@ -49,7 +49,7 @@ const form = useForm({
     registration_address: '',
     photo: null,
 
-    // Обучение / Работа
+    occupation_type: 'study',
     school_name: '',
     school_director_dat: '',
     school_class: '',
@@ -202,6 +202,7 @@ onMounted(() => {
     };
     form.guardian_id = props.editingAthlete.guardians?.[0]?.id ?? null;
     form.relation = props.editingAthlete.guardians?.[0]?.relation ?? '';
+    form.occupation_type = props.editingAthlete.occupation_type || (props.editingAthlete.school_name ? 'study' : props.editingAthlete.work_place ? 'work' : 'study');
 });
 </script>
 
@@ -294,8 +295,20 @@ onMounted(() => {
 
                 <!-- БЛОК 2: Обучение и Работа -->
                 <div class="bg-white p-6 shadow rounded-lg">
-                    <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2">2. Место обучения / работы</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <h2 class="text-xl font-bold mb-4 text-blue-900 border-b pb-2">2. Учёба или работа</h2>
+                    <div class="flex flex-wrap gap-4 mb-6">
+                        <label class="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-xl border-2 transition"
+                            :class="form.occupation_type === 'study' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'">
+                            <input type="radio" v-model="form.occupation_type" value="study" class="text-indigo-600" />
+                            <span class="font-medium">Учусь</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-xl border-2 transition"
+                            :class="form.occupation_type === 'work' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'">
+                            <input type="radio" v-model="form.occupation_type" value="work" class="text-indigo-600" />
+                            <span class="font-medium">Работаю</span>
+                        </label>
+                    </div>
+                    <div v-if="form.occupation_type === 'study'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <InputLabel value="Наименование ОО (Школа/ВУЗ)" />
                             <TextInput v-model="form.school_name" class="w-full" />
@@ -309,7 +322,7 @@ onMounted(() => {
                             <TextInput v-model="form.school_class" class="w-full" />
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <InputLabel value="Место работы" />
                             <TextInput v-model="form.work_place" class="w-full" />

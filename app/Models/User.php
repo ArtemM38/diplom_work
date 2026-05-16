@@ -21,6 +21,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'avatar',
         'password',
         'role',
         'roles',
@@ -30,6 +31,7 @@ class User extends Authenticatable
     protected $appends = [
         'display_name',
         'role_labels',
+        'avatar_url',
     ];
 
     // Связь с профилем спортсмена
@@ -112,5 +114,10 @@ class User extends Authenticatable
     public function getRoleLabelsAttribute(): string
     {
         return RoleLabels::labelsList($this->getRolesList());
+    }
+
+    public function getAvatarUrlAttribute(): ?string
+    {
+        return $this->avatar ? asset('storage/' . $this->avatar) : null;
     }
 }

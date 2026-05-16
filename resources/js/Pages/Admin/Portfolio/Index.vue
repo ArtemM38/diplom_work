@@ -13,6 +13,7 @@ const props = defineProps({
     achievements: Array,
     selectedAthlete: Object,
     filters: Object,
+    readOnly: { type: Boolean, default: false },
 });
 
 const athleteSearch = ref(props.filters?.athlete_search || '');
@@ -204,12 +205,13 @@ const selectNextAchievement = () => {
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="font-bold">Достижения спортсмена</h3>
                     <button
-                        v-if="selectedAthleteId"
+                        v-if="selectedAthleteId && !readOnly"
                         @click="openCreateModal"
                         class="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold"
                     >
                         + Добавить достижение
                     </button>
+                    <span v-if="readOnly" class="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">Только просмотр</span>
                 </div>
                 <div v-if="!selectedAthleteId" class="text-sm text-gray-500 mb-4">
                     Выберите спортсмена слева, чтобы увидеть его личные достижения.
@@ -228,10 +230,11 @@ const selectNextAchievement = () => {
                             <td class="p-2">{{ item.event_name }}</td>
                             <td class="p-2">{{ item.event_date || item.event_period || '—' }}</td>
                             <td class="p-2">{{ item.result_label || '—' }} ({{ item.result_place || '—' }})</td>
-                            <td class="p-2">
-                                <button @click="editAchievement(item)" class="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-700 mr-2">Изменить</button>
-                                <button @click="removeAchievement(item.id)" class="text-xs px-2 py-1 rounded bg-red-100 text-red-700">Удалить</button>
+                            <td v-if="!readOnly" class="p-2">
+                                <button @click.stop="editAchievement(item)" class="text-xs px-2 py-1 rounded bg-indigo-100 text-indigo-700 mr-2">Изменить</button>
+                                <button @click.stop="removeAchievement(item.id)" class="text-xs px-2 py-1 rounded bg-red-100 text-red-700">Удалить</button>
                             </td>
+                            <td v-else class="p-2 text-slate-400 text-xs">—</td>
                         </tr>
                         <tr v-if="filteredAchievements.length === 0">
                             <td colspan="4" class="p-3 text-gray-400">Нет достижений</td>
@@ -242,7 +245,7 @@ const selectNextAchievement = () => {
             </div>
         </div>
 
-        <div class="mt-6 bg-white p-6 rounded-xl shadow-sm">
+        <div v-if="!readOnly" class="mt-6 bg-white p-6 rounded-xl shadow-sm">
             <h3 class="font-bold mb-4">Ведущие мероприятий</h3>
             <div class="grid md:grid-cols-5 gap-2 mb-4">
                 <input v-model="hostForm.full_name" class="border-gray-300 rounded-lg" placeholder="ФИО" />

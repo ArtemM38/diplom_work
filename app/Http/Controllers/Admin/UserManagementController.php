@@ -42,7 +42,7 @@ class UserManagementController extends Controller
                 });
             })
             ->orderBy('name')
-            ->paginate(20)
+            ->paginate(5)
             ->withQueryString()
             ->through(fn (User $user) => [
                 'id' => $user->id,
@@ -54,6 +54,7 @@ class UserManagementController extends Controller
                 'role_labels' => RoleLabels::labelsList($user->getRolesList()),
                 'is_active' => $user->is_active,
                 'is_self' => $user->id === Auth::id(),
+                'avatar_url' => $user->avatar_url,
             ]);
 
         return Inertia::render('Admin/Coaches/Index', [

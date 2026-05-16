@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,6 +29,7 @@ class ProfileController extends Controller
                 'user' => [
                     'name' => $user->name,
                     'email' => $user->email,
+                    'avatar_url' => $user->avatar_url,
                     'role' => $user->role,
                     'role_label' => RoleLabels::labelsList($user->getRolesList()),
                 ],
@@ -36,6 +38,24 @@ class ProfileController extends Controller
                 'children' => $user->guardian?->athletes ?? [],
             ],
         ]);
+    }
+
+    public function updateAvatar(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'avatar' => 'required|image|max:4096',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        $user->avatar = $request->file('avatar')->store('avatars', 'public');
+        $user->save();
+
+        return Redirect::route('profile.edit')->with('status', 'avatar-updated');
     }
 
     public function updateGuardian(Request $request): RedirectResponse

@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
-use App\Models\Schedule;
 use App\Models\Attendance;
 use App\Models\AthleteFinance;
+use App\Models\Group;
+use App\Models\Schedule;
 use App\Support\ScheduleAccess;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -101,9 +103,14 @@ class AttendanceController extends Controller
 
     public function journal(Request $request)
     {
+        $viewMode = $request->input('view', 'athletes');
         $search = $request->input('search');
         $athleteId = $request->integer('athlete_id');
+        $groupId = $request->integer('group_id');
         $scheduleId = $request->integer('schedule_id');
+        $calendarMonth = $request->input('calendar_month', now()->format('Y-m'));
+        $statsMonth = (int) $request->input('stats_month', now()->month);
+        $statsYear = (int) $request->input('stats_year', now()->year);
 
         $athletes = Athlete::query()
             ->when($search, function ($query) use ($search) {
@@ -115,113 +122,155 @@ class AttendanceController extends Controller
             ->orderBy('last_name_nom')
             ->paginate(20)
             ->withQueryString()
-            ->through(function (Athlete $athlete) {
-                return [
-                    'id' => $athlete->id,
-                    'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
-                ];
-            });
-
-        $selectedAthlete = $athleteId ? Athlete::find($athleteId) : null;
-        $schedules = Schedule::query()
-            ->with('group')
-            ->whereNotNull('lesson_date')
-            ->orderByDesc('lesson_date')
-            ->orderByDesc('start_time')
-            ->limit(200)
-            ->get()
-            ->map(fn (Schedule $schedule) => [
-                'id' => $schedule->id,
-                'lesson_date' => $schedule->lesson_date,
-                'group_name' => $schedule->group?->name,
-                'start_time' => $schedule->start_time,
-                'end_time' => $schedule->end_time,
+            ->through(fn (Athlete $athlete) => [
+                'id' => $athlete->id,
+                'full_name' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? '')),
             ]);
 
-        $scheduleAthletes = collect();
-        if ($scheduleId) {
-            $selectedSchedule = Schedule::query()
-                ->with(['group.athletes', 'attendances'])
-                ->find($scheduleId);
+        $groups = Group::visible()->where('status', 'active')->orderBy('name')->get(['id', 'name']);
 
-            if ($selectedSchedule) {
-                $attendanceByAthlete = $selectedSchedule->attendances->keyBy('athlete_id');
-                $scheduleAthletes = $selectedSchedule->group?->athletes
-                    ?->map(function (Athlete $athlete) use ($attendanceByAthlete) {
+        $selectedAthlete = null;
+        $calendar = [];
+        $stats = ['present' => 0, 'absent' => 0, 'excused' => 0, 'month' => $statsMonth, 'year' => $statsYear];
+        $rows = collect();
+
+        if ($viewMode === 'athletes' && $athleteId) {
+            $athlete = Athlete::find($athleteId);
+            if ($athlete) {
+                $selectedAthlete = [
+                    'id' => $athlete->id,
+                    'full_name' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? '')),
+                ];
+
+                $periodStart = Carbon::create($statsYear, $statsMonth, 1)->startOfDay();
+                $periodEnd = $periodStart->copy()->endOfMonth();
+
+                $periodAttendances = Attendance::with(['schedule.group'])
+                    ->where('athlete_id', $athleteId)
+                    ->whereHas('schedule', fn ($q) => $q->whereBetween('lesson_date', [$periodStart->toDateString(), $periodEnd->toDateString()]))
+                    ->get();
+
+                $stats = [
+                    'present' => $periodAttendances->where('status', 'Я')->count(),
+                    'absent' => $periodAttendances->where('status', 'Н')->count(),
+                    'excused' => $periodAttendances->where('status', 'У')->count(),
+                    'month' => $statsMonth,
+                    'year' => $statsYear,
+                ];
+
+                $rows = $periodAttendances->map(fn (Attendance $a) => [
+                    'id' => $a->id,
+                    'group' => $a->schedule?->group?->name,
+                    'lesson_date' => $a->schedule?->lesson_date,
+                    'status' => $a->status,
+                ])->sortByDesc('lesson_date')->values();
+
+                [$calYear, $calMonth] = array_pad(explode('-', $calendarMonth), 2, now()->format('Y-m'));
+                $calStart = Carbon::create((int) $calYear, (int) $calMonth, 1)->startOfDay();
+                $calEnd = $calStart->copy()->endOfMonth();
+
+                $calendarAttendances = Attendance::with(['schedule.group'])
+                    ->where('athlete_id', $athleteId)
+                    ->whereHas('schedule', fn ($q) => $q->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()]))
+                    ->get();
+
+                $calendar = $calendarAttendances
+                    ->groupBy(fn (Attendance $a) => $a->schedule?->lesson_date)
+                    ->map(function ($dayItems, $date) {
                         return [
-                            'id' => $athlete->id,
-                            'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
-                            'status' => $attendanceByAthlete->get($athlete->id)?->status ?? 'Н',
+                            'date' => $date,
+                            'entries' => $dayItems->map(function (Attendance $attendance) {
+                                $schedule = $attendance->schedule;
+
+                                return [
+                                    'schedule_id' => $schedule?->id,
+                                    'group' => $schedule?->group?->name,
+                                    'start_time' => $schedule?->start_time,
+                                    'end_time' => $schedule?->end_time,
+                                    'status' => $attendance->status,
+                                ];
+                            })->values(),
                         ];
                     })
-                    ->values() ?? collect();
+                    ->values();
             }
         }
 
-        $rows = collect();
-        $calendar = [];
-        $stats = ['present' => 0, 'absent' => 0, 'excused' => 0];
+        $groupCalendar = [];
+        $scheduleModal = null;
 
-        if ($athleteId) {
-            $attendances = Attendance::with(['schedule.group'])
-                ->where('athlete_id', $athleteId)
-                ->orderByDesc('id')
-                ->get();
+        if ($viewMode === 'groups' && $groupId) {
+            [$calYear, $calMonth] = array_pad(explode('-', $calendarMonth), 2, now()->format('Y-m'));
+            $calStart = Carbon::create((int) $calYear, (int) $calMonth, 1)->startOfDay();
+            $calEnd = $calStart->copy()->endOfMonth();
 
-            $rows = $attendances->map(function (Attendance $attendance) {
-                return [
-                    'id' => $attendance->id,
-                    'group' => $attendance->schedule?->group?->name,
-                    'lesson_date' => $attendance->schedule?->lesson_date,
-                    'status' => $attendance->status,
-                ];
-            });
-
-            $stats = [
-                'present' => $rows->where('status', 'Я')->count(),
-                'absent' => $rows->where('status', 'Н')->count(),
-                'excused' => $rows->where('status', 'У')->count(),
-            ];
-
-            $schedulesForCalendar = Schedule::query()
-                ->with('group')
-                ->whereHas('group.athletes', fn ($q) => $q->where('athletes.id', $athleteId))
-                ->whereNotNull('lesson_date')
+            $groupSchedules = Schedule::query()
+                ->where('group_id', $groupId)
+                ->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()])
                 ->orderBy('lesson_date')
+                ->orderBy('start_time')
                 ->get();
 
-            $attendanceBySchedule = $attendances->keyBy('schedule_id');
-
-            $calendar = $schedulesForCalendar
+            $groupCalendar = $groupSchedules
                 ->groupBy('lesson_date')
-                ->map(function ($daySchedules, $date) use ($attendanceBySchedule) {
-                    return [
-                        'date' => $date,
-                        'entries' => $daySchedules->map(function (Schedule $schedule) use ($attendanceBySchedule) {
-                            return [
-                                'group' => $schedule->group?->name,
-                                'start_time' => $schedule->start_time,
-                                'end_time' => $schedule->end_time,
-                                'status' => $attendanceBySchedule->get($schedule->id)?->status ?? 'Н',
-                            ];
-                        })->values(),
-                    ];
-                })
+                ->map(fn ($items, $date) => [
+                    'date' => $date,
+                    'entries' => $items->map(fn (Schedule $s) => [
+                        'schedule_id' => $s->id,
+                        'start_time' => $s->start_time,
+                        'end_time' => $s->end_time,
+                        'group' => $s->group?->name,
+                    ])->values(),
+                ])
                 ->values();
+
+            if ($scheduleId) {
+                $schedule = Schedule::with(['group', 'attendances'])->find($scheduleId);
+                if ($schedule && (int) $schedule->group_id === $groupId) {
+                    $attendanceByAthlete = $schedule->attendances->keyBy('athlete_id');
+                    $memberIds = $schedule->group?->athletes()->pluck('athletes.id') ?? collect();
+                    $historicalIds = $schedule->attendances->pluck('athlete_id');
+                    $allIds = $memberIds->merge($historicalIds)->unique()->filter();
+
+                    $modalAthletes = Athlete::whereIn('id', $allIds)->orderBy('last_name_nom')->get()->map(function (Athlete $a) use ($attendanceByAthlete) {
+                        return [
+                            'id' => $a->id,
+                            'full_name' => trim("{$a->last_name_nom} {$a->first_name_nom} " . ($a->middle_name_nom ?? '')),
+                            'status' => $attendanceByAthlete->get($a->id)?->status ?? 'Н',
+                        ];
+                    })->values();
+
+                    $scheduleModal = [
+                        'id' => $schedule->id,
+                        'lesson_date' => $schedule->lesson_date,
+                        'start_time' => $schedule->start_time,
+                        'end_time' => $schedule->end_time,
+                        'group_name' => $schedule->group?->name,
+                        'athletes' => $modalAthletes,
+                    ];
+                }
+            }
         }
 
         return Inertia::render('Admin/Attendance/Journal', [
             'athletes' => $athletes,
-            'schedules' => $schedules,
-            'scheduleAthletes' => $scheduleAthletes,
-            'rows' => $rows,
+            'groups' => $groups,
             'calendar' => $calendar,
-            'selectedAthlete' => $selectedAthlete ? [
-                'id' => $selectedAthlete->id,
-                'full_name' => trim($selectedAthlete->last_name_nom . ' ' . $selectedAthlete->first_name_nom . ' ' . ($selectedAthlete->middle_name_nom ?? '')),
-            ] : null,
+            'groupCalendar' => $groupCalendar,
+            'scheduleModal' => $scheduleModal,
+            'selectedAthlete' => $selectedAthlete,
             'stats' => $stats,
-            'filters' => ['search' => $search, 'athlete_id' => $athleteId, 'schedule_id' => $scheduleId],
+            'rows' => $rows,
+            'filters' => [
+                'view' => $viewMode,
+                'search' => $search,
+                'athlete_id' => $athleteId,
+                'group_id' => $groupId,
+                'schedule_id' => $scheduleId,
+                'calendar_month' => $calendarMonth,
+                'stats_month' => $statsMonth,
+                'stats_year' => $statsYear,
+            ],
         ]);
     }
 }

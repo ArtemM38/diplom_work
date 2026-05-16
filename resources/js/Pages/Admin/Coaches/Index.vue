@@ -124,11 +124,25 @@ watch([roleFilter, activeFilter], () => {
                     class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3"
                 >
                     <div class="flex flex-wrap items-center justify-between gap-2">
-                        <div>
+                        <div class="flex items-center gap-3">
+                            <img
+                                v-if="user.avatar_url"
+                                :src="user.avatar_url"
+                                class="w-10 h-10 rounded-full object-cover border border-slate-200"
+                                alt=""
+                            />
+                            <div
+                                v-else
+                                class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold"
+                            >
+                                {{ user.display_name?.[0] || '?' }}
+                            </div>
+                            <div>
                             <Link :href="route('admin.users.show', user.id)" class="font-semibold text-indigo-700 hover:underline">
                                 {{ user.display_name }}
                             </Link>
                             <p class="text-xs text-slate-500">{{ user.email }}</p>
+                            </div>
                         </div>
                         <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{{ user.role_labels }}</span>
                     </div>

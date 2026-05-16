@@ -17,6 +17,7 @@ class Athlete extends Model
         'phone',
         'birth_date',
         'gender',
+        'occupation_type',
         'registration_address',
         'photo',
         'school_name',

@@ -54,6 +54,8 @@ const editForm = useForm({
     lesson_type: 'group',
 });
 const editingScheduleId = ref(null);
+const showEditModal = ref(false);
+const editingSchedule = ref(null);
 
 // Клик по дню в календаре
 const selectDay = (date) => {
@@ -73,6 +75,7 @@ const canMarkAttendance = (schedule) => schedule.can_mark_attendance === true;
 const canDeleteSchedule = (schedule) => schedule.can_delete === true;
 
 const startEdit = (schedule) => {
+    editingSchedule.value = schedule;
     editingScheduleId.value = schedule.id;
     editForm.lesson_date = schedule.lesson_date;
     editForm.group_id = schedule.group_id;
@@ -80,10 +83,13 @@ const startEdit = (schedule) => {
     editForm.coach_id = schedule.coach_id;
     editForm.start_time = schedule.start_time?.substring(0, 5);
     editForm.end_time = schedule.end_time?.substring(0, 5);
+    showEditModal.value = true;
 };
 
 const cancelEdit = () => {
     editingScheduleId.value = null;
+    editingSchedule.value = null;
+    showEditModal.value = false;
     editForm.reset();
 };
 
@@ -217,29 +223,14 @@ const removeSchedule = (schedule) => {
                         <div v-for="s in schedules.filter(s => s.lesson_date === selectedDate)" :key="s.id"
                             class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-3 text-xs border border-transparent hover:border-indigo-200 transition shadow-sm">
 
-                            <div class="flex flex-col flex-1" v-if="editingScheduleId !== s.id">
+                            <div class="flex flex-col flex-1">
                                 <span class="font-bold text-indigo-700">{{ s.start_time.substring(0, 5) }} - {{
                                     s.end_time.substring(0, 5) }}</span>
                                 <span class="text-slate-600">
                                     <span class="font-semibold text-slate-900">{{ s.location?.name }}</span>
                                     | {{ s.group.name }}
                                 </span>
-                            </div>
-                            <div v-else class="flex-1 space-y-2">
-                                <p v-if="editForm.errors.conflict" class="text-red-600 text-xs bg-red-50 p-2 rounded">{{ editForm.errors.conflict }}</p>
-                                <div class="grid grid-cols-2 gap-2">
-                                <input v-model="editForm.start_time" type="time" class="border-gray-300 rounded-lg" />
-                                <input v-model="editForm.end_time" type="time" class="border-gray-300 rounded-lg" />
-                                <select v-model="editForm.group_id" class="border-gray-300 rounded-lg">
-                                    <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-                                </select>
-                                <select v-model="editForm.location_id" class="border-gray-300 rounded-lg">
-                                    <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
-                                </select>
-                                <select v-model="editForm.coach_id" class="border-gray-300 rounded-lg col-span-2">
-                                    <option v-for="c in coaches" :key="c.id" :value="c.id">{{ c.name }}</option>
-                                </select>
-                                </div>
+                                <span class="text-[10px] text-slate-400 mt-0.5">{{ s.coach?.name }}</span>
                             </div>
 
                             <div class="flex items-center gap-2 ml-2">
@@ -252,9 +243,7 @@ const removeSchedule = (schedule) => {
                                     Журнал с −10 мин
                                 </span>
 
-                                <button v-if="editingScheduleId !== s.id" @click="startEdit(s)" class="text-indigo-500 hover:text-indigo-700 transition p-1">✎</button>
-                                <button v-else @click="saveEdit" class="px-2 py-1 rounded bg-emerald-100 text-emerald-700">Сохранить</button>
-                                <button v-if="editingScheduleId === s.id" @click="cancelEdit" class="px-2 py-1 rounded bg-gray-100 text-gray-700">Отмена</button>
+                                <button @click="startEdit(s)" class="px-2 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-700 text-xs font-medium hover:bg-indigo-50">Изменить</button>
 
                                 <button
                                     @click="removeSchedule(s)"
@@ -281,6 +270,60 @@ const removeSchedule = (schedule) => {
                 </div>
             </div>
 
+        </div>
+
+        <div
+            v-if="showEditModal && editingSchedule"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            @click.self="cancelEdit"
+        >
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4 text-white">
+                    <h3 class="text-lg font-bold">Редактирование тренировки</h3>
+                    <p class="text-indigo-100 text-sm mt-1">{{ dayjs(editingSchedule.lesson_date).format('DD.MM.YYYY') }}</p>
+                </div>
+                <form @submit.prevent="saveEdit" class="p-6 space-y-4">
+                    <p v-if="editForm.errors.conflict" class="text-red-600 text-sm bg-red-50 p-3 rounded-xl border border-red-100">
+                        {{ editForm.errors.conflict }}
+                    </p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs text-slate-500 font-medium">Начало</label>
+                            <input v-model="editForm.start_time" type="time" class="w-full mt-1 border-gray-300 rounded-xl" required />
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-500 font-medium">Конец</label>
+                            <input v-model="editForm.end_time" type="time" class="w-full mt-1 border-gray-300 rounded-xl" required />
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500 font-medium">Группа</label>
+                        <select v-model="editForm.group_id" class="w-full mt-1 border-gray-300 rounded-xl">
+                            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500 font-medium">Зал</label>
+                        <select v-model="editForm.location_id" class="w-full mt-1 border-gray-300 rounded-xl">
+                            <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500 font-medium">Тренер</label>
+                        <select v-model="editForm.coach_id" class="w-full mt-1 border-gray-300 rounded-xl">
+                            <option v-for="c in coaches" :key="c.id" :value="c.id">{{ c.name }}</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2 pt-2">
+                        <button type="submit" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700" :disabled="editForm.processing">
+                            Сохранить
+                        </button>
+                        <button type="button" @click="cancelEdit" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+                            Отмена
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </AuthenticatedLayout>
 </template>

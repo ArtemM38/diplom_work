@@ -3,11 +3,22 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
+import InputError from '@/Components/InputError.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import PrimaryButton from '@/Components/PrimaryButton.vue';
+import TextInput from '@/Components/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+
+const props = defineProps({
+    mustVerifyEmail: { type: Boolean },
+    status: { type: String },
+    profileData: { type: Object },
+});
 
 const avatarForm = useForm({ avatar: null });
 const avatarPreview = ref(null);
+const avatarInput = ref(null);
 
 const onAvatarChange = (e) => {
     const file = e.target.files?.[0];
@@ -22,17 +33,10 @@ const uploadAvatar = () => {
         onSuccess: () => {
             avatarForm.reset();
             avatarPreview.value = null;
+            if (avatarInput.value) avatarInput.value.value = '';
         },
     });
 };
-
-const props = defineProps({
-    mustVerifyEmail: { type: Boolean },
-    status: { type: String },
-    profileData: { type: Object },
-});
-
-const editMode = ref(false);
 
 const guardianForm = useForm({
     full_name: props.profileData?.guardian?.full_name || '',
@@ -40,11 +44,52 @@ const guardianForm = useForm({
     relation: props.profileData?.guardian?.relation || 'Отец',
 });
 
+const formatPhone = (value) => {
+    const digits = (value || '').replace(/\D/g, '').slice(0, 11);
+    const normalized = digits.startsWith('8') ? `7${digits.slice(1)}` : digits;
+    const d = normalized.startsWith('7') ? normalized.slice(1) : normalized;
+    let out = '+7';
+    if (d.length > 0) out += ` (${d.slice(0, 3)}`;
+    if (d.length >= 3) out += ')';
+    if (d.length > 3) out += ` ${d.slice(3, 6)}`;
+    if (d.length > 6) out += `-${d.slice(6, 8)}`;
+    if (d.length > 8) out += `-${d.slice(8, 10)}`;
+    return out;
+};
+
+const onPhoneInput = (event) => {
+    guardianForm.phone = formatPhone(event.target.value);
+};
+
 const saveGuardian = () => {
     guardianForm.patch(route('profile.guardian.update'));
 };
 
-const childName = (child) => `${child.last_name_nom} ${child.first_name_nom} ${child.middle_name_nom || ''}`.trim();
+const childName = (child) =>
+    `${child.last_name_nom} ${child.first_name_nom} ${child.middle_name_nom || ''}`.trim();
+
+const avatarSrc = computed(
+    () =>
+        avatarPreview.value ||
+        props.profileData?.user?.avatar_url ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(props.profileData?.user?.name || 'U')}&background=4f46e5&color=fff`,
+);
+
+const statusMessage = computed(() => {
+    const map = {
+        'avatar-updated': 'Аватар успешно обновлён',
+        'guardian-updated': 'Контактные данные сохранены',
+        'verification-link-sent': 'Письмо для подтверждения отправлено',
+    };
+    return map[props.status] || null;
+});
+
+const hasRoleBlocks = computed(
+    () =>
+        props.profileData?.guardian ||
+        props.profileData?.children?.length ||
+        props.profileData?.athlete,
+);
 </script>
 
 <template>
@@ -52,110 +97,219 @@ const childName = (child) => `${child.last_name_nom} ${child.first_name_nom} ${c
 
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-gray-800">Профиль</h2>
+            <h2 class="text-xl font-semibold leading-tight text-slate-800">Профиль</h2>
         </template>
 
-        <div class="py-8 max-w-4xl mx-auto space-y-6">
-            <div class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Аватар</h3>
-                <div class="flex flex-wrap items-center gap-6">
-                    <img
-                        :src="avatarPreview || profileData?.user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData?.user?.name || 'U')}`"
-                        class="w-20 h-20 rounded-full object-cover border-4 border-indigo-100"
-                        alt=""
-                    />
-                    <form @submit.prevent="uploadAvatar" class="flex flex-wrap items-end gap-3">
-                        <input type="file" accept="image/*" @change="onAvatarChange" class="text-sm" />
-                        <button
-                            type="submit"
-                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium disabled:opacity-50"
-                            :disabled="!avatarForm.avatar || avatarForm.processing"
-                        >
-                            Загрузить
-                        </button>
-                    </form>
-                </div>
-                <p v-if="status === 'avatar-updated'" class="text-sm text-green-600 mt-2">Аватар обновлён</p>
-            </div>
-
-            <div class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-medium text-gray-900">Аккаунт</h3>
-                    <button
-                        @click="editMode = !editMode"
-                        class="px-3 py-2 rounded-lg text-sm"
-                        :class="editMode ? 'bg-gray-100 text-gray-700' : 'bg-indigo-100 text-indigo-700'"
-                    >
-                        {{ editMode ? 'Закрыть' : 'Редактировать' }}
-                    </button>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div><b>ФИО:</b> {{ profileData?.user?.name }}</div>
-                    <div><b>Email:</b> {{ profileData?.user?.email }}</div>
-                    <div><b>Роль:</b> {{ profileData?.user?.role_label || profileData?.user?.role }}</div>
-                </div>
-            </div>
-
-            <div v-if="profileData?.guardian" class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Данные законного представителя</h3>
-                <form @submit.prevent="saveGuardian" class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="text-sm text-gray-600">ФИО</label>
-                        <input v-model="guardianForm.full_name" class="w-full mt-1 rounded-lg border-slate-300" required />
-                    </div>
-                    <div>
-                        <label class="text-sm text-gray-600">Телефон</label>
-                        <input v-model="guardianForm.phone" class="w-full mt-1 rounded-lg border-slate-300" required />
-                    </div>
-                    <div>
-                        <label class="text-sm text-gray-600">Кем приходитесь ребёнку</label>
-                        <select v-model="guardianForm.relation" class="w-full mt-1 rounded-lg border-slate-300">
-                            <option value="Отец">Отец</option>
-                            <option value="Мать">Мать</option>
-                            <option value="Опекун">Опекун</option>
-                        </select>
-                    </div>
-                    <div class="flex items-end">
-                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium" :disabled="guardianForm.processing">
-                            Сохранить данные
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div v-if="profileData?.children?.length" class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Привязанные дети</h3>
-                <div class="space-y-3">
+        <div class="py-8">
+            <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+                <Transition
+                    enter-active-class="transition ease-out duration-200"
+                    enter-from-class="opacity-0 -translate-y-1"
+                    enter-to-class="opacity-100 translate-y-0"
+                >
                     <div
-                        v-for="child in profileData.children"
-                        :key="child.id"
-                        class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100"
+                        v-if="statusMessage"
+                        class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"
                     >
-                        <div>
-                            <p class="font-semibold">{{ childName(child) }}</p>
-                            <p class="text-sm text-slate-500">{{ child.birth_date }} · {{ child.phone || 'без телефона' }}</p>
+                        {{ statusMessage }}
+                    </div>
+                </Transition>
+
+                <!-- Шапка профиля -->
+                <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div class="h-24 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-500" />
+                    <div class="px-6 pb-6">
+                        <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:-mt-12">
+                            <div class="relative shrink-0">
+                                <img
+                                    :src="avatarSrc"
+                                    class="h-24 w-24 rounded-2xl border-4 border-white object-cover shadow-lg ring-2 ring-indigo-100"
+                                    alt=""
+                                />
+                            </div>
+                            <div class="flex-1 min-w-0 pt-2 sm:pt-14">
+                                <h1 class="text-2xl font-bold text-slate-900 truncate">
+                                    {{ profileData?.user?.name }}
+                                </h1>
+                                <p class="text-slate-500 truncate">{{ profileData?.user?.email }}</p>
+                                <span
+                                    v-if="profileData?.user?.role_label"
+                                    class="mt-2 inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700"
+                                >
+                                    {{ profileData.user.role_label }}
+                                </span>
+                            </div>
+                            <form @submit.prevent="uploadAvatar" class="flex flex-col gap-2 sm:items-end sm:pb-1">
+                                <input
+                                    ref="avatarInput"
+                                    type="file"
+                                    accept="image/*"
+                                    class="hidden"
+                                    @change="onAvatarChange"
+                                />
+                                <button
+                                    type="button"
+                                    @click="avatarInput?.click()"
+                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
+                                >
+                                    Выбрать фото
+                                </button>
+                                <button
+                                    v-if="avatarForm.avatar"
+                                    type="submit"
+                                    class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition"
+                                    :disabled="avatarForm.processing"
+                                >
+                                    {{ avatarForm.processing ? 'Загрузка…' : 'Сохранить аватар' }}
+                                </button>
+                            </form>
                         </div>
-                        <a :href="route('athlete.edit', child.id)" class="text-indigo-600 text-sm font-medium hover:underline">Редактировать</a>
+                    </div>
+                </section>
+
+                <div class="grid gap-6 lg:grid-cols-2">
+                    <!-- Левая колонка: роль -->
+                    <div class="space-y-6">
+                        <section
+                            v-if="profileData?.guardian"
+                            class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                        >
+                            <h3 class="text-lg font-semibold text-slate-900">Законный представитель</h3>
+                            <p class="mt-1 text-sm text-slate-500 mb-5">
+                                Контакты и связь с ребёнком
+                            </p>
+                            <form @submit.prevent="saveGuardian" class="space-y-4">
+                                <div>
+                                    <InputLabel value="ФИО" />
+                                    <TextInput
+                                        v-model="guardianForm.full_name"
+                                        class="mt-1.5 w-full rounded-xl"
+                                        required
+                                        placeholder="Иванов Иван Иванович"
+                                    />
+                                    <InputError :message="guardianForm.errors.full_name" class="mt-1" />
+                                </div>
+                                <div>
+                                    <InputLabel value="Телефон" />
+                                    <TextInput
+                                        v-model="guardianForm.phone"
+                                        class="mt-1.5 w-full rounded-xl"
+                                        required
+                                        placeholder="+7 (___) ___-__-__"
+                                        @input="onPhoneInput"
+                                    />
+                                    <InputError :message="guardianForm.errors.phone" class="mt-1" />
+                                </div>
+                                <div>
+                                    <InputLabel value="Кем вы приходитесь ребёнку" />
+                                    <select
+                                        v-model="guardianForm.relation"
+                                        class="mt-1.5 w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                    >
+                                        <option value="Отец">Отец</option>
+                                        <option value="Мать">Мать</option>
+                                        <option value="Опекун">Опекун</option>
+                                    </select>
+                                    <InputError :message="guardianForm.errors.relation" class="mt-1" />
+                                </div>
+                                <PrimaryButton
+                                    type="submit"
+                                    class="rounded-xl"
+                                    :disabled="guardianForm.processing"
+                                >
+                                    Сохранить контакты
+                                </PrimaryButton>
+                            </form>
+                        </section>
+
+                        <section
+                            v-if="profileData?.children?.length"
+                            class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                        >
+                            <h3 class="text-lg font-semibold text-slate-900">Привязанные дети</h3>
+                            <p class="mt-1 text-sm text-slate-500 mb-4">Спортсмены в вашем аккаунте</p>
+                            <ul class="space-y-3">
+                                <li
+                                    v-for="child in profileData.children"
+                                    :key="child.id"
+                                    class="flex items-center justify-between gap-4 rounded-xl border border-slate-100 bg-slate-50 p-4"
+                                >
+                                    <div class="min-w-0">
+                                        <p class="font-semibold text-slate-900 truncate">{{ childName(child) }}</p>
+                                        <p class="text-sm text-slate-500">
+                                            {{ child.birth_date || 'дата не указана' }}
+                                            <span v-if="child.phone"> · {{ child.phone }}</span>
+                                        </p>
+                                    </div>
+                                    <a
+                                        :href="route('athlete.edit', child.id)"
+                                        class="shrink-0 text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                                    >
+                                        Анкета
+                                    </a>
+                                </li>
+                            </ul>
+                        </section>
+
+                        <section
+                            v-if="profileData?.athlete"
+                            class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                        >
+                            <h3 class="text-lg font-semibold text-slate-900">Данные спортсмена</h3>
+                            <dl class="mt-4 space-y-2 text-sm">
+                                <div class="flex gap-2">
+                                    <dt class="text-slate-500 w-28 shrink-0">Телефон</dt>
+                                    <dd class="text-slate-900">{{ profileData.athlete.phone || '—' }}</dd>
+                                </div>
+                                <div class="flex gap-2">
+                                    <dt class="text-slate-500 w-28 shrink-0">Рождение</dt>
+                                    <dd class="text-slate-900">{{ profileData.athlete.birth_date || '—' }}</dd>
+                                </div>
+                                <div class="flex gap-2">
+                                    <dt class="text-slate-500 w-28 shrink-0">Адрес</dt>
+                                    <dd class="text-slate-900">{{ profileData.athlete.registration_address || '—' }}</dd>
+                                </div>
+                            </dl>
+                            <a
+                                :href="route('athlete.edit', profileData.athlete.id)"
+                                class="mt-4 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-800"
+                            >
+                                Редактировать анкету →
+                            </a>
+                        </section>
+
+                        <section
+                            v-if="!hasRoleBlocks"
+                            class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-center text-sm text-slate-500"
+                        >
+                            Дополнительные данные по роли не требуются. Ниже можно изменить почту и пароль.
+                        </section>
+                    </div>
+
+                    <!-- Правая колонка: аккаунт -->
+                    <div class="space-y-6">
+                        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <h3 class="text-lg font-semibold text-slate-900">Данные аккаунта</h3>
+                            <p class="mt-1 text-sm text-slate-500 mb-5">Имя в системе и адрес электронной почты</p>
+                            <UpdateProfileInformationForm
+                                :must-verify-email="mustVerifyEmail"
+                                :status="status"
+                            />
+                        </section>
+
+                        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <h3 class="text-lg font-semibold text-slate-900">Безопасность</h3>
+                            <p class="mt-1 text-sm text-slate-500 mb-5">Смена пароля для входа в CRM</p>
+                            <UpdatePasswordForm />
+                        </section>
+
+                        <section class="rounded-2xl border border-red-100 bg-red-50/50 p-6">
+                            <h3 class="text-lg font-semibold text-red-900">Опасная зона</h3>
+                            <p class="mt-1 text-sm text-red-800/80 mb-4">Удаление аккаунта без возможности восстановления</p>
+                            <DeleteUserForm />
+                        </section>
                     </div>
                 </div>
-            </div>
-
-            <div v-if="profileData?.athlete" class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100 text-sm space-y-2">
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Данные спортсмена</h3>
-                <p><b>Телефон:</b> {{ profileData.athlete.phone || '—' }}</p>
-                <p><b>Дата рождения:</b> {{ profileData.athlete.birth_date || '—' }}</p>
-                <p><b>Адрес:</b> {{ profileData.athlete.registration_address || '—' }}</p>
-                <a :href="route('athlete.edit', profileData.athlete.id)" class="inline-block mt-2 text-indigo-600 hover:underline">Редактировать анкету</a>
-            </div>
-
-            <div v-if="editMode" class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
-                <UpdateProfileInformationForm :must-verify-email="mustVerifyEmail" :status="status" class="max-w-xl" />
-            </div>
-            <div v-if="editMode" class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
-                <UpdatePasswordForm class="max-w-xl" />
-            </div>
-            <div v-if="editMode" class="bg-white p-6 shadow-sm rounded-2xl border border-slate-100">
-                <DeleteUserForm class="max-w-xl" />
             </div>
         </div>
     </AuthenticatedLayout>

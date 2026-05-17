@@ -17,7 +17,7 @@ use Tests\TestCase;
  * - 3 позитивных сценария основного функционала
  * - 1 негативный сценарий валидации данных
  * - 2 негативных сценария проверки ролей
- * - 1 сценарий тестирования веб-интерфейса (Inertia)
+ * - сценарии веб-интерфейса — см. WebInterfaceScenariosTest
  */
 class CrmTestScenariosTest extends TestCase
 {
@@ -176,31 +176,6 @@ class CrmTestScenariosTest extends TestCase
         $this->assertDatabaseMissing('groups', [
             'name' => 'Запрещённая группа',
         ]);
-    }
-
-    /**
-     * Сценарий тестирования веб-интерфейса.
-     * Администратор открывает страницу «Группы и секции» — отдаётся Inertia-компонент списка групп.
-     */
-    public function test_web_ui_admin_groups_page_renders_inertia_component(): void
-    {
-        $admin = $this->makeUser('admin');
-
-        Group::create([
-            'name' => 'UI-группа',
-            'type' => 'Учебная',
-            'tariff_amount' => 350,
-            'status' => 'active',
-        ]);
-
-        $response = $this->actingAs($admin)->get(route('admin.groups'));
-
-        $response->assertOk();
-        $response->assertViewIs('app');
-        $content = $response->getContent();
-        $this->assertStringContainsString('Admin/Groups/Index', $content);
-        $this->assertStringContainsString('canCreateGroups', $content);
-        $this->assertStringContainsString('tariffOnlyMode', $content);
     }
 
     private function makeUser(string $role): User

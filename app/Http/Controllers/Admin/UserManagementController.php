@@ -78,6 +78,7 @@ class UserManagementController extends Controller
                 'name' => $user->name,
                 'display_name' => $user->display_name,
                 'email' => $user->email,
+                'avatar_url' => $user->avatar_url,
                 'role_labels' => RoleLabels::labelsList($user->getRolesList()),
                 'roles' => $user->getRolesList(),
                 'is_active' => $user->is_active,

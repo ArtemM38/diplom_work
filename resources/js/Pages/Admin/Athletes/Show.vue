@@ -1,7 +1,8 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import AvatarZoomable from '@/Components/AvatarZoomable.vue';
+import { Head, Link, router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     athlete: Object,
@@ -30,15 +31,7 @@ const formatInventory = (inventory) => {
     return keys.length ? keys.map((key) => inventoryLabels[key]).join(', ') : 'Нет выданного инвентаря';
 };
 
-const showAddGuardian = ref(false);
 const editingGuardianId = ref(null);
-
-const newGuardianForm = useForm({
-    full_name: '',
-    phone: '',
-    relation: 'Отец',
-});
-
 const editGuardianForms = ref({});
 
 const initEditForm = (guardian) => {
@@ -47,15 +40,6 @@ const initEditForm = (guardian) => {
         phone: guardian.phone || '',
         relation: guardian.relation || 'Отец',
     };
-};
-
-const addGuardian = () => {
-    newGuardianForm.post(route('admin.athletes.guardians.store', props.athlete.id), {
-        onSuccess: () => {
-            newGuardianForm.reset();
-            showAddGuardian.value = false;
-        },
-    });
 };
 
 const saveGuardian = (guardianId) => {
@@ -68,6 +52,8 @@ const saveGuardian = (guardianId) => {
 };
 
 const fullName = `${props.athlete.last_name_nom} ${props.athlete.first_name_nom} ${props.athlete.middle_name_nom || ''}`.trim();
+
+const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete.photo}` : null));
 </script>
 
 <template>
@@ -85,15 +71,13 @@ const fullName = `${props.athlete.last_name_nom} ${props.athlete.first_name_nom}
             <!-- Hero -->
             <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl shadow-xl text-white overflow-hidden">
                 <div class="p-8 flex flex-col md:flex-row md:items-center gap-6">
-                    <div class="w-28 h-28 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-4xl font-bold shrink-0 overflow-hidden">
-                        <img
-                            v-if="athlete.photo"
-                            :src="`/storage/${athlete.photo}`"
-                            class="w-full h-full object-cover"
-                            alt=""
-                        />
-                        <span v-else>{{ athlete.first_name_nom?.[0] }}{{ athlete.last_name_nom?.[0] }}</span>
-                    </div>
+                    <AvatarZoomable
+                        :src="photoSrc"
+                        :name="fullName"
+                        size="xl"
+                        shape="rounded"
+                        class="shrink-0 !border-white/30 !ring-white/20"
+                    />
                     <div class="flex-1 min-w-0">
                         <h1 class="text-3xl font-bold tracking-tight">{{ fullName }}</h1>
                         <p class="text-indigo-200 mt-1">
@@ -150,33 +134,13 @@ const fullName = `${props.athlete.last_name_nom} ${props.athlete.first_name_nom}
                 </div>
             </div>
 
-            <!-- Guardians -->
+            <!-- Guardians (только просмотр и правка существующих) -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-lg font-bold text-slate-800">Законные представители</h2>
-                    <button
-                        type="button"
-                        @click="showAddGuardian = !showAddGuardian"
-                        class="text-sm font-medium text-indigo-600 hover:text-indigo-800"
-                    >
-                        {{ showAddGuardian ? 'Отмена' : '+ Добавить' }}
-                    </button>
+                <h2 class="text-lg font-bold text-slate-800 mb-4">Законные представители</h2>
+
+                <div v-if="!athlete.guardians?.length" class="text-slate-400 text-sm py-4 text-center">
+                    Нет законных представителей
                 </div>
-
-                <form v-if="showAddGuardian" @submit.prevent="addGuardian" class="mb-6 p-4 rounded-xl bg-indigo-50 border border-indigo-100 grid md:grid-cols-4 gap-3">
-                    <input v-model="newGuardianForm.full_name" placeholder="ФИО" class="rounded-lg border-slate-300" required />
-                    <input v-model="newGuardianForm.phone" placeholder="+7 (___) ___-__-__" class="rounded-lg border-slate-300" />
-                    <select v-model="newGuardianForm.relation" class="rounded-lg border-slate-300">
-                        <option value="Отец">Отец</option>
-                        <option value="Мать">Мать</option>
-                        <option value="Опекун">Опекун</option>
-                    </select>
-                    <button type="submit" class="rounded-lg bg-indigo-600 text-white font-medium py-2" :disabled="newGuardianForm.processing">
-                        Сохранить
-                    </button>
-                </form>
-
-                <div v-if="!athlete.guardians?.length && !showAddGuardian" class="text-slate-400 text-sm py-4 text-center">Нет законных представителей</div>
 
                 <div class="space-y-3">
                     <div
@@ -231,7 +195,6 @@ const fullName = `${props.athlete.last_name_nom} ${props.athlete.first_name_nom}
                         <li v-if="!athlete.documents?.length" class="text-slate-400">Нет документов</li>
                     </ul>
                 </div>
-               
             </div>
         </div>
     </AuthenticatedLayout>

@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AvatarZoomable from '@/Components/AvatarZoomable.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
@@ -140,18 +141,12 @@ watch([roleFilter, activeFilter], () => {
                 >
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <div class="flex items-center gap-3">
-                            <img
-                                v-if="user.avatar_url"
+                            <AvatarZoomable
                                 :src="user.avatar_url"
-                                class="w-10 h-10 rounded-full object-cover border border-slate-200"
-                                alt=""
+                                :name="user.display_name"
+                                size="sm"
+                                shape="circle"
                             />
-                            <div
-                                v-else
-                                class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold"
-                            >
-                                {{ user.display_name?.[0] || '?' }}
-                            </div>
                             <div>
                             <Link :href="route('admin.users.show', user.id)" class="font-semibold text-indigo-700 hover:underline">
                                 {{ user.display_name }}

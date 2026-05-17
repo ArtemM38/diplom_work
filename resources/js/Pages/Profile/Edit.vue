@@ -5,6 +5,7 @@ import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import AvatarZoomable from '@/Components/AvatarZoomable.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
@@ -68,13 +69,6 @@ const saveGuardian = () => {
 const childName = (child) =>
     `${child.last_name_nom} ${child.first_name_nom} ${child.middle_name_nom || ''}`.trim();
 
-const avatarSrc = computed(
-    () =>
-        avatarPreview.value ||
-        props.profileData?.user?.avatar_url ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(props.profileData?.user?.name || 'U')}&background=4f46e5&color=fff`,
-);
-
 const statusMessage = computed(() => {
     const map = {
         'avatar-updated': 'Аватар успешно обновлён',
@@ -118,15 +112,14 @@ const hasRoleBlocks = computed(
                 <!-- Шапка профиля -->
                 <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div class="h-24 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-500" />
-                    <div class="px-6 pb-6">
+                    <div class="px-6 mt-6 pb-6">
                         <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:-mt-12">
-                            <div class="relative shrink-0">
-                                <img
-                                    :src="avatarSrc"
-                                    class="h-24 w-24 rounded-2xl border-4 border-white object-cover shadow-lg ring-2 ring-indigo-100"
-                                    alt=""
-                                />
-                            </div>
+                            <AvatarZoomable
+                                :src="avatarPreview || profileData?.user?.avatar_url"
+                                :name="profileData?.user?.name"
+                                size="lg"
+                                shape="rounded"
+                            />
                             <div class="flex-1 min-w-0 pt-2 sm:pt-14">
                                 <h1 class="text-2xl font-bold text-slate-900 truncate">
                                     {{ profileData?.user?.name }}

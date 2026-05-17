@@ -290,10 +290,13 @@ const hasRoleBlocks = computed(
                     <div class="space-y-6">
                         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                             <h3 class="text-lg font-semibold text-slate-900">Данные аккаунта</h3>
-                            <p class="mt-1 text-sm text-slate-500 mb-5">Имя в системе и адрес электронной почты</p>
+                            <p class="mt-1 text-sm text-slate-500 mb-5">
+                                {{ profileData?.guardian ? 'Адрес для входа и уведомлений' : 'Имя в системе и адрес электронной почты' }}
+                            </p>
                             <UpdateProfileInformationForm
                                 :must-verify-email="mustVerifyEmail"
                                 :status="status"
+                                :hide-name="!!profileData?.guardian"
                             />
                         </section>
 

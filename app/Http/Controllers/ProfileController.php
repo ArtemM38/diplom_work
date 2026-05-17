@@ -42,9 +42,15 @@ class ProfileController extends Controller
 
     public function updateAvatar(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'avatar' => 'required|image|max:4096',
-        ]);
+        $request->validate(
+            ['avatar' => 'required|image|max:4096'],
+            [
+                'avatar.required' => 'Выберите изображение для загрузки.',
+                'avatar.image' => 'Файл должен быть изображением (JPEG, PNG и т.д.).',
+                'avatar.max' => 'Размер изображения не должен превышать 4 МБ.',
+            ],
+            ['avatar' => 'аватар'],
+        );
 
         $user = $request->user();
 
@@ -63,11 +69,21 @@ class ProfileController extends Controller
         $user = $request->user();
         abort_unless($user->hasRole('guardian') && $user->guardian, 403);
 
-        $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
-            'phone' => 'required|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
-            'relation' => 'required|string|max:255',
-        ]);
+        $validated = $request->validate(
+            [
+                'full_name' => 'required|string|max:255',
+                'phone' => 'required|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
+                'relation' => 'required|string|max:255',
+            ],
+            [
+                'phone.regex' => 'Укажите телефон в формате +7 (999) 999-99-99.',
+            ],
+            [
+                'full_name' => 'ФИО',
+                'phone' => 'телефон',
+                'relation' => 'степень родства',
+            ],
+        );
 
         $user->guardian->update($validated);
         $user->update(['name' => $validated['full_name']]);
@@ -96,9 +112,11 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validate([
-            'password' => ['required', 'current_password'],
-        ]);
+        $request->validate(
+            ['password' => ['required', 'current_password']],
+            [],
+            ['password' => 'пароль'],
+        );
 
         $user = $request->user();
 

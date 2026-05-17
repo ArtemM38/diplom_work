@@ -139,9 +139,14 @@ return [
     */
 
     'attributes' => [
-        'email' => 'Email',
-        'password' => 'Пароль',
-        'name' => 'Имя пользователя',
+        'email' => 'электронная почта',
+        'password' => 'новый пароль',
+        'current_password' => 'текущий пароль',
+        'password_confirmation' => 'подтверждение пароля',
+        'name' => 'ФИО',
+        'full_name' => 'ФИО',
+        'relation' => 'степень родства',
+        'avatar' => 'аватар',
         'last_name_nom' => 'Фамилия',
         'first_name_nom' => 'Имя',
         'middle_name_nom' => 'Отчество',

@@ -5,9 +5,10 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 
-defineProps({
+const props = defineProps({
     mustVerifyEmail: { type: Boolean },
     status: { type: String },
+    hideName: { type: Boolean, default: false },
 });
 
 const user = usePage().props.auth.user;
@@ -24,7 +25,7 @@ const normalizeEmail = (event) => {
 
 <template>
     <form @submit.prevent="form.patch(route('profile.update'))" class="space-y-5">
-        <div>
+        <div v-if="!hideName">
             <InputLabel for="name" value="ФИО в аккаунте" />
             <TextInput
                 id="name"
@@ -50,6 +51,10 @@ const normalizeEmail = (event) => {
             />
             <InputError class="mt-2" :message="form.errors.email" />
         </div>
+
+        <p v-if="hideName" class="text-sm text-slate-500 -mt-2">
+            ФИО редактируется в блоке «Законный представитель» слева.
+        </p>
 
         <div v-if="mustVerifyEmail && user.email_verified_at === null" class="rounded-xl bg-amber-50 border border-amber-100 p-4 text-sm text-amber-900">
             <p>Адрес почты не подтверждён.</p>

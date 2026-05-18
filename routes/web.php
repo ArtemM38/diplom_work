@@ -156,7 +156,6 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::delete('/admin/coaches/{coach}', [UserManagementController::class, 'destroyCoach'])->name('admin.coaches.destroy');
         Route::get('/admin/finance', [FinanceController::class, 'index'])->name('admin.finance');
         Route::patch('/admin/finance/{athlete}', [FinanceController::class, 'update'])->name('admin.finance.update');
-
         Route::get('/admin/portfolio', [PortfolioController::class, 'index'])->name('admin.portfolio');
         Route::post('/admin/portfolio/hosts', [PortfolioController::class, 'storeHost'])->name('admin.portfolio.hosts.store');
         Route::patch('/admin/portfolio/hosts/{host}', [PortfolioController::class, 'updateHost'])->name('admin.portfolio.hosts.update');

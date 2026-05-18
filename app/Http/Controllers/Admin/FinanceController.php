@@ -20,6 +20,7 @@ class FinanceController extends Controller
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
         $historySort = $request->input('history_sort', 'desc');
+        $balanceFilter = $request->input('balance', 'all');
 
         $athletes = Athlete::query()
             ->with(['finance', 'user:id,is_active'])
@@ -37,6 +38,9 @@ class FinanceController extends Controller
             })
             ->when($userActive === 'inactive', function ($query) {
                 $query->whereHas('user', fn ($u) => $u->where('is_active', false));
+            })
+            ->when($balanceFilter === 'negative', function ($query) {
+                $query->whereHas('finance', fn ($f) => $f->where('balance', '<', 0));
             })
             ->orderBy('last_name_nom')
             ->paginate(20)
@@ -93,6 +97,7 @@ class FinanceController extends Controller
                 'date_from' => $dateFrom,
                 'date_to' => $dateTo,
                 'history_sort' => $historySort,
+                'balance' => $balanceFilter,
             ],
         ]);
     }

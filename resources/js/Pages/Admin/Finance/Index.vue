@@ -19,6 +19,7 @@ const operation = ref(props.filters?.operation || 'all');
 const dateFrom = ref(props.filters?.date_from || '');
 const dateTo = ref(props.filters?.date_to || '');
 const historySort = ref(props.filters?.history_sort || 'desc');
+const balanceFilter = ref(props.filters?.balance || 'all');
 
 const athletesList = computed(() => props.athletes?.data ?? []);
 const historyList = computed(() => (props.history?.data ? props.history.data : props.history ?? []));
@@ -38,11 +39,12 @@ const reload = () => {
         date_from: dateFrom.value || null,
         date_to: dateTo.value || null,
         history_sort: historySort.value,
+        balance: balanceFilter.value,
     }, { preserveState: true, replace: true });
 };
 
 watch(search, debounce(reload, 300));
-watch([athleteId, userActive], reload);
+watch([athleteId, userActive, balanceFilter], reload);
 watch([operation, dateFrom, dateTo, historySort], reload);
 
 const selectAthlete = (id) => {
@@ -68,17 +70,24 @@ const save = () => {
                     <option value="active">Активные пользователи</option>
                     <option value="inactive">Неактивные пользователи</option>
                 </select>
+                <select v-model="balanceFilter" class="w-full border-gray-300 rounded-lg mb-3 text-sm">
+                    <option value="all">Любой баланс</option>
+                    <option value="negative">Только отрицательный баланс</option>
+                </select>
                 <div class="space-y-2 max-h-[520px] overflow-y-auto">
                     <button
                         v-for="item in athletesList"
                         :key="item.id"
                         @click="selectAthlete(item.id)"
                         class="w-full text-left p-3 rounded-lg border transition"
-                        :class="athleteId === item.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300'"
+                        :class="[
+                            athleteId === item.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200 hover:border-indigo-300',
+                            item.balance < 0 ? 'border-red-200 bg-red-50/50' : '',
+                        ]"
                     >
                         <div class="font-semibold">{{ item.full_name }}</div>
                         <div class="text-xs text-gray-500 flex justify-between gap-2">
-                            <span>Баланс: {{ item.balance }}</span>
+                            <span :class="item.balance < 0 ? 'text-red-600 font-semibold' : ''">Баланс: {{ item.balance }}</span>
                             <span v-if="item.user_active === false" class="text-red-500">неактивен</span>
                             <span v-else-if="item.user_active === true" class="text-emerald-600">активен</span>
                         </div>

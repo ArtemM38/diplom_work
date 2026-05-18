@@ -1,12 +1,17 @@
 <script setup>
 import AvatarZoomable from '@/Components/AvatarZoomable.vue';
-import { Link } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { Link, useForm } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     athlete: { type: Object, required: true },
-    showEditLink: { type: Boolean, default: true },
+    userAvatarUrl: { type: String, default: null },
+    userName: { type: String, default: '' },
 });
+
+const avatarForm = useForm({ avatar: null });
+const avatarPreview = ref(null);
+const avatarInput = ref(null);
 
 const inventoryLabels = {
     weapon_case: 'Чехол для оружия',
@@ -33,7 +38,9 @@ const fullName = computed(() =>
     `${props.athlete.last_name_nom} ${props.athlete.first_name_nom} ${props.athlete.middle_name_nom || ''}`.trim(),
 );
 
-const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete.photo}` : null));
+const displayAvatarSrc = computed(
+    () => avatarPreview.value || props.userAvatarUrl || (props.athlete.photo ? `/storage/${props.athlete.photo}` : null),
+);
 
 const genderLabel = computed(() => (props.athlete.gender === 'male' ? 'Мужской' : 'Женский'));
 
@@ -56,38 +63,91 @@ const inventoryList = computed(() => {
 });
 
 const docLabel = (type) => docTypeLabels[type] || type;
+
+const onAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    avatarForm.avatar = file;
+    avatarPreview.value = URL.createObjectURL(file);
+};
+
+const uploadAvatar = () => {
+    avatarForm.post(route('profile.avatar.update'), {
+        forceFormData: true,
+        onSuccess: () => {
+            avatarForm.reset();
+            avatarPreview.value = null;
+            if (avatarInput.value) avatarInput.value.value = '';
+        },
+    });
+};
 </script>
 
 <template>
     <div class="space-y-6">
         <div class="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white overflow-hidden shadow-sm">
-            <div class="p-6 flex flex-col sm:flex-row sm:items-center gap-5">
+            <div class="p-6 flex flex-col sm:flex-row sm:items-start gap-5">
                 <AvatarZoomable
-                    :src="photoSrc"
+                    :src="displayAvatarSrc"
                     :name="fullName"
                     size="lg"
                     shape="rounded"
                     class="shrink-0 !border-white/30 !ring-white/20"
                 />
-                <div class="flex-1 min-w-0">
-                    <h3 class="text-xl font-bold">{{ fullName }}</h3>
-                    <p class="text-indigo-200 text-sm mt-1">{{ genderLabel }} · {{ occupationLabel }}</p>
-                    <div class="flex flex-wrap gap-2 mt-3">
+                <div class="flex-1 min-w-0 space-y-3">
+                    <div>
+                        <h3 class="text-2xl font-bold">{{ fullName }}</h3>
+                        <p class="text-indigo-200 text-sm mt-1">
+                            Пол: {{ genderLabel }} · Деятельность: {{ occupationLabel }}
+                        </p>
+                        <p v-if="athlete.birth_date" class="text-indigo-100/90 text-sm mt-1">
+                            Дата рождения: {{ athlete.birth_date }}
+                        </p>
+                        <p v-if="athlete.phone" class="text-indigo-100/90 text-sm">
+                            Телефон: {{ athlete.phone }}
+                        </p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
                         <span
                             v-for="group in groups"
                             :key="group.id"
                             class="px-2.5 py-0.5 rounded-full bg-white/15 text-xs"
-                        >{{ group.name }}</span>
+                        >Группа: {{ group.name }}</span>
                         <span v-if="!groups.length" class="text-indigo-300 text-xs">Группа не назначена</span>
                     </div>
                 </div>
-                <Link
-                    v-if="showEditLink"
-                    :href="route('athlete.edit', athlete.id)"
-                    class="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white text-indigo-900 text-sm font-semibold hover:bg-indigo-50 transition"
-                >
-                    Редактировать анкету
-                </Link>
+                <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
+                    <Link
+                        :href="route('athlete.edit', athlete.id)"
+                        class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-white text-indigo-900 text-sm font-semibold hover:bg-indigo-50 transition text-center"
+                    >
+                        Редактировать анкету
+                    </Link>
+                    <form @submit.prevent="uploadAvatar" class="flex flex-col gap-2">
+                        <input
+                            ref="avatarInput"
+                            type="file"
+                            accept="image/*"
+                            class="hidden"
+                            @change="onAvatarChange"
+                        />
+                        <button
+                            type="button"
+                            @click="avatarInput?.click()"
+                            class="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-white/30 bg-white/10 text-sm font-semibold hover:bg-white/20 transition"
+                        >
+                            Выбрать фото
+                        </button>
+                        <button
+                            v-if="avatarForm.avatar"
+                            type="submit"
+                            class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-indigo-500 text-sm font-semibold hover:bg-indigo-400 disabled:opacity-50 transition"
+                            :disabled="avatarForm.processing"
+                        >
+                            {{ avatarForm.processing ? 'Загрузка…' : 'Сохранить аватар' }}
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
 

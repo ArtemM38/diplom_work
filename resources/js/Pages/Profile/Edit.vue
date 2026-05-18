@@ -111,8 +111,11 @@ const isAthleteProfile = computed(() => !!props.profileData?.athlete);
                     </div>
                 </Transition>
 
-                <!-- Шапка профиля -->
-                <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <!-- Шапка аккаунта (не для спортсмена — у него отдельный блок анкеты) -->
+                <section
+                    v-if="!isAthleteProfile"
+                    class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+                >
                     <div class="h-24 bg-gradient-to-r from-indigo-600 via-indigo-500 to-violet-500" />
                     <div class="px-6 mt-6 pb-6">
                         <div class="flex flex-col gap-6 sm:flex-row sm:items-end sm:-mt-12">
@@ -165,6 +168,8 @@ const isAthleteProfile = computed(() => !!props.profileData?.athlete);
                 <AthleteDataSummary
                     v-if="isAthleteProfile"
                     :athlete="profileData.athlete"
+                    :user-avatar-url="profileData?.user?.avatar_url"
+                    :user-name="profileData?.user?.name"
                 />
 
                 <div class="grid gap-6 lg:grid-cols-2">

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Athlete;
 use App\Models\AthleteBalanceHistory;
+use App\Support\GuardianChildAccess;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -87,23 +88,22 @@ class FinanceViewController extends Controller
             ]]);
         }
 
-        $guardian = $user->guardian?->load(['athletes.finance']);
-        if (! $guardian) {
-            return collect();
-        }
+        $user->guardian?->load(['athletes.finance']);
 
-        return $guardian->athletes
-            ->sortBy('last_name_nom')
-            ->values()
-            ->map(fn (Athlete $athlete) => [
-                'id' => $athlete->id,
-                'full_name' => $this->athleteFullName($athlete),
-                'balance' => (float) ($athlete->finance?->balance ?? 0),
-            ]);
+        return GuardianChildAccess::childrenForGuardian($user)
+            ->map(function (array $child) use ($user) {
+                $athlete = $user->guardian->athletes->firstWhere('id', $child['id']);
+
+                return [
+                    'id' => $child['id'],
+                    'full_name' => $child['full_name'],
+                    'balance' => (float) ($athlete?->finance?->balance ?? 0),
+                ];
+            });
     }
 
     private function athleteFullName(Athlete $athlete): string
     {
-        return trim($athlete->last_name_nom.' '.$athlete->first_name_nom.' '.($athlete->middle_name_nom ?? ''));
+        return GuardianChildAccess::fullName($athlete);
     }
 }

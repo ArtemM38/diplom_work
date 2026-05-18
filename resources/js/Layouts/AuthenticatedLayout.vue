@@ -48,6 +48,8 @@ const navigation = computed(() => [
     { name: 'Моё портфолио', href: safeRoute('athlete.portfolio', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Мои финансы', href: safeRoute('finance', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Мой ребёнок', href: safeRoute('dashboard'), roles: ['guardian'] },
+    { name: 'Расписание ребёнка', href: safeRoute('guardian.schedule', safeRoute('dashboard')), roles: ['guardian'] },
+    { name: 'Табель ребёнка', href: safeRoute('guardian.attendance', safeRoute('dashboard')), roles: ['guardian'] },
     { name: 'Финансы ребёнка', href: safeRoute('finance', safeRoute('dashboard')), roles: ['guardian'] },
     { name: 'Залы', href: safeRoute('admin.locations'), roles: ['admin'] },
     { name: 'Пользователи', href: safeRoute('admin.coaches'), roles: ['admin'] },

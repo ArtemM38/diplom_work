@@ -10,6 +10,14 @@ const props = defineProps({
     ageLabel: String,
 });
 
+const docTypeLabels = {
+    medical: 'Медицинская справка',
+    insurance: 'Страховка',
+    identity: 'Удостоверение личности',
+};
+
+const docLabel = (type) => docTypeLabels[type] || type;
+
 const inventoryLabels = {
     weapon_case: 'Чехол для оружия',
     jo: 'Дзё',
@@ -188,9 +196,18 @@ const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete
                     <h2 class="text-lg font-bold text-slate-800 mb-4">Документы</h2>
                     <ul class="space-y-2 text-sm">
                         <li v-for="doc in athlete.documents" :key="doc.id" class="p-3 rounded-lg bg-slate-50">
-                            <span class="font-medium capitalize">{{ doc.type }}</span>
-                            <span class="text-slate-500"> · {{ doc.issue_date || '—' }} — {{ doc.expiry_date || '—' }}</span>
-                            <a v-if="doc.file_path" :href="`/storage/${doc.file_path}`" target="_blank" class="ml-2 text-indigo-600 hover:underline">Файл</a>
+                            <span class="font-medium text-slate-900">{{ docLabel(doc.type) }}</span>
+                            <p class="text-slate-500 text-xs mt-0.5">
+                                Выдан: {{ doc.issue_date || '—' }} · Действует до: {{ doc.expiry_date || '—' }}
+                            </p>
+                            <a
+                                v-if="doc.file_path"
+                                :href="`/storage/${doc.file_path}`"
+                                target="_blank"
+                                class="inline-block mt-1 text-indigo-600 text-xs font-medium hover:underline"
+                            >
+                                Открыть файл
+                            </a>
                         </li>
                         <li v-if="!athlete.documents?.length" class="text-slate-400">Нет документов</li>
                     </ul>

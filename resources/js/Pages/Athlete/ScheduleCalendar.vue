@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import dayjs from 'dayjs';
 import 'dayjs/locale/ru';
@@ -12,7 +12,17 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    isGuardian: { type: Boolean, default: false },
+    children: { type: Array, default: () => [] },
+    selectedAthlete: { type: Object, default: null },
+    filters: { type: Object, default: () => ({}) },
 });
+
+const pageTitle = computed(() => (props.isGuardian ? 'Расписание ребёнка' : 'Моё расписание'));
+
+const selectChild = (id) => {
+    router.get(route('guardian.schedule'), { athlete_id: id }, { preserveState: true, replace: true });
+};
 
 const currentMonth = ref(dayjs());
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'));
@@ -43,10 +53,32 @@ const daySchedules = computed(() =>
 </script>
 
 <template>
-    <Head title="Мое расписание" />
+    <Head :title="pageTitle" />
 
     <AuthenticatedLayout>
-        <template #header>Мое расписание</template>
+        <template #header>{{ pageTitle }}</template>
+
+        <div v-if="isGuardian && children?.length > 1" class="mb-6 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <p class="text-sm text-slate-500 mb-3">Выберите ребёнка</p>
+            <div class="flex flex-wrap gap-2">
+                <button
+                    v-for="child in children"
+                    :key="child.id"
+                    type="button"
+                    @click="selectChild(child.id)"
+                    class="px-4 py-2 rounded-xl text-sm font-medium border transition"
+                    :class="selectedAthlete?.id === child.id
+                        ? 'border-indigo-500 bg-indigo-50 text-indigo-800'
+                        : 'border-slate-200 text-slate-700 hover:border-indigo-300'"
+                >
+                    {{ child.full_name }}
+                </button>
+            </div>
+        </div>
+
+        <p v-if="isGuardian && selectedAthlete" class="mb-4 text-sm text-slate-600">
+            Расписание: <span class="font-semibold text-slate-900">{{ selectedAthlete.full_name }}</span>
+        </p>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div class="lg:col-span-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">

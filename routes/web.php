@@ -3,6 +3,7 @@
 use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\AthletePortfolioController;
 use App\Http\Controllers\FinanceViewController;
+use App\Http\Controllers\GuardianChildAttendanceController;
 use App\Http\Controllers\AthleteDocumentsController;
 use App\Http\Controllers\AddressSuggestionController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -116,6 +117,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::get('/finance', [FinanceViewController::class, 'index'])->name('finance');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/athlete/schedule-calendar', [ScheduleController::class, 'athleteCalendar'])->name('athlete.schedule.calendar');
+    Route::get('/guardian/schedule', [ScheduleController::class, 'guardianCalendar'])->name('guardian.schedule');
+    Route::get('/guardian/attendance', [GuardianChildAttendanceController::class, 'index'])->name('guardian.attendance');
     Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');
     Route::get('/athlete/documents/template/{template}/word', [AthleteDocumentsController::class, 'downloadWord'])->name('athlete.documents.word');
 

@@ -7,6 +7,8 @@ use App\Models\Schedule;
 use App\Models\Group;
 use App\Models\Location;
 use App\Models\User;
+use App\Models\Athlete;
+use App\Support\GuardianChildAccess;
 use App\Support\ScheduleAccess;
 use App\Support\ScheduleConflictChecker;
 use Illuminate\Http\Request;
@@ -37,9 +39,41 @@ class ScheduleController extends Controller
         if (! $athlete) {
             return Inertia::render('Athlete/ScheduleCalendar', [
                 'schedules' => [],
+                'isGuardian' => false,
+                'children' => [],
+                'selectedAthlete' => null,
+                'filters' => [],
             ]);
         }
 
+        return Inertia::render('Athlete/ScheduleCalendar', $this->scheduleCalendarPayload($athlete, false, collect(), [
+            'athlete_id' => $athlete->id,
+        ]));
+    }
+
+    public function guardianCalendar(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user?->hasRole('guardian'), 403);
+
+        $children = GuardianChildAccess::childrenForGuardian($user);
+        abort_if($children->isEmpty(), 404);
+
+        $athleteId = GuardianChildAccess::resolveChildId($user, $request->integer('athlete_id') ?: null);
+        $athlete = Athlete::findOrFail($athleteId);
+
+        return Inertia::render('Athlete/ScheduleCalendar', $this->scheduleCalendarPayload($athlete, true, $children, [
+            'athlete_id' => $athleteId,
+        ]));
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, array{id: int, full_name: string}>  $children
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function scheduleCalendarPayload(Athlete $athlete, bool $isGuardian, $children, array $filters): array
+    {
         $groupIds = $athlete->groups()->pluck('groups.id');
         $schedules = Schedule::query()
             ->with(['group', 'location', 'coach'])
@@ -48,9 +82,16 @@ class ScheduleController extends Controller
             ->orderBy('start_time')
             ->get();
 
-        return Inertia::render('Athlete/ScheduleCalendar', [
+        return [
             'schedules' => $schedules,
-        ]);
+            'isGuardian' => $isGuardian,
+            'children' => $children->values(),
+            'selectedAthlete' => [
+                'id' => $athlete->id,
+                'full_name' => GuardianChildAccess::fullName($athlete),
+            ],
+            'filters' => $filters,
+        ];
     }
 
     public function store(Request $request)

@@ -83,6 +83,28 @@ class GuardianChildViewsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_athlete_can_view_own_attendance_journal(): void
+    {
+        $user = User::factory()->create(['role' => 'athlete', 'is_active' => true]);
+        $child = Athlete::create([
+            'user_id' => $user->id,
+            'last_name_nom' => 'Спорт',
+            'first_name_nom' => 'Смен',
+            'middle_name_nom' => null,
+            'birth_date' => '2010-01-01',
+            'gender' => 'male',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('athlete.attendance'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Guardian/ChildAttendance')
+                ->where('isGuardian', false)
+                ->where('selectedAthlete.id', $child->id)
+            );
+    }
+
     public function test_guardian_can_view_child_attendance_journal(): void
     {
         [$user, $child] = $this->guardianWithChild();

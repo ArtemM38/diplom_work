@@ -45,6 +45,7 @@ const navigation = computed(() => [
     { name: 'Группы и секции', href: safeRoute('admin.groups'), roles: ['admin', 'coach', 'accountant'] },
     { name: 'Расписание', href: safeRoute('admin.schedule'), roles: ['admin', 'coach'] },
     { name: 'Моё расписание', href: safeRoute('athlete.schedule.calendar', safeRoute('dashboard')), roles: ['athlete'] },
+    { name: 'Мой табель', href: safeRoute('athlete.attendance', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Моё портфолио', href: safeRoute('athlete.portfolio', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Мои финансы', href: safeRoute('finance', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Мой ребёнок', href: safeRoute('dashboard'), roles: ['guardian'] },

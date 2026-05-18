@@ -8,12 +8,16 @@ import 'dayjs/locale/ru';
 dayjs.locale('ru');
 
 const props = defineProps({
-    children: Array,
+    isGuardian: { type: Boolean, default: true },
+    children: { type: Array, default: () => [] },
     selectedAthlete: Object,
     calendar: Array,
     stats: Object,
     filters: Object,
 });
+
+const pageTitle = computed(() => (props.isGuardian ? 'Табель ребёнка' : 'Мой табель'));
+const indexRoute = computed(() => (props.isGuardian ? 'guardian.attendance' : 'athlete.attendance'));
 
 const athleteId = ref(props.filters?.athlete_id || '');
 const calendarMonth = ref(props.filters?.calendar_month || dayjs().format('YYYY-MM'));
@@ -58,11 +62,14 @@ const getBadgeClass = (status) => {
 };
 
 const reload = () => {
-    router.get(route('guardian.attendance'), {
-        athlete_id: athleteId.value || null,
+    const params = {
         calendar_month: calendarMonth.value,
         stats_period: statsPeriod.value,
-    }, { preserveState: true, replace: true });
+    };
+    if (props.isGuardian) {
+        params.athlete_id = athleteId.value || null;
+    }
+    router.get(route(indexRoute.value), params, { preserveState: true, replace: true });
 };
 
 const selectChild = (id) => {
@@ -84,12 +91,12 @@ watch([calendarMonth, statsPeriod], reload);
 </script>
 
 <template>
-    <Head title="Табель ребёнка" />
+    <Head :title="pageTitle" />
     <AuthenticatedLayout>
-        <template #header>Табель ребёнка</template>
+        <template #header>{{ pageTitle }}</template>
 
         <div class="max-w-5xl mx-auto space-y-6">
-            <div v-if="children?.length > 1" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+            <div v-if="isGuardian && children?.length > 1" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <p class="text-sm text-slate-500 mb-3">Выберите ребёнка</p>
                 <div class="flex flex-wrap gap-2">
                     <button

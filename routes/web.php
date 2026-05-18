@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\AthletePortfolioController;
+use App\Http\Controllers\FinanceViewController;
 use App\Http\Controllers\AthleteDocumentsController;
 use App\Http\Controllers\AddressSuggestionController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -112,6 +113,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::patch('/profile/guardian', [ProfileController::class, 'updateGuardian'])->name('profile.guardian.update');
     Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::get('/athlete/portfolio', [AthletePortfolioController::class, 'index'])->name('athlete.portfolio');
+    Route::get('/finance', [FinanceViewController::class, 'index'])->name('finance');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/athlete/schedule-calendar', [ScheduleController::class, 'athleteCalendar'])->name('athlete.schedule.calendar');
     Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');

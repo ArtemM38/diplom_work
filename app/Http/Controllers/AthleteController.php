@@ -223,7 +223,7 @@ class AthleteController extends Controller
             'submitMethod' => 'patch',
             'cancelRoute' => $user?->hasRole('admin')
                 ? route('admin.athletes.show', $athlete)
-                : route('dashboard'),
+                : route('profile.edit'),
         ]);
     }
 
@@ -388,6 +388,14 @@ class AthleteController extends Controller
 
         if ($user->hasAnyRole(['admin', 'coach', 'accountant'])) {
             return redirect()->route('admin.athletes.show', $athlete)->with('success', 'Данные спортсмена обновлены');
+        }
+
+        if ($user->hasRole('athlete') && $athlete->user_id === $user->id) {
+            return redirect()->route('profile.edit')->with('success', 'Данные спортсмена обновлены');
+        }
+
+        if ($user->hasRole('guardian')) {
+            return redirect()->route('profile.edit')->with('success', 'Данные спортсмена обновлены');
         }
 
         return redirect()->route('dashboard')->with('success', 'Данные спортсмена обновлены');

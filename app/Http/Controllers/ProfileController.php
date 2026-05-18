@@ -20,7 +20,15 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
-        $user = $request->user()->load(['athlete', 'guardian.athletes']);
+        $user = $request->user()->load([
+            'athlete.rankHistories.rank',
+            'athlete.refereeHistories.refereeCategory',
+            'athlete.documents',
+            'athlete.inventory',
+            'athlete.groups',
+            'athlete.guardians',
+            'guardian.athletes',
+        ]);
 
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,

@@ -25,7 +25,7 @@ class ProfileUpdateRequest extends FormRequest
             ],
         ];
 
-        if (! $this->user()->hasRole('guardian')) {
+        if (! $this->user()->hasAnyRole(['guardian', 'athlete'])) {
             $rules['name'] = ['required', 'string', 'max:255'];
         }
 

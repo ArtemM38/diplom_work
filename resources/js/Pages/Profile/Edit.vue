@@ -6,6 +6,7 @@ import UpdateProfileInformationForm from './Partials/UpdateProfileInformationFor
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import AvatarZoomable from '@/Components/AvatarZoomable.vue';
+import AthleteDataSummary from './Partials/AthleteDataSummary.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
@@ -81,9 +82,10 @@ const statusMessage = computed(() => {
 const hasRoleBlocks = computed(
     () =>
         props.profileData?.guardian ||
-        props.profileData?.children?.length ||
-        props.profileData?.athlete,
+        props.profileData?.children?.length,
 );
+
+const isAthleteProfile = computed(() => !!props.profileData?.athlete);
 </script>
 
 <template>
@@ -160,9 +162,14 @@ const hasRoleBlocks = computed(
                     </div>
                 </section>
 
+                <AthleteDataSummary
+                    v-if="isAthleteProfile"
+                    :athlete="profileData.athlete"
+                />
+
                 <div class="grid gap-6 lg:grid-cols-2">
                     <!-- Левая колонка: роль -->
-                    <div class="space-y-6">
+                    <div v-if="!isAthleteProfile" class="space-y-6">
                         <section
                             v-if="profileData?.guardian"
                             class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
@@ -245,51 +252,30 @@ const hasRoleBlocks = computed(
                         </section>
 
                         <section
-                            v-if="profileData?.athlete"
-                            class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-                        >
-                            <h3 class="text-lg font-semibold text-slate-900">Данные спортсмена</h3>
-                            <dl class="mt-4 space-y-2 text-sm">
-                                <div class="flex gap-2">
-                                    <dt class="text-slate-500 w-28 shrink-0">Телефон</dt>
-                                    <dd class="text-slate-900">{{ profileData.athlete.phone || '—' }}</dd>
-                                </div>
-                                <div class="flex gap-2">
-                                    <dt class="text-slate-500 w-28 shrink-0">Рождение</dt>
-                                    <dd class="text-slate-900">{{ profileData.athlete.birth_date || '—' }}</dd>
-                                </div>
-                                <div class="flex gap-2">
-                                    <dt class="text-slate-500 w-28 shrink-0">Адрес</dt>
-                                    <dd class="text-slate-900">{{ profileData.athlete.registration_address || '—' }}</dd>
-                                </div>
-                            </dl>
-                            <a
-                                :href="route('athlete.edit', profileData.athlete.id)"
-                                class="mt-4 inline-flex text-sm font-medium text-indigo-600 hover:text-indigo-800"
-                            >
-                                Редактировать анкету →
-                            </a>
-                        </section>
-
-                        <section
-                            v-if="!hasRoleBlocks"
+                            v-if="!hasRoleBlocks && !isAthleteProfile"
                             class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-center text-sm text-slate-500"
                         >
                             Дополнительные данные по роли не требуются. Ниже можно изменить почту и пароль.
                         </section>
                     </div>
 
-                    <!-- Правая колонка: аккаунт -->
-                    <div class="space-y-6">
+                    <!-- Аккаунт и безопасность -->
+                    <div class="space-y-6" :class="isAthleteProfile ? 'lg:col-span-2' : ''">
                         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                             <h3 class="text-lg font-semibold text-slate-900">Данные аккаунта</h3>
                             <p class="mt-1 text-sm text-slate-500 mb-5">
-                                {{ profileData?.guardian ? 'Адрес для входа и уведомлений' : 'Имя в системе и адрес электронной почты' }}
+                                {{
+                                    profileData?.guardian
+                                        ? 'Адрес для входа и уведомлений'
+                                        : isAthleteProfile
+                                          ? 'Почта для входа (ФИО — в анкете выше)'
+                                          : 'Имя в системе и адрес электронной почты'
+                                }}
                             </p>
                             <UpdateProfileInformationForm
                                 :must-verify-email="mustVerifyEmail"
                                 :status="status"
-                                :hide-name="!!profileData?.guardian"
+                                :hide-name="!!profileData?.guardian || isAthleteProfile"
                             />
                         </section>
 

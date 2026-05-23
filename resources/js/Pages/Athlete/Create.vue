@@ -157,9 +157,61 @@ const targetRoute = computed(() => props.submitRoute || route('athlete.store'));
 const targetCancelRoute = computed(() => props.cancelRoute || route('dashboard'));
 const today = computed(() => new Date().toISOString().slice(0, 10));
 
+const hasFile = (file) => file instanceof File;
+
+const docMedicalWarnings = computed(() => {
+    if (!hasFile(form.doc_medical_file)) return [];
+    const items = [];
+    if (!form.doc_medical_issue) items.push('укажите дату выдачи');
+    if (!form.doc_medical_expiry) items.push('укажите срок действия');
+    if (form.doc_medical_issue && form.doc_medical_expiry && form.doc_medical_expiry < form.doc_medical_issue) {
+        items.push('срок действия не может быть раньше даты выдачи');
+    }
+    return items;
+});
+
+const docInsuranceWarnings = computed(() => {
+    if (!hasFile(form.doc_insurance_file)) return [];
+    const items = [];
+    if (!form.doc_insurance_issue) items.push('укажите дату выдачи');
+    if (!form.doc_insurance_expiry) items.push('укажите срок действия');
+    if (form.doc_insurance_issue && form.doc_insurance_expiry && form.doc_insurance_expiry < form.doc_insurance_issue) {
+        items.push('срок действия не может быть раньше даты выдачи');
+    }
+    return items;
+});
+
+const docIdentityWarnings = computed(() => {
+    if (!hasFile(form.doc_identity_file)) return [];
+    const items = [];
+    if (!form.doc_identity_series?.trim()) items.push('укажите серию');
+    if (!form.doc_identity_number?.trim()) items.push('укажите номер');
+    if (!form.doc_identity_issued_by?.trim()) items.push('укажите, кем выдан');
+    if (!form.doc_identity_issue_date) items.push('укажите дату выдачи');
+    return items;
+});
+
+const docWarnings = computed(() => [
+    ...docMedicalWarnings.value.map((t) => ({ block: 'medical', text: `Медицинская справка: ${t}` })),
+    ...docInsuranceWarnings.value.map((t) => ({ block: 'insurance', text: `Страховой полис: ${t}` })),
+    ...docIdentityWarnings.value.map((t) => ({ block: 'identity', text: `Удостоверение личности: ${t}` })),
+]);
+
+const onDocFileInput = (field, event) => {
+    const file = event.target.files?.[0] ?? null;
+    form[field] = file;
+};
+
+const fileLabel = (file) => (file instanceof File ? file.name : '');
+
 const submit = () => {
+    if (docWarnings.value.length) {
+        document.getElementById('athlete-documents')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
+
     form.submit(props.submitMethod, targetRoute.value, {
-        forceFormData: true, // Обязательно для загрузки файлов
+        forceFormData: true,
         onSuccess: () => alert('Данные успешно сохранены'),
     });
 };
@@ -385,61 +437,125 @@ onMounted(() => {
                 </div>
 
                 <!-- БЛОК 4: Документы и сканы -->
-                <div class="bg-white p-6 shadow rounded-lg">
+                <div id="athlete-documents" class="bg-white p-6 shadow rounded-lg min-w-0 overflow-hidden">
                     <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2">3. Документы (сканы)</h2>
+
+                    <div
+                        v-if="docWarnings.length"
+                        class="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                        role="alert"
+                    >
+                        <p class="font-semibold mb-1">Заполните данные для прикреплённых файлов:</p>
+                        <ul class="list-disc list-inside space-y-0.5">
+                            <li v-for="(warn, idx) in docWarnings" :key="idx">{{ warn.text }}</li>
+                        </ul>
+                    </div>
 
                     <div class="space-y-6">
                         <!-- Медсправка -->
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded">
-                            <div class="font-semibold">Медицинская справка</div>
-                            <div>
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded min-w-0"
+                            :class="docMedicalWarnings.length ? 'border-amber-400 bg-amber-50/40' : ''"
+                        >
+                            <div class="font-semibold break-words">Медицинская справка</div>
+                            <div class="min-w-0">
                                 <InputLabel value="Дата выдачи" />
-                                <TextInput type="date" :max="today" v-model="form.doc_medical_issue" class="w-full" />
+                                <TextInput type="date" v-model="form.doc_medical_issue" class="w-full" />
+                                <InputError class="mt-1" :message="form.errors.doc_medical_issue" />
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <InputLabel value="Срок действия" />
-                                <TextInput type="date" :max="today" v-model="form.doc_medical_expiry" class="w-full" />
+                                <TextInput type="date" v-model="form.doc_medical_expiry" class="w-full" />
+                                <InputError class="mt-1" :message="form.errors.doc_medical_expiry" />
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <InputLabel value="Скан (PDF/JPG)" />
-                                <input type="file" @input="form.doc_medical_file = $event.target.files[0]" />
+                                <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    class="block w-full text-sm"
+                                    @input="onDocFileInput('doc_medical_file', $event)"
+                                />
+                                <p v-if="fileLabel(form.doc_medical_file)" class="text-xs text-emerald-700 mt-1">
+                                    Файл: {{ fileLabel(form.doc_medical_file) }}
+                                </p>
+                                <p v-for="(msg, i) in docMedicalWarnings" :key="i" class="text-xs text-amber-700 mt-1 font-medium">
+                                    {{ msg }}
+                                </p>
+                                <InputError class="mt-1" :message="form.errors.doc_medical_file" />
                             </div>
                         </div>
 
                         <!-- Страховка -->
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded">
-                            <div class="font-semibold">Страховой полис</div>
-                            <div>
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded min-w-0"
+                            :class="docInsuranceWarnings.length ? 'border-amber-400 bg-amber-50/40' : ''"
+                        >
+                            <div class="font-semibold break-words">Страховой полис</div>
+                            <div class="min-w-0">
                                 <InputLabel value="Дата выдачи" />
-                                <TextInput type="date" :max="today" v-model="form.doc_insurance_issue" class="w-full" />
+                                <TextInput type="date" v-model="form.doc_insurance_issue" class="w-full" />
+                                <InputError class="mt-1" :message="form.errors.doc_insurance_issue" />
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <InputLabel value="Срок действия" />
-                                <TextInput type="date" :max="today" v-model="form.doc_insurance_expiry" class="w-full" />
+                                <TextInput type="date" v-model="form.doc_insurance_expiry" class="w-full" />
+                                <InputError class="mt-1" :message="form.errors.doc_insurance_expiry" />
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <InputLabel value="Скан (PDF/JPG)" />
-                                <input type="file" @input="form.doc_insurance_file = $event.target.files[0]" />
+                                <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    class="block w-full text-sm"
+                                    @input="onDocFileInput('doc_insurance_file', $event)"
+                                />
+                                <p v-if="fileLabel(form.doc_insurance_file)" class="text-xs text-emerald-700 mt-1">
+                                    Файл: {{ fileLabel(form.doc_insurance_file) }}
+                                </p>
+                                <p v-for="(msg, i) in docInsuranceWarnings" :key="i" class="text-xs text-amber-700 mt-1 font-medium">
+                                    {{ msg }}
+                                </p>
+                                <InputError class="mt-1" :message="form.errors.doc_insurance_file" />
                             </div>
                         </div>
 
                         <!-- Паспорт/Свид-во -->
-                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded bg-gray-50">
-                            <div class="font-semibold">Удостоверение личности</div>
-                            <div class="space-y-2">
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded bg-gray-50 min-w-0"
+                            :class="docIdentityWarnings.length ? 'border-amber-400 !bg-amber-50/40' : ''"
+                        >
+                            <div class="font-semibold break-words">Удостоверение личности</div>
+                            <div class="space-y-2 min-w-0">
                                 <TextInput v-model="form.doc_identity_series" placeholder="Серия"
                                     class="w-full text-sm" />
                                 <TextInput v-model="form.doc_identity_number" placeholder="Номер"
                                     class="w-full text-sm" />
+                                <InputError :message="form.errors.doc_identity_series" />
+                                <InputError :message="form.errors.doc_identity_number" />
                             </div>
-                            <div class="space-y-2">
+                            <div class="space-y-2 min-w-0">
                                 <TextInput v-model="form.doc_identity_issued_by" placeholder="Кем выдан"
                                     class="w-full text-sm" />
-                                <TextInput type="date" :max="today" v-model="form.doc_identity_issue_date" class="w-full text-sm" />
+                                <TextInput type="date" v-model="form.doc_identity_issue_date" class="w-full text-sm" />
+                                <InputError :message="form.errors.doc_identity_issued_by" />
+                                <InputError :message="form.errors.doc_identity_issue_date" />
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <InputLabel value="Скан" />
-                                <input type="file" @input="form.doc_identity_file = $event.target.files[0]" />
+                                <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    class="block w-full text-sm"
+                                    @input="onDocFileInput('doc_identity_file', $event)"
+                                />
+                                <p v-if="fileLabel(form.doc_identity_file)" class="text-xs text-emerald-700 mt-1">
+                                    Файл: {{ fileLabel(form.doc_identity_file) }}
+                                </p>
+                                <p v-for="(msg, i) in docIdentityWarnings" :key="i" class="text-xs text-amber-700 mt-1 font-medium">
+                                    {{ msg }}
+                                </p>
+                                <InputError class="mt-1" :message="form.errors.doc_identity_file" />
                             </div>
                         </div>
                     </div>

@@ -10,6 +10,7 @@ const props = defineProps({
     selectedAthlete: Object,
     history: [Object, Array],
     filters: Object,
+    canManageDiscount: { type: Boolean, default: false },
 });
 
 const search = ref(props.filters?.search || '');
@@ -29,6 +30,14 @@ const form = useForm({
     operation: 'add',
     reason: '',
 });
+
+const discountForm = useForm({
+    discount_percent: null,
+});
+
+watch(() => props.selectedAthlete, (athlete) => {
+    discountForm.discount_percent = athlete?.discount_percent ?? null;
+}, { immediate: true });
 
 const reload = () => {
     router.get(route('admin.finance'), {
@@ -54,6 +63,13 @@ const selectAthlete = (id) => {
 const save = () => {
     if (!athleteId.value) return;
     form.patch(route('admin.finance.update', athleteId.value));
+};
+
+const saveDiscount = () => {
+    if (!athleteId.value) return;
+    discountForm.patch(route('admin.finance.update', athleteId.value), {
+        preserveScroll: true,
+    });
 };
 </script>
 
@@ -125,6 +141,53 @@ const save = () => {
                             </div>
                         </div>
                         <button @click="save" class="mt-4 bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold">Сохранить</button>
+                    </div>
+
+                    <div v-if="canManageDiscount" class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
+                        <h3 class="font-bold mb-4">Скидка на тренировки</h3>
+                        <p class="text-sm text-slate-500 mb-3">Скидка от 10% до 100%. Стоимость в группах пересчитывается автоматически.</p>
+                        <div class="flex flex-wrap items-end gap-3">
+                            <div>
+                                <label class="text-xs text-gray-500">Скидка, %</label>
+                                <input
+                                    v-model.number="discountForm.discount_percent"
+                                    type="number"
+                                    min="10"
+                                    max="100"
+                                    placeholder="Нет скидки"
+                                    class="w-32 border-gray-300 rounded-lg"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                @click="saveDiscount"
+                                class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+                                :disabled="discountForm.processing"
+                            >
+                                Применить скидку
+                            </button>
+                            <button
+                                type="button"
+                                @click="discountForm.discount_percent = null; saveDiscount()"
+                                class="border border-slate-300 px-4 py-2 rounded-lg text-sm"
+                            >
+                                Сбросить
+                            </button>
+                        </div>
+                        <div v-if="selectedAthlete.groups?.length" class="mt-4 space-y-2">
+                            <p class="text-sm font-medium text-slate-700">Стоимость по группам:</p>
+                            <div
+                                v-for="g in selectedAthlete.groups"
+                                :key="g.id"
+                                class="text-sm text-slate-600 flex justify-between border-b border-slate-50 py-1"
+                            >
+                                <span>{{ g.name }}</span>
+                                <span>
+                                    тариф {{ g.tariff_amount }} ₽ →
+                                    <b>{{ g.training_price }} ₽</b> за тренировку
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100">

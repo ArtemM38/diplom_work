@@ -210,29 +210,29 @@ onMounted(() => {
 
     <Head title="Регистрация спортсмена" />
 
-    <div class="min-h-screen bg-gray-100 py-8 px-4">
-        <div class="max-w-6xl mx-auto">
+    <div class="min-h-screen bg-gray-100 py-8 px-4 overflow-x-hidden">
+        <div class="max-w-6xl mx-auto min-w-0">
             <div class="text-center mb-6">
                 <h1 class="text-2xl font-bold text-slate-900">{{ editingAthlete ? 'Редактирование карточки спортсмена' : 'Регистрация спортсмена' }}</h1>
                 <p class="text-sm text-slate-500 mt-1">Заполните профиль спортсмена</p>
             </div>
         </div>
         <div class="py-2">
-        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8">
-            <form @submit.prevent="submit" class="space-y-8">
+        <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 min-w-0">
+            <form @submit.prevent="submit" class="space-y-8 min-w-0">
                 <!-- БЛОК 1: Основная информация -->
-                <div class="bg-white p-6 shadow rounded-lg">
-                    <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2">1. Личные данные</h2>
+                <div class="bg-white p-6 shadow rounded-lg min-w-0 overflow-hidden">
+                    <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2 break-words">1. Личные данные</h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 min-w-0">
                         <div class="md:col-span-1">
                             <InputLabel value="Фото спортсмена" />
                             <input type="file" @input="form.photo = $event.target.files[0]"
                                 class="mt-1 block w-full text-sm" />
                         </div>
 
-                        <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
+                        <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 min-w-0">
+                            <div class="min-w-0">
                                 <InputLabel value="Фамилия (Им.п)" />
                                 <TextInput v-model="form.last_name_nom" class="w-full" required />
                             </div>
@@ -497,5 +497,17 @@ label {
 
 input[type="checkbox"] {
     @apply text-blue-600 focus:ring-blue-500;
+}
+
+:deep(input),
+:deep(select),
+:deep(textarea) {
+    max-width: 100%;
+    min-width: 0;
+}
+
+:deep(.font-semibold) {
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 </style>

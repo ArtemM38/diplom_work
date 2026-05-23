@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\MedicalCertificatesController;
 use App\Http\Controllers\Admin\PortfolioController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserManagementController;
@@ -25,7 +26,7 @@ use App\Models\Schedule;
 // 1. Главная страница (Логин)
 Route::get('/', function () {
     if (Auth::check()) {
-        return redirect()->route('dashboard');
+        return redirect()->route('profile.edit');
     }
     return Inertia::render('Auth/Login', [
         'canResetPassword' => Route::has('password.request'),
@@ -131,6 +132,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::get('/admin/athletes/{athlete}', [AdminDashboardController::class, 'show'])->name('admin.athletes.show');
         Route::post('/admin/athletes/{athlete}/guardians', [AdminDashboardController::class, 'storeGuardian'])->name('admin.athletes.guardians.store');
         Route::patch('/admin/athletes/{athlete}/guardians/{guardian}', [AdminDashboardController::class, 'updateGuardian'])->name('admin.athletes.guardians.update');
+        Route::patch('/admin/athletes/{athlete}/inventory', [AdminDashboardController::class, 'updateInventory'])->name('admin.athletes.inventory.update');
+        Route::get('/admin/medical-certificates', [MedicalCertificatesController::class, 'index'])->name('admin.medical-certificates');
         Route::get('/admin/users/{user}', [UserManagementController::class, 'show'])->name('admin.users.show');
 
         Route::get('/admin/groups', [GroupController::class, 'index'])->name('admin.groups');

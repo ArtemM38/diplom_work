@@ -8,6 +8,8 @@ use App\Models\Attendance;
 use App\Models\AthleteFinance;
 use App\Models\Group;
 use App\Models\Schedule;
+use App\Support\AttendanceBilling;
+use App\Support\AthletePricing;
 use App\Support\ScheduleAccess;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,9 +41,19 @@ class AttendanceController extends Controller
             return redirect()->route('admin.schedule')->with('error', 'Отметку можно сохранять не ранее чем за 10 минут до начала тренировки.');
         }
 
-        $schedule->load('group.athletes');
+        $schedule->load(['group.athletes.finance']);
         $priceByAthlete = $schedule->group?->athletes
-            ?->mapWithKeys(fn ($athlete) => [$athlete->id => (float) ($athlete->pivot->training_price ?? 0)]) ?? collect();
+            ?->mapWithKeys(function ($athlete) use ($schedule) {
+                $price = (float) ($athlete->pivot->training_price ?? 0);
+                if ($price <= 0) {
+                    $price = AthletePricing::effectivePrice(
+                        (float) ($schedule->group?->tariff_amount ?? 0),
+                        $athlete->finance
+                    );
+                }
+
+                return [$athlete->id => $price];
+            }) ?? collect();
 
         DB::transaction(function () use ($request, $schedule, $priceByAthlete) {
             foreach ($request->attendance as $athleteId => $status) {
@@ -50,51 +62,16 @@ class AttendanceController extends Controller
                     ['status' => $status]
                 );
 
-                if (! in_array($status, ['Я', 'Н'], true)) {
-                    continue;
-                }
-
-                $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athleteId], [
-                    'balance' => 0,
-                ]);
-
                 $price = (float) ($priceByAthlete->get((int) $athleteId, 0));
-                if ($price <= 0) {
-                    continue;
-                }
 
-                $alreadyCharged = \App\Models\AthleteBalanceHistory::query()
-                    ->where('attendance_id', $attendance->id)
-                    ->exists();
-
-                if ($alreadyCharged) {
-                    continue;
-                }
-
-                $before = (float) $finance->balance;
-                $after = round($before - $price, 2);
-                $finance->update(['balance' => $after]);
-
-                $reasonText = 'Списание за тренировку';
-                if ($schedule->group?->name && $schedule->lesson_date) {
-                    $reasonText = sprintf(
-                        'Списание за тренировку, группа "%s", дата %s',
-                        $schedule->group->name,
-                        $schedule->lesson_date
-                    );
-                }
-
-                \App\Models\AthleteBalanceHistory::create([
-                    'athlete_id' => $athleteId,
-                    'schedule_id' => $schedule->id,
-                    'attendance_id' => $attendance->id,
-                    'change_amount' => -$price,
-                    'balance_before' => $before,
-                    'balance_after' => $after,
-                    'reason' => $reasonText,
-                    'status' => $status,
-                    'changed_by' => $request->user()?->id,
-                ]);
+                AttendanceBilling::sync(
+                    $attendance,
+                    $status,
+                    $price,
+                    (int) $athleteId,
+                    $schedule,
+                    $request->user()?->id
+                );
             }
         });
 

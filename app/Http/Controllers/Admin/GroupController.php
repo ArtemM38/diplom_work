@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Athlete;
 use App\Models\AthleteFinance;
+use App\Support\AthletePricing;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -87,16 +88,13 @@ class GroupController extends Controller
         ]);
 
         $athleteId = (int) $request->athlete_id;
-        $trainingPrice = (float) $group->tariff_amount;
+        $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athleteId], ['balance' => 0]);
+        $trainingPrice = AthletePricing::effectivePrice((float) $group->tariff_amount, $finance);
 
         $group->athletes()->syncWithoutDetaching([
             $athleteId => ['training_price' => $trainingPrice],
         ]);
         $group->athletes()->updateExistingPivot($athleteId, ['training_price' => $trainingPrice]);
-
-        AthleteFinance::firstOrCreate(['athlete_id' => $athleteId], [
-            'balance' => 0,
-        ]);
 
         return redirect()->back()->with('success', 'Спортсмен зачислен в группу');
     }

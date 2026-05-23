@@ -52,6 +52,7 @@ const navigation = computed(() => [
     { name: 'Расписание ребёнка', href: safeRoute('guardian.schedule', safeRoute('dashboard')), roles: ['guardian'] },
     { name: 'Табель ребёнка', href: safeRoute('guardian.attendance', safeRoute('dashboard')), roles: ['guardian'] },
     { name: 'Финансы ребёнка', href: safeRoute('finance', safeRoute('dashboard')), roles: ['guardian'] },
+    { name: 'Мед. справки', href: safeRoute('admin.medical-certificates'), roles: ['admin'] },
     { name: 'Залы', href: safeRoute('admin.locations'), roles: ['admin'] },
     { name: 'Пользователи', href: safeRoute('admin.coaches'), roles: ['admin'] },
     { name: 'Табель', href: safeRoute('admin.attendance.journal'), roles: ['admin', 'coach', 'accountant'] },

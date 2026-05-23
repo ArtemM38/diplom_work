@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Athlete;
 use App\Models\AthleteFinance;
 use App\Models\AthleteBalanceHistory;
+use App\Support\AthletePricing;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -50,6 +51,7 @@ class FinanceController extends Controller
                     'id' => $athlete->id,
                     'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
                     'balance' => (float) ($athlete->finance?->balance ?? 0),
+                    'discount_percent' => $athlete->finance?->discount_percent,
                     'user_active' => $athlete->user_id ? (bool) $athlete->user?->is_active : null,
                 ];
             });
@@ -57,12 +59,19 @@ class FinanceController extends Controller
         $selectedAthlete = null;
         $history = [];
         if ($athleteId) {
-            $athlete = Athlete::with('finance')->find($athleteId);
+            $athlete = Athlete::with(['finance', 'groups'])->find($athleteId);
             if ($athlete) {
                 $selectedAthlete = [
                     'id' => $athlete->id,
                     'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
                     'balance' => (float) ($athlete->finance?->balance ?? 0),
+                    'discount_percent' => $athlete->finance?->discount_percent,
+                    'groups' => $athlete->groups()->get(['groups.id', 'groups.name', 'groups.tariff_amount'])->map(fn ($g) => [
+                        'id' => $g->id,
+                        'name' => $g->name,
+                        'tariff_amount' => (float) $g->tariff_amount,
+                        'training_price' => (float) ($g->pivot->training_price ?? 0),
+                    ]),
                 ];
 
                 $historyQuery = AthleteBalanceHistory::query()
@@ -89,6 +98,7 @@ class FinanceController extends Controller
             'athletes' => $athletes,
             'selectedAthlete' => $selectedAthlete,
             'history' => $history,
+            'canManageDiscount' => $request->user()?->hasRole('admin') ?? false,
             'filters' => [
                 'search' => $search,
                 'athlete_id' => $athleteId,
@@ -104,6 +114,20 @@ class FinanceController extends Controller
 
     public function update(Request $request, Athlete $athlete)
     {
+        if ($request->has('discount_percent')) {
+            abort_unless($request->user()?->hasRole('admin'), 403);
+
+            $validated = $request->validate([
+                'discount_percent' => 'nullable|integer|min:10|max:100',
+            ]);
+
+            $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athlete->id], ['balance' => 0]);
+            $finance->update(['discount_percent' => $validated['discount_percent'] ?? null]);
+            AthletePricing::applyDiscountToGroups($athlete);
+
+            return back()->with('success', 'Скидка применена, стоимость тренировок пересчитана');
+        }
+
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
             'operation' => 'required|in:add,subtract',

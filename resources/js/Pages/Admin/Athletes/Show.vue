@@ -8,6 +8,9 @@ const props = defineProps({
     athlete: Object,
     age: Number,
     ageLabel: String,
+    canEditAthlete: { type: Boolean, default: false },
+    canEditGuardians: { type: Boolean, default: false },
+    canManageInventory: { type: Boolean, default: false },
 });
 
 const docTypeLabels = {
@@ -62,6 +65,27 @@ const saveGuardian = (guardianId) => {
 const fullName = `${props.athlete.last_name_nom} ${props.athlete.first_name_nom} ${props.athlete.middle_name_nom || ''}`.trim();
 
 const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete.photo}` : null));
+
+const inventoryForm = ref({ ...Object.fromEntries(
+    Object.keys(inventoryLabels).map((key) => [key, !!(props.athlete.inventory?.[key])])
+) });
+
+const saveInventory = () => {
+    router.patch(route('admin.athletes.inventory.update', props.athlete.id), inventoryForm.value);
+};
+
+const medicalDoc = computed(() => props.athlete.documents?.find((d) => d.type === 'medical'));
+const medicalStatus = computed(() => {
+    if (!medicalDoc.value?.expiry_date) return null;
+    const expiry = new Date(medicalDoc.value.expiry_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+    const daysLeft = Math.round((expiry - today) / (1000 * 60 * 60 * 24));
+    if (daysLeft < 0) return { label: 'Просрочена', class: 'text-red-600' };
+    if (daysLeft <= 3) return { label: `Истекает через ${daysLeft} дн.`, class: 'text-amber-600' };
+    return { label: 'Действует', class: 'text-emerald-600' };
+});
 </script>
 
 <template>
@@ -101,6 +125,7 @@ const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete
                         </div>
                     </div>
                     <Link
+                        v-if="canEditAthlete"
                         :href="route('athlete.edit', athlete.id)"
                         class="shrink-0 inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-white text-indigo-900 font-semibold hover:bg-indigo-50 transition"
                     >
@@ -163,6 +188,7 @@ const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete
                                     <p class="text-sm text-slate-500 mt-0.5">{{ guardian.relation }} · {{ guardian.phone || 'без телефона' }}</p>
                                 </div>
                                 <button
+                                    v-if="canEditGuardians"
                                     type="button"
                                     class="text-sm text-indigo-600 font-medium"
                                     @click="editingGuardianId = guardian.id; initEditForm(guardian)"
@@ -200,6 +226,9 @@ const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete
                             <p class="text-slate-500 text-xs mt-0.5">
                                 Выдан: {{ doc.issue_date || '—' }} · Действует до: {{ doc.expiry_date || '—' }}
                             </p>
+                            <p v-if="doc.type === 'medical' && medicalStatus" class="text-xs font-semibold mt-1" :class="medicalStatus.class">
+                                {{ medicalStatus.label }}
+                            </p>
                             <a
                                 v-if="doc.file_path"
                                 :href="`/storage/${doc.file_path}`"
@@ -211,6 +240,30 @@ const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete
                         </li>
                         <li v-if="!athlete.documents?.length" class="text-slate-400">Нет документов</li>
                     </ul>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h2 class="text-lg font-bold text-slate-800 mb-4">Инвентарь</h2>
+                    <p v-if="!canManageInventory" class="text-sm text-slate-600">{{ formatInventory(athlete.inventory) }}</p>
+                    <template v-else>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-4">
+                            <label
+                                v-for="(label, key) in inventoryLabels"
+                                :key="key"
+                                class="flex items-center gap-2 p-2 rounded-lg border border-slate-100 hover:bg-slate-50"
+                            >
+                                <input v-model="inventoryForm[key]" type="checkbox" class="rounded text-indigo-600" />
+                                <span>{{ label }}</span>
+                            </label>
+                        </div>
+                        <button
+                            type="button"
+                            @click="saveInventory"
+                            class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold"
+                        >
+                            Сохранить инвентарь
+                        </button>
+                    </template>
                 </div>
             </div>
         </div>

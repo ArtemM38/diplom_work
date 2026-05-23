@@ -62,11 +62,15 @@ class AdminDashboardController extends Controller
                 'started_at' => optional($athlete->created_at)?->toDateString(),
                 'current_rank' => $athlete->rankHistories->sortByDesc('assigned_at')->first()?->rank?->name ?? 'Не присвоен',
                 'documents' => $athlete->documents->map(function ($doc) {
+                    $daysLeft = $doc->expiry_date
+                        ? now()->startOfDay()->diffInDays(Carbon::parse($doc->expiry_date)->startOfDay(), false)
+                        : null;
+
                     return [
                         'type' => $doc->type,
                         'expiry_date' => $doc->expiry_date,
-                        'is_expired' => $doc->expiry_date ? Carbon::parse($doc->expiry_date)->isPast() : false,
-                        'is_warning' => $doc->expiry_date ? Carbon::parse($doc->expiry_date)->diffInDays(now()) < 14 : false,
+                        'is_expired' => $daysLeft !== null && $daysLeft < 0,
+                        'is_warning' => $daysLeft !== null && $daysLeft >= 0 && $daysLeft <= 3,
                     ];
                 }),
                 'inventory_count' => collect($athlete->inventory)->filter(fn ($val) => $val === true || $val === 1)->count(),
@@ -76,10 +80,11 @@ class AdminDashboardController extends Controller
         return Inertia::render('Admin/AthletesList', [
             'athletes' => $athletes,
             'filters' => $request->only(['search', 'gender', 'sort_age', 'started_from', 'started_to']),
+            'canEditAthlete' => $request->user()?->hasRole('admin') ?? false,
         ]);
     }
 
-    public function show(Athlete $athlete)
+    public function show(Request $request, Athlete $athlete)
     {
         $athlete->load([
             'rankHistories.rank',
@@ -90,15 +95,51 @@ class AdminDashboardController extends Controller
             'groups',
         ]);
 
+        $user = $request->user();
+        $canEditAthlete = $user && $user->hasRole('admin');
+        $canEditGuardians = $canEditAthlete;
+
         return Inertia::render('Admin/Athletes/Show', [
             'athlete' => $athlete,
             'age' => Carbon::parse($athlete->birth_date)->age,
             'ageLabel' => $this->formatYears(Carbon::parse($athlete->birth_date)->age),
+            'canEditAthlete' => $canEditAthlete,
+            'canEditGuardians' => $canEditGuardians,
+            'canManageInventory' => $canEditAthlete,
         ]);
+    }
+
+    public function updateInventory(Request $request, Athlete $athlete)
+    {
+        abort_unless($request->user()?->hasRole('admin'), 403);
+
+        $validated = $request->validate([
+            'weapon_case' => 'boolean',
+            'jo' => 'boolean',
+            'boken' => 'boolean',
+            'tanto' => 'boolean',
+            'tshirt' => 'boolean',
+            'olympic_jacket' => 'boolean',
+            'cap' => 'boolean',
+            'backpack' => 'boolean',
+            'shoe_bag' => 'boolean',
+            'budo_passport' => 'boolean',
+            'qual_book' => 'boolean',
+            'referee_book' => 'boolean',
+        ]);
+
+        $athlete->inventory()->updateOrCreate(
+            ['athlete_id' => $athlete->id],
+            collect($validated)->map(fn ($v) => (bool) $v)->all()
+        );
+
+        return back()->with('success', 'Инвентарь обновлён');
     }
 
     public function storeGuardian(Request $request, Athlete $athlete)
     {
+        abort_unless($request->user()?->hasRole('admin'), 403);
+
         $validated = $request->validate([
             'full_name' => 'required|string|max:255',
             'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
@@ -113,6 +154,7 @@ class AdminDashboardController extends Controller
 
     public function updateGuardian(Request $request, Athlete $athlete, Guardian $guardian)
     {
+        abort_unless($request->user()?->hasRole('admin'), 403);
         abort_unless($athlete->guardians()->where('guardians.id', $guardian->id)->exists(), 404);
 
         $validated = $request->validate([

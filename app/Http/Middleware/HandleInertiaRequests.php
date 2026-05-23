@@ -32,7 +32,11 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user()?->loadMissing(['athlete', 'guardian']),
+                'user' => $request->user()
+                    ? tap($request->user()->loadMissing(['athlete', 'guardian']), function ($user) {
+                        $user->setAttribute('roles', $user->getRolesList());
+                    })
+                    : null,
             ],
             // Добавь это, если хочешь видеть сообщения об успехе
             'flash' => [

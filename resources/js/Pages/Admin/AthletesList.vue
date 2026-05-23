@@ -8,6 +8,7 @@ import debounce from 'lodash/debounce';
 const props = defineProps({
     athletes: Object,
     filters: Object,
+    canEditAthlete: { type: Boolean, default: false },
 });
 
 const athletesList = computed(() => props.athletes?.data ?? []);
@@ -152,7 +153,7 @@ const resetFilters = () => {
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <Link :href="route('admin.athletes.show', athlete.id)" class="text-slate-600 hover:text-slate-900 mr-3">Просмотр</Link>
-                                    <Link :href="route('athlete.edit', athlete.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">Редактировать</Link>
+                                    <Link v-if="canEditAthlete" :href="route('athlete.edit', athlete.id)" class="text-indigo-600 hover:text-indigo-900 mr-3">Редактировать</Link>
                                     <button class="text-gray-400 hover:text-gray-600">PDF</button>
                                 </td>
                             </tr>

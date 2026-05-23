@@ -172,32 +172,34 @@ const shiftCalendarMonth = (delta) => {
                 </div>
                 <template v-else>
                     <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
-                        <div>
+                        <div class="min-w-0 flex-1">
                             <h3 class="font-bold text-lg">{{ selectedAthlete.full_name }}</h3>
-                            <p class="text-sm text-gray-600 mt-1">
-                                Явки: <b>{{ stats.present }}</b> |
-                                Неявки: <b>{{ stats.absent }}</b> |
-                                Уважительные: <b>{{ stats.excused }}</b>
-                                <span class="text-slate-400 ml-1">({{ statsPeriodLabel }})</span>
-                            </p>
+                            <div class="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-600">
+                                <span>
+                                    Явки: <b>{{ stats.present }}</b> |
+                                    Неявки: <b>{{ stats.absent }}</b> |
+                                    Уважительные: <b>{{ stats.excused }}</b>
+                                    <span class="text-slate-400 ml-1">({{ statsPeriodLabel }})</span>
+                                </span>
+                                <button
+                                    type="button"
+                                    @click="setStatsPeriod('month')"
+                                    class="px-3 py-1.5 rounded-lg text-sm font-medium border transition"
+                                    :class="statsPeriod === 'month' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'"
+                                >
+                                    Месяц
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="setStatsPeriod('year')"
+                                    class="px-3 py-1.5 rounded-lg text-sm font-medium border transition"
+                                    :class="statsPeriod === 'year' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'"
+                                >
+                                    Год
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button
-                                type="button"
-                                @click="setStatsPeriod('month')"
-                                class="px-3 py-1.5 rounded-lg text-sm font-medium border transition"
-                                :class="statsPeriod === 'month' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'"
-                            >
-                                Месяц
-                            </button>
-                            <button
-                                type="button"
-                                @click="setStatsPeriod('year')"
-                                class="px-3 py-1.5 rounded-lg text-sm font-medium border transition"
-                                :class="statsPeriod === 'year' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'"
-                            >
-                                Год
-                            </button>
+                        <div class="flex items-center gap-2 shrink-0">
                             <button type="button" @click="shiftCalendarMonth(-1)" class="p-2 border rounded-lg">‹</button>
                             <button type="button" @click="shiftCalendarMonth(1)" class="p-2 border rounded-lg">›</button>
                         </div>

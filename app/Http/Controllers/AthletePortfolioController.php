@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\EventParticipant;
 use App\Models\PortfolioAchievement;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,24 +17,45 @@ class AthletePortfolioController extends Controller
         $athlete = $user->athlete;
         abort_unless($athlete, 404);
 
-        $achievements = PortfolioAchievement::query()
+        $fromEvents = EventParticipant::query()
+            ->with(['event.eventType', 'event.eventLevel', 'event.eventHost', 'resultRank'])
+            ->where('athlete_id', $athlete->id)
+            ->get()
+            ->sortByDesc(fn (EventParticipant $p) => $p->event?->event_date ?? '')
+            ->values();
+
+        $legacy = PortfolioAchievement::query()
             ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
             ->where('athlete_id', $athlete->id)
+            ->whereNull('event_id')
             ->orderByDesc('event_date')
-            ->orderByDesc('id')
-            ->get()
-            ->map(fn ($a) => [
-                'id' => $a->id,
-                'event_name' => $a->event_name,
-                'event_date' => $a->event_date,
-                'event_city' => $a->event_city,
-                'result_place' => $a->result_place,
-                'event_type' => $a->eventType?->name,
-                'event_level' => $a->eventLevel?->name,
-                'event_host' => $a->eventHost?->name,
-                'result_rank' => $a->resultRank?->name,
-                'evidence_file_path' => $a->evidence_file_path,
-            ]);
+            ->get();
+
+        $achievements = $fromEvents->map(fn (EventParticipant $p) => [
+            'id' => 'ep-' . $p->id,
+            'event_name' => $p->event?->name,
+            'event_date' => $p->event?->event_date,
+            'event_place' => $p->event?->event_place,
+            'result_place' => $p->result_place,
+            'event_type' => $p->event?->eventType?->name,
+            'event_level' => $p->event?->eventLevel?->name,
+            'event_host' => $p->event?->eventHost?->full_name,
+            'result_rank' => $p->resultRank?->name,
+            'result_label' => $p->result_label,
+            'evidence_file_path' => $p->evidence_file_path,
+        ])->concat($legacy->map(fn ($a) => [
+            'id' => 'pa-' . $a->id,
+            'event_name' => $a->event_name,
+            'event_date' => $a->event_date,
+            'event_place' => $a->event_place,
+            'result_place' => $a->result_place,
+            'event_type' => $a->eventType?->name,
+            'event_level' => $a->eventLevel?->name,
+            'event_host' => $a->eventHost?->full_name,
+            'result_rank' => $a->resultRank?->name,
+            'result_label' => $a->result_label,
+            'evidence_file_path' => $a->evidence_file_path,
+        ]))->sortByDesc('event_date')->values();
 
         return Inertia::render('Athlete/Portfolio', [
             'athleteName' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} {$athlete->middle_name_nom}"),

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GroupController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\MedicalCertificatesController;
+use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\PortfolioController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserManagementController;
@@ -165,16 +166,22 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::get('/admin/finance', [FinanceController::class, 'index'])->name('admin.finance');
         Route::patch('/admin/finance/{athlete}', [FinanceController::class, 'update'])->name('admin.finance.update');
         Route::get('/admin/portfolio', [PortfolioController::class, 'index'])->name('admin.portfolio');
-        Route::post('/admin/portfolio/hosts', [PortfolioController::class, 'storeHost'])->name('admin.portfolio.hosts.store');
-        Route::patch('/admin/portfolio/hosts/{host}', [PortfolioController::class, 'updateHost'])->name('admin.portfolio.hosts.update');
-        Route::delete('/admin/portfolio/hosts/{host}', [PortfolioController::class, 'destroyHost'])->name('admin.portfolio.hosts.destroy');
-        Route::post('/admin/portfolio/achievements', [PortfolioController::class, 'storeAchievement'])->name('admin.portfolio.achievements.store');
-        Route::patch('/admin/portfolio/achievements/{achievement}', [PortfolioController::class, 'updateAchievement'])->name('admin.portfolio.achievements.update');
-        Route::delete('/admin/portfolio/achievements/{achievement}', [PortfolioController::class, 'destroyAchievement'])->name('admin.portfolio.achievements.destroy');
-        Route::get('/admin/portfolio/export/summary', [PortfolioController::class, 'exportSummaryCsv'])->name('admin.portfolio.export.summary');
         Route::get('/admin/portfolio/export/athlete', [PortfolioController::class, 'exportAthleteCsv'])->name('admin.portfolio.export.athlete');
-        Route::get('/admin/portfolio/export/summary-pdf', [PortfolioController::class, 'exportSummaryPdf'])->name('admin.portfolio.export.summary.pdf');
         Route::get('/admin/portfolio/export/athlete-pdf', [PortfolioController::class, 'exportAthletePdf'])->name('admin.portfolio.export.athlete.pdf');
+
+        Route::get('/admin/events', [EventController::class, 'index'])->name('admin.events');
+        Route::post('/admin/events', [EventController::class, 'store'])->name('admin.events.store');
+        Route::get('/admin/events/{event}', [EventController::class, 'show'])->name('admin.events.show');
+        Route::patch('/admin/events/{event}', [EventController::class, 'update'])->name('admin.events.update');
+        Route::delete('/admin/events/{event}', [EventController::class, 'destroy'])->name('admin.events.destroy');
+        Route::post('/admin/events/{event}/athletes', [EventController::class, 'attachAthlete'])->name('admin.events.athletes.attach');
+        Route::delete('/admin/events/{event}/athletes/{athlete}', [EventController::class, 'detachAthlete'])->name('admin.events.athletes.detach');
+        Route::match(['patch', 'post'], '/admin/events/{event}/results', [EventController::class, 'updateResults'])->name('admin.events.results.update');
+        Route::post('/admin/events/hosts', [EventController::class, 'storeHost'])->name('admin.events.hosts.store');
+        Route::patch('/admin/events/hosts/{host}', [EventController::class, 'updateHost'])->name('admin.events.hosts.update');
+        Route::delete('/admin/events/hosts/{host}', [EventController::class, 'destroyHost'])->name('admin.events.hosts.destroy');
+        Route::get('/admin/events/{event}/export/csv', [EventController::class, 'exportEventCsv'])->name('admin.events.export.csv');
+        Route::get('/admin/events/{event}/export/pdf', [EventController::class, 'exportEventPdf'])->name('admin.events.export.pdf');
     });
 });
 

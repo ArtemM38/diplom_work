@@ -1,0 +1,55 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Event extends Model
+{
+    protected $fillable = [
+        'name',
+        'cost',
+        'event_type_id',
+        'event_level_id',
+        'event_place',
+        'event_host_id',
+        'event_date',
+        'event_period',
+        'status',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'cost' => 'decimal:2',
+            'event_date' => 'date',
+        ];
+    }
+
+    public function eventType(): BelongsTo
+    {
+        return $this->belongsTo(EventType::class);
+    }
+
+    public function eventLevel(): BelongsTo
+    {
+        return $this->belongsTo(EventLevel::class);
+    }
+
+    public function eventHost(): BelongsTo
+    {
+        return $this->belongsTo(EventHost::class);
+    }
+
+    public function participants(): HasMany
+    {
+        return $this->hasMany(EventParticipant::class);
+    }
+
+    public function achievements(): HasMany
+    {
+        return $this->hasMany(PortfolioAchievement::class);
+    }
+}

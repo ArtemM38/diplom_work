@@ -4,32 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
-use App\Models\EventHost;
-use App\Models\EventLevel;
-use App\Models\EventType;
+use App\Models\EventParticipant;
 use App\Models\PortfolioAchievement;
-use App\Models\Rank;
+use App\Support\AthleteDocumentStatus;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class PortfolioController extends Controller
 {
-    private function ensureCanEdit(Request $request): void
-    {
-        $user = $request->user();
-        abort_if($user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']), 403);
-    }
-
-    private function isReadOnly(Request $request): bool
-    {
-        $user = $request->user();
-
-        return $user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']);
-    }
-
     public function index(Request $request)
     {
         $athleteId = $request->integer('athlete_id');
@@ -37,52 +21,27 @@ class PortfolioController extends Controller
 
         $achievements = collect();
         if ($athleteId) {
-            $achievements = PortfolioAchievement::query()
-                ->with(['athlete', 'eventType', 'eventLevel', 'eventHost', 'resultRank'])
+            $fromEvents = EventParticipant::query()
+                ->with(['event.eventType', 'event.eventLevel', 'event.eventHost', 'resultRank'])
                 ->where('athlete_id', $athleteId)
-                ->latest('event_date')
-                ->latest()
-                ->get();
+                ->get()
+                ->map(fn (EventParticipant $p) => $this->mapParticipantToAchievement($p));
+
+            $legacy = PortfolioAchievement::query()
+                ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
+                ->where('athlete_id', $athleteId)
+                ->whereNull('event_id')
+                ->get()
+                ->map(fn (PortfolioAchievement $a) => $this->mapLegacyAchievement($a));
+
+            $achievements = $fromEvents->concat($legacy)
+                ->sortByDesc(fn ($item) => $item['event_date'] ?? '')
+                ->values();
         }
 
-        $ratings = Athlete::query()
-            ->with('achievements.eventLevel')
-            ->get()
-            ->map(function (Athlete $athlete) {
-                $points = $athlete->achievements->sum(function (PortfolioAchievement $achievement) {
-                    return $this->calculatePoints($achievement);
-                });
-
-                return [
-                    'athlete_id' => $athlete->id,
-                    'full_name' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} {$athlete->middle_name_nom}"),
-                    'points' => $points,
-                    'achievements_count' => $athlete->achievements->count(),
-                ];
-            })
-            ->sortByDesc('points')
-            ->values();
-
-        $athleteReport = null;
-        if ($athleteId) {
-            $athleteReport = [
-                'athlete_id' => $athleteId,
-                'total_achievements' => $achievements->count(),
-                'places_1' => $achievements->where('result_place', 1)->count(),
-                'places_2' => $achievements->where('result_place', 2)->count(),
-                'places_3' => $achievements->where('result_place', 3)->count(),
-            ];
-        }
-
-        $summaryReport = [
-            'total_achievements' => PortfolioAchievement::count(),
-            'unique_athletes' => PortfolioAchievement::distinct('athlete_id')->count('athlete_id'),
-            'places_1' => PortfolioAchievement::where('result_place', 1)->count(),
-            'places_2' => PortfolioAchievement::where('result_place', 2)->count(),
-            'places_3' => PortfolioAchievement::where('result_place', 3)->count(),
-        ];
-
-        $athletes = Athlete::select('id', 'last_name_nom', 'first_name_nom', 'middle_name_nom')
+        $athletes = Athlete::query()
+            ->with('documents')
+            ->select('id', 'last_name_nom', 'first_name_nom', 'middle_name_nom')
             ->when($athleteSearch, function ($query) use ($athleteSearch) {
                 $query->where(function ($q) use ($athleteSearch) {
                     $q->where('last_name_nom', 'like', '%' . $athleteSearch . '%')
@@ -90,274 +49,68 @@ class PortfolioController extends Controller
                 });
             })
             ->orderBy('last_name_nom')
-            ->get();
+            ->get()
+            ->map(function (Athlete $athlete) {
+                $base = AthleteDocumentStatus::mapAthleteWithMedical($athlete);
+                $base['achievements_count'] = EventParticipant::where('athlete_id', $athlete->id)->count()
+                    + PortfolioAchievement::where('athlete_id', $athlete->id)->whereNull('event_id')->count();
 
-        $selectedAthlete = $athleteId ? Athlete::find($athleteId) : null;
+                return $base;
+            });
+
+        $selectedAthlete = null;
+        $athleteReport = null;
+        if ($athleteId) {
+            $athlete = Athlete::with('documents')->find($athleteId);
+            if ($athlete) {
+                $medical = AthleteDocumentStatus::medicalForAthlete($athlete);
+                $selectedAthlete = [
+                    'id' => $athlete->id,
+                    'full_name' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? '')),
+                    'medical_status' => $medical['status'],
+                    'medical_days_left' => $medical['days_left'],
+                    'medical_expiry_date' => $medical['expiry_date'],
+                ];
+
+                $athleteReport = [
+                    'total' => $achievements->count(),
+                    'places_1' => $achievements->where('result_place', 1)->count(),
+                    'places_2' => $achievements->where('result_place', 2)->count(),
+                    'places_3' => $achievements->where('result_place', 3)->count(),
+                ];
+            }
+        }
 
         return Inertia::render('Admin/Portfolio/Index', [
-            'readOnly' => $this->isReadOnly($request),
             'athletes' => $athletes,
-            'eventTypes' => EventType::all(),
-            'eventLevels' => EventLevel::all(),
-            'eventHosts' => EventHost::all(),
-            'ranks' => Rank::all(),
             'achievements' => $achievements,
             'selectedAthlete' => $selectedAthlete,
-            'ratings' => $ratings,
             'athleteReport' => $athleteReport,
-            'summaryReport' => $summaryReport,
             'filters' => $request->only(['athlete_id', 'athlete_search']),
-        ]);
-    }
-
-    public function storeHost(Request $request)
-    {
-        $this->ensureCanEdit($request);
-        $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
-            'rank' => 'nullable|string|max:255',
-            'city' => 'nullable|string|max:255',
-            'contacts' => 'nullable|string|max:255',
-            'extra_info' => 'nullable|string',
-        ]);
-
-        EventHost::create($validated);
-
-        return back()->with('success', 'Ведущий мероприятия добавлен');
-    }
-
-    public function updateHost(Request $request, EventHost $host)
-    {
-        $this->ensureCanEdit($request);
-        $validated = $request->validate([
-            'full_name' => 'required|string|max:255',
-            'rank' => 'nullable|string|max:255',
-            'city' => 'nullable|string|max:255',
-            'contacts' => 'nullable|string|max:255',
-            'extra_info' => 'nullable|string',
-        ]);
-
-        $host->update($validated);
-
-        return back()->with('success', 'Данные ведущего обновлены');
-    }
-
-    public function destroyHost(EventHost $host)
-    {
-        $this->ensureCanEdit(request());
-        $host->delete();
-
-        return back()->with('success', 'Ведущий удален');
-    }
-
-    public function storeAchievement(Request $request)
-    {
-        $this->ensureCanEdit($request);
-        $validated = $request->validate([
-            'athlete_id' => 'required|exists:athletes,id',
-            'event_name' => 'required|string|max:255',
-            'event_type_id' => 'required|exists:event_types,id',
-            'event_place' => 'nullable|string|max:255',
-            'event_date' => 'nullable|date|before_or_equal:today',
-            'event_period' => 'nullable|string|max:255',
-            'event_level_id' => 'nullable|exists:event_levels,id',
-            'event_host_id' => 'nullable|exists:event_hosts,id',
-            'result_label' => 'nullable|string|max:255',
-            'result_place' => 'nullable|integer|min:1|max:3',
-            'result_rank_id' => 'nullable|exists:ranks,id',
-            'certificate_id' => 'nullable|string|max:255',
-            'result_description' => 'nullable|string',
-            'evidence_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-        ]);
-
-        if ($request->hasFile('evidence_file')) {
-            $validated['evidence_file_path'] = $request->file('evidence_file')->store('portfolio/evidence', 'public');
-        }
-
-        unset($validated['evidence_file']);
-        PortfolioAchievement::create($validated);
-
-        return back()->with('success', 'Достижение сохранено');
-    }
-
-    public function updateAchievement(Request $request, PortfolioAchievement $achievement)
-    {
-        $this->ensureCanEdit($request);
-        $validated = $request->validate([
-            'athlete_id' => 'required|exists:athletes,id',
-            'event_name' => 'required|string|max:255',
-            'event_type_id' => 'required|exists:event_types,id',
-            'event_place' => 'nullable|string|max:255',
-            'event_date' => 'nullable|date|before_or_equal:today',
-            'event_period' => 'nullable|string|max:255',
-            'event_level_id' => 'nullable|exists:event_levels,id',
-            'event_host_id' => 'nullable|exists:event_hosts,id',
-            'result_label' => 'nullable|string|max:255',
-            'result_place' => 'nullable|integer|min:1|max:3',
-            'result_rank_id' => 'nullable|exists:ranks,id',
-            'certificate_id' => 'nullable|string|max:255',
-            'result_description' => 'nullable|string',
-            'evidence_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-        ]);
-
-        if ($request->hasFile('evidence_file')) {
-            if ($achievement->evidence_file_path) {
-                Storage::disk('public')->delete($achievement->evidence_file_path);
-            }
-            $validated['evidence_file_path'] = $request->file('evidence_file')->store('portfolio/evidence', 'public');
-        }
-
-        unset($validated['evidence_file']);
-        $achievement->update($validated);
-
-        return back()->with('success', 'Достижение обновлено');
-    }
-
-    public function destroyAchievement(PortfolioAchievement $achievement)
-    {
-        $this->ensureCanEdit(request());
-        if ($achievement->evidence_file_path) {
-            Storage::disk('public')->delete($achievement->evidence_file_path);
-        }
-
-        $achievement->delete();
-
-        return back()->with('success', 'Достижение удалено');
-    }
-
-    public function exportSummaryCsv(): StreamedResponse
-    {
-        $rows = PortfolioAchievement::query()
-            ->with(['athlete', 'eventType', 'eventLevel', 'eventHost', 'resultRank'])
-            ->latest('event_date')
-            ->get();
-
-        return response()->streamDownload(function () use ($rows) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-
-            fputcsv($out, [
-                'Спортсмен',
-                'Мероприятие',
-                'Тип',
-                'Уровень',
-                'Дата',
-                'Период',
-                'Место проведения',
-                'Ведущий',
-                'Результат',
-                'Место',
-                'Разряд',
-                'ID сертификата',
-            ], ';');
-
-            foreach ($rows as $item) {
-                fputcsv($out, [
-                    trim(($item->athlete->last_name_nom ?? '') . ' ' . ($item->athlete->first_name_nom ?? '')),
-                    $item->event_name,
-                    $item->eventType?->name,
-                    $item->eventLevel?->name,
-                    $item->event_date,
-                    $item->event_period,
-                    $item->event_place,
-                    $item->eventHost?->full_name,
-                    $item->result_label,
-                    $item->result_place,
-                    $item->resultRank?->name,
-                    $item->certificate_id,
-                ], ';');
-            }
-
-            fclose($out);
-        }, 'portfolio-summary-' . now()->format('Ymd-His') . '.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 
     public function exportAthleteCsv(Request $request): StreamedResponse
     {
         $athleteId = $request->integer('athlete_id');
-        abort_unless($athleteId, 422, 'Нужно выбрать спортсмена для выгрузки');
+        abort_unless($athleteId, 422, 'Нужно выбрать спортсмена');
 
         $athlete = Athlete::findOrFail($athleteId);
-        $rows = PortfolioAchievement::query()
-            ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
-            ->where('athlete_id', $athleteId)
-            ->latest('event_date')
-            ->get();
+        $rows = $this->collectAthleteRows($athleteId);
 
-        return response()->streamDownload(function () use ($rows, $athlete) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-
-            fputcsv($out, [
-                'Спортсмен',
-                'Мероприятие',
-                'Тип',
-                'Уровень',
-                'Дата',
-                'Период',
-                'Место проведения',
-                'Ведущий',
-                'Результат',
-                'Место',
-                'Разряд',
-                'ID сертификата',
-            ], ';');
-
-            foreach ($rows as $item) {
-                fputcsv($out, [
-                    trim(($athlete->last_name_nom ?? '') . ' ' . ($athlete->first_name_nom ?? '')),
-                    $item->event_name,
-                    $item->eventType?->name,
-                    $item->eventLevel?->name,
-                    $item->event_date,
-                    $item->event_period,
-                    $item->event_place,
-                    $item->eventHost?->full_name,
-                    $item->result_label,
-                    $item->result_place,
-                    $item->resultRank?->name,
-                    $item->certificate_id,
-                ], ';');
-            }
-
-            fclose($out);
-        }, 'portfolio-athlete-' . $athleteId . '-' . now()->format('Ymd-His') . '.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
-    }
-
-    public function exportSummaryPdf()
-    {
-        $rows = PortfolioAchievement::query()
-            ->with(['athlete', 'eventType', 'eventLevel', 'eventHost', 'resultRank'])
-            ->latest('event_date')
-            ->get();
-
-        $pdf = Pdf::loadView('pdf.portfolio-summary', [
-            'title' => 'Сводный отчет по мероприятиям',
-            'rows' => $rows,
-            'generatedAt' => now(),
-        ])->setPaper('a4', 'landscape');
-
-        return $pdf->download('portfolio-summary-' . now()->format('Ymd-His') . '.pdf');
+        return $this->streamCsv($rows, $athlete, 'portfolio-athlete-' . $athleteId);
     }
 
     public function exportAthletePdf(Request $request)
     {
         $athleteId = $request->integer('athlete_id');
-        abort_unless($athleteId, 422, 'Нужно выбрать спортсмена для выгрузки');
+        abort_unless($athleteId, 422, 'Нужно выбрать спортсмена');
 
         $athlete = Athlete::findOrFail($athleteId);
-        $rows = PortfolioAchievement::query()
-            ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
-            ->where('athlete_id', $athleteId)
-            ->latest('event_date')
-            ->get();
+        $rows = $this->collectAthleteRows($athleteId);
 
         $pdf = Pdf::loadView('pdf.portfolio-summary', [
-            'title' => 'Отчет по спортсмену: ' . trim(($athlete->last_name_nom ?? '') . ' ' . ($athlete->first_name_nom ?? '')),
+            'title' => 'Отчёт по спортсмену: ' . trim("{$athlete->last_name_nom} {$athlete->first_name_nom}"),
             'rows' => $rows,
             'generatedAt' => now(),
             'athlete' => $athlete,
@@ -366,23 +119,119 @@ class PortfolioController extends Controller
         return $pdf->download('portfolio-athlete-' . $athleteId . '-' . now()->format('Ymd-His') . '.pdf');
     }
 
-    private function calculatePoints(PortfolioAchievement $achievement): int
+    private function collectAthleteRows(int $athleteId)
     {
-        $placePoints = match ((int) $achievement->result_place) {
-            1 => 5,
-            2 => 3,
-            3 => 2,
-            default => 1,
-        };
+        $fromEvents = EventParticipant::query()
+            ->with(['event.eventType', 'event.eventLevel', 'event.eventHost', 'resultRank', 'athlete'])
+            ->where('athlete_id', $athleteId)
+            ->get();
 
-        $levelMultiplier = match ($achievement->eventLevel?->name) {
-            'Международный' => 5,
-            'Всероссийский' => 4,
-            'Окружной' => 3,
-            'Региональный' => 2,
-            default => 1,
-        };
+        $legacy = PortfolioAchievement::query()
+            ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank', 'athlete'])
+            ->where('athlete_id', $athleteId)
+            ->whereNull('event_id')
+            ->get();
 
-        return $placePoints * $levelMultiplier;
+        return $fromEvents->map(fn ($p) => $this->participantToExportRow($p))
+            ->concat($legacy->map(fn ($a) => $a));
+    }
+
+    private function streamCsv($rows, Athlete $athlete, string $filename): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($rows, $athlete) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, [
+                'Спортсмен', 'Мероприятие', 'Тип', 'Уровень', 'Дата', 'Период',
+                'Место проведения', 'Ведущий', 'Результат', 'Место', 'Разряд', 'ID сертификата',
+            ], ';');
+
+            foreach ($rows as $item) {
+                fputcsv($out, [
+                    trim("{$athlete->last_name_nom} {$athlete->first_name_nom}"),
+                    $item->event_name ?? $item->event?->name,
+                    $item->eventType?->name ?? $item->event?->eventType?->name,
+                    $item->eventLevel?->name ?? $item->event?->eventLevel?->name,
+                    $item->event_date ?? $item->event?->event_date,
+                    $item->event_period ?? $item->event?->event_period,
+                    $item->event_place ?? $item->event?->event_place,
+                    $item->eventHost?->full_name ?? $item->event?->eventHost?->full_name,
+                    $item->result_label,
+                    $item->result_place,
+                    $item->resultRank?->name,
+                    $item->certificate_id,
+                ], ';');
+            }
+
+            fclose($out);
+        }, $filename . '-' . now()->format('Ymd-His') . '.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function mapParticipantToAchievement(EventParticipant $p): array
+    {
+        $event = $p->event;
+
+        return [
+            'id' => 'ep-' . $p->id,
+            'source' => 'event',
+            'event_id' => $event?->id,
+            'event_name' => $event?->name,
+            'event_date' => $event?->event_date?->format('Y-m-d'),
+            'event_period' => $event?->event_period,
+            'event_place' => $event?->event_place,
+            'cost' => $event?->cost,
+            'event_type' => $event?->eventType?->name,
+            'event_level' => $event?->eventLevel?->name,
+            'event_host' => $event?->eventHost ? ['full_name' => $event->eventHost->full_name] : null,
+            'result_label' => $p->result_label,
+            'result_place' => $p->result_place,
+            'result_rank' => $p->resultRank?->name,
+            'certificate_id' => $p->certificate_id,
+            'result_description' => $p->result_description,
+            'evidence_file_path' => $p->evidence_file_path,
+            'has_results' => $p->hasResults(),
+        ];
+    }
+
+    private function mapLegacyAchievement(PortfolioAchievement $a): array
+    {
+        return [
+            'id' => 'pa-' . $a->id,
+            'source' => 'legacy',
+            'event_name' => $a->event_name,
+            'event_date' => $a->event_date?->format('Y-m-d') ?? $a->event_date,
+            'event_period' => $a->event_period,
+            'event_place' => $a->event_place,
+            'event_type' => $a->eventType?->name,
+            'event_level' => $a->eventLevel?->name,
+            'event_host' => $a->eventHost ? ['full_name' => $a->eventHost->full_name] : null,
+            'result_label' => $a->result_label,
+            'result_place' => $a->result_place,
+            'result_rank' => $a->resultRank?->name,
+            'certificate_id' => $a->certificate_id,
+            'result_description' => $a->result_description,
+            'evidence_file_path' => $a->evidence_file_path,
+            'has_results' => true,
+        ];
+    }
+
+    private function participantToExportRow(EventParticipant $p): PortfolioAchievement
+    {
+        $event = $p->event;
+        $row = new PortfolioAchievement([
+            'event_name' => $event?->name,
+            'event_date' => $event?->event_date,
+            'event_period' => $event?->event_period,
+            'event_place' => $event?->event_place,
+            'result_label' => $p->result_label,
+            'result_place' => $p->result_place,
+            'certificate_id' => $p->certificate_id,
+        ]);
+        $row->setRelation('event', $event);
+        $row->setRelation('resultRank', $p->resultRank);
+
+        return $row;
     }
 }

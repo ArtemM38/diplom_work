@@ -8,6 +8,7 @@ class PortfolioAchievement extends Model
 {
     protected $fillable = [
         'athlete_id',
+        'event_id',
         'event_name',
         'event_type_id',
         'event_place',
@@ -26,6 +27,11 @@ class PortfolioAchievement extends Model
     public function athlete()
     {
         return $this->belongsTo(Athlete::class);
+    }
+
+    public function event()
+    {
+        return $this->belongsTo(Event::class);
     }
 
     public function eventType()

@@ -6,7 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class AthleteRankHistory extends Model
 {
-    protected $fillable = ['athlete_id', 'rank_id', 'assigned_at'];
+    protected $fillable = ['athlete_id', 'rank_id', 'assigned_at', 'event_participant_id'];
+
+    protected function casts(): array
+    {
+        return [
+            'assigned_at' => 'date',
+        ];
+    }
 
     public function athlete()
     {

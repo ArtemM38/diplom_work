@@ -30,15 +30,15 @@ const submit = () => {
     <Head title="Отметка посещаемости" />
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center gap-4">
-                <Link :href="route('admin.attendance.journal')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">← Назад</Link>
-                <span>Отметка группы: {{ schedule.group.name }} ({{ schedule.lesson_date }})</span>
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
+                <Link :href="route('admin.attendance.journal')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium shrink-0">← Назад</Link>
+                <span class="truncate">Отметка: {{ schedule.group.name }} ({{ schedule.lesson_date }})</span>
             </div>
         </template>
 
-        <div class="max-w-4xl mx-auto py-12">
+        <div class="w-full max-w-4xl mx-auto py-6 sm:py-12">
             <div class="bg-white shadow rounded-2xl overflow-hidden">
-                <div class="p-6 border-b bg-gray-50 flex justify-between">
+                <div class="p-4 sm:p-6 border-b bg-gray-50 flex flex-col sm:flex-row sm:justify-between gap-2">
                     <div>
                         <p class="font-bold text-lg">{{ schedule.group.name }}</p>
                         <p class="text-sm text-gray-500">{{ schedule.start_time }} - {{ schedule.end_time }}</p>
@@ -48,6 +48,7 @@ const submit = () => {
                     </div>
                 </div>
 
+                <div class="app-table-wrap">
                 <table class="w-full">
                     <thead class="bg-gray-50 text-xs uppercase text-gray-400">
                         <tr>
@@ -63,7 +64,7 @@ const submit = () => {
                                 <div class="flex justify-center gap-2">
                                     <button v-for="status in ['Я', 'Н', 'У']" :key="status"
                                         @click="form.attendance[athlete.id] = status" type="button" :class="[
-                                            'px-4 py-2 rounded-lg text-xs font-bold transition',
+                                            'px-2 sm:px-4 py-2 rounded-lg text-xs font-bold transition',
                                             form.attendance[athlete.id] === status
                                                 ? (status === 'Я' ? 'bg-green-500 text-white' : status === 'Н' ? 'bg-red-500 text-white' : 'bg-yellow-500 text-white')
                                                 : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
@@ -75,6 +76,7 @@ const submit = () => {
                         </tr>
                     </tbody>
                 </table>
+                </div>
 
                 <div class="p-6 bg-gray-50 border-t flex justify-end">
                     <button @click="submit"

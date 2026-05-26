@@ -117,7 +117,7 @@ watch([from, to, groupId], () => {
 
             <!-- Athlete block -->
             <template v-if="isAthlete && athlete">
-                <div class="bg-white overflow-hidden shadow-sm sm:rounded-2xl p-6 flex items-center gap-6 border border-slate-100">
+                <div class="bg-white overflow-hidden shadow-sm sm:rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-6 border border-slate-100">
                     <img
                         :src="athlete?.photo ? '/storage/' + athlete.photo : 'https://ui-avatars.com/api/?name=' + athlete?.first_name_nom"
                         class="w-24 h-24 rounded-full object-cover border-4 border-indigo-100"

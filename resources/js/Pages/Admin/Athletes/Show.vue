@@ -102,7 +102,7 @@ const medicalStatus = computed(() => {
         <div class="max-w-6xl mx-auto space-y-6">
             <!-- Hero -->
             <div class="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-2xl shadow-xl text-white overflow-hidden">
-                <div class="p-8 flex flex-col md:flex-row md:items-center gap-6">
+                <div class="p-4 sm:p-8 flex flex-col md:flex-row md:items-center gap-6">
                     <AvatarZoomable
                         :src="photoSrc"
                         :name="fullName"
@@ -111,7 +111,7 @@ const medicalStatus = computed(() => {
                         class="shrink-0 !border-white/30 !ring-white/20"
                     />
                     <div class="flex-1 min-w-0">
-                        <h1 class="text-3xl font-bold tracking-tight">{{ fullName }}</h1>
+                        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight break-anywhere">{{ fullName }}</h1>
                         <p class="text-indigo-200 mt-1">
                             {{ ageLabel || `${age} лет` }} · {{ athlete.gender === 'male' ? 'Мужской' : 'Женский' }}
                         </p>
@@ -198,7 +198,7 @@ const medicalStatus = computed(() => {
                             </div>
                         </template>
                         <template v-else>
-                            <div class="grid md:grid-cols-4 gap-3">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                                 <input v-model="editGuardianForms[guardian.id].full_name" class="rounded-lg border-slate-300" />
                                 <input v-model="editGuardianForms[guardian.id].phone" class="rounded-lg border-slate-300" />
                                 <select v-model="editGuardianForms[guardian.id].relation" class="rounded-lg border-slate-300">

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
+import NotificationBell from '@/Components/NotificationBell.vue';
 
 const mobileMenuOpen = ref(false);
 const page = usePage();
@@ -101,19 +102,20 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0 min-h-screen bg-gray-50">
-            <header class="bg-white shadow-sm border-b h-16 flex items-center justify-between px-4 md:px-8 shrink-0">
-                <button class="md:hidden p-2 rounded border" @click="mobileMenuOpen = !mobileMenuOpen">☰</button>
-                <h2 class="text-lg font-semibold text-gray-700">
+            <header class="bg-white shadow-sm border-b min-h-16 flex items-center justify-between gap-2 px-3 sm:px-4 md:px-8 shrink-0 py-2">
+                <button type="button" class="md:hidden shrink-0 p-2 rounded border" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Меню">☰</button>
+                <h2 class="text-sm sm:text-lg font-semibold text-gray-700 truncate min-w-0 flex-1 px-1">
                     <slot name="header" />
                 </h2>
 
-                <div class="flex items-center gap-4">
+                <div class="flex items-center gap-1 sm:gap-3 shrink-0">
+                    <NotificationBell />
                     <Dropdown align="right" width="48">
                         <template #trigger>
                             <span class="inline-flex rounded-md">
                                 <button
                                     type="button"
-                                    class="inline-flex items-center gap-2 px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150"
+                                    class="inline-flex items-center gap-1 sm:gap-2 px-1 sm:px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150 max-w-[min(100%,12rem)] sm:max-w-none"
                                 >
                                     <img
                                         v-if="user?.avatar_url"
@@ -127,9 +129,9 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
                                     >
                                         {{ (user?.display_name || user?.name || '?')[0] }}
                                     </span>
-                                    {{ user?.display_name || user?.name || 'Загрузка...' }}
+                                    <span class="hidden sm:inline truncate max-w-[8rem] md:max-w-[12rem]">{{ user?.display_name || user?.name || 'Загрузка...' }}</span>
                                     <svg
-                                        class="ms-2 -me-0.5 h-4 w-4"
+                                        class="ms-0 sm:ms-2 -me-0.5 h-4 w-4 shrink-0 hidden sm:block"
                                         xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 20 20"
                                         fill="currentColor"
@@ -152,7 +154,7 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
                 </div>
             </header>
 
-            <main class="flex-1 p-4 md:p-8">
+            <main class="flex-1 p-3 sm:p-4 md:p-8 min-w-0 max-w-full overflow-x-hidden">
                 <slot />
             </main>
         </div>

@@ -52,9 +52,9 @@ const filteredMembers = computed(() => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center gap-4">
-                <Link :href="route('admin.groups')" class="text-indigo-600">← Группы</Link>
-                <span>Управление составом: {{ group.name }}</span>
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
+                <Link :href="route('admin.groups')" class="text-indigo-600 shrink-0">← Группы</Link>
+                <span class="truncate">Состав: {{ group.name }}</span>
             </div>
         </template>
 
@@ -73,6 +73,7 @@ const filteredMembers = computed(() => {
                         <input v-model="memberSearch" class="w-full border-gray-300 rounded-lg shadow-sm" placeholder="Поиск в составе группы..." />
                     </div>
 
+                    <div class="app-table-wrap">
                     <table class="w-full">
                         <thead class="bg-gray-50 border-b">
                             <tr>
@@ -102,6 +103,7 @@ const filteredMembers = computed(() => {
                             </tr>
                         </tbody>
                     </table>
+                    </div>
                 </div>
 
                 <!-- ПРАВАЯ КОЛОНКА: Добавление в группу -->

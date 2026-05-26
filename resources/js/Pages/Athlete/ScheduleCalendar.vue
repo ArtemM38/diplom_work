@@ -102,7 +102,8 @@ const daySchedules = computed(() =>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-7 gap-2">
+                <div class="calendar-scroll">
+                <div class="calendar-grid">
                     <div
                         v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']"
                         :key="d"
@@ -116,7 +117,7 @@ const daySchedules = computed(() =>
                         :key="idx"
                         @click="selectDay(date)"
                         :class="[
-                            'h-24 border rounded-xl p-2 transition-all cursor-pointer relative',
+                            'min-h-16 sm:min-h-24 border rounded-xl p-1 sm:p-2 transition-all cursor-pointer relative',
                             !date ? 'bg-gray-50 border-transparent cursor-default' : 'hover:border-indigo-400',
                             selectedDate === date ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-100' : 'border-gray-100',
                         ]"
@@ -145,6 +146,7 @@ const daySchedules = computed(() =>
                             </div>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
 

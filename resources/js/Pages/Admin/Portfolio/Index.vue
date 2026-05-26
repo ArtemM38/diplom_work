@@ -125,7 +125,7 @@ const placeLabel = (place) => {
                             </div>
                         </div>
 
-                        <div v-if="athleteReport" class="grid grid-cols-4 gap-3 mt-4">
+                        <div v-if="athleteReport" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                             <div class="p-3 rounded-lg bg-slate-50 text-center">
                                 <div class="text-2xl font-bold">{{ athleteReport.total }}</div>
                                 <div class="text-xs text-slate-500">Всего</div>
@@ -145,7 +145,7 @@ const placeLabel = (place) => {
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden app-table-wrap">
                         <table class="min-w-full text-sm">
                             <thead class="bg-slate-50 text-slate-600">
                                 <tr>

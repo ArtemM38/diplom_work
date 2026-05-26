@@ -44,6 +44,16 @@ class User extends Authenticatable
         return $this->hasOne(Guardian::class);
     }
 
+    public function notifications()
+    {
+        return $this->hasMany(UserNotification::class);
+    }
+
+    public function unreadNotificationsCount(): int
+    {
+        return $this->notifications()->whereNull('read_at')->count();
+    }
+
     protected function casts(): array
     {
         return [

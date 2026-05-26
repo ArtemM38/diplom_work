@@ -207,7 +207,8 @@ const shiftCalendarMonth = (delta) => {
 
                     <h4 class="font-semibold text-slate-700 mb-3 capitalize">{{ monthLabel }}</h4>
 
-                    <div class="grid grid-cols-7 gap-2">
+                    <div class="calendar-scroll">
+                    <div class="calendar-grid">
                         <div v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']" :key="d" class="text-center text-xs font-bold text-slate-400 py-1">{{ d }}</div>
                         <div
                             v-for="(date, idx) in calendarDays"
@@ -228,6 +229,7 @@ const shiftCalendarMonth = (delta) => {
                                 </div>
                             </template>
                         </div>
+                    </div>
                     </div>
                     <p class="text-xs text-slate-500 mt-3">Отображаются все отметки, в том числе по прошлым группам</p>
                 </template>
@@ -260,7 +262,8 @@ const shiftCalendarMonth = (delta) => {
                             <button type="button" @click="shiftCalendarMonth(1)" class="p-2 border rounded-lg">›</button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-7 gap-2">
+                    <div class="calendar-scroll">
+                    <div class="calendar-grid">
                         <div v-for="d in ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']" :key="d" class="text-center text-xs font-bold text-slate-400">{{ d }}</div>
                         <div
                             v-for="(date, idx) in calendarDays"
@@ -280,6 +283,7 @@ const shiftCalendarMonth = (delta) => {
                                 </button>
                             </template>
                         </div>
+                    </div>
                     </div>
                 </template>
             </div>

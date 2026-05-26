@@ -141,9 +141,9 @@ const participantIndex = computed(() => {
     <Head :title="`Мероприятие: ${event.name}`" />
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center gap-3">
-                <Link :href="route('admin.events')" class="text-indigo-600 text-sm">← Мероприятия</Link>
-                <span class="font-semibold">{{ event.name }}</span>
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
+                <Link :href="route('admin.events')" class="text-indigo-600 text-sm shrink-0">← Мероприятия</Link>
+                <span class="font-semibold truncate">{{ event.name }}</span>
             </div>
         </template>
 

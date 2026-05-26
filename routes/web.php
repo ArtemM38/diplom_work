@@ -3,6 +3,7 @@
 use App\Http\Controllers\AthleteController;
 use App\Http\Controllers\AthletePortfolioController;
 use App\Http\Controllers\FinanceViewController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\AthleteAttendanceController;
 use App\Http\Controllers\GuardianChildAttendanceController;
 use App\Http\Controllers\AthleteDocumentsController;
@@ -47,6 +48,10 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     Route::get('/guardian/setup', [AthleteController::class, 'createGuardian'])->name('guardian.create');
     Route::post('/guardian/setup', [AthleteController::class, 'storeGuardian'])->name('guardian.store');
     Route::get('/address/suggest', [AddressSuggestionController::class, 'suggest'])->name('address.suggest');
+
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
 });
 
 // 3. Основная рабочая область CRM (С middleware profile.completed)
@@ -125,7 +130,6 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::get('/guardian/attendance', [GuardianChildAttendanceController::class, 'index'])->name('guardian.attendance');
     Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');
     Route::get('/athlete/documents/template/{template}/word', [AthleteDocumentsController::class, 'downloadWord'])->name('athlete.documents.word');
-
 
     // АДМИН-ПАНЕЛЬ
     Route::middleware(['can:access-admin-panel'])->group(function () {

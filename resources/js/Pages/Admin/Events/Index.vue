@@ -85,7 +85,7 @@ const eventsList = () => props.events?.data ?? [];
 
         <div class="space-y-6">
             <div class="flex flex-wrap gap-3 items-center justify-between">
-                <input v-model="search" type="text" placeholder="Поиск мероприятия..." class="border-gray-300 rounded-lg w-64" />
+                <input v-model="search" type="text" placeholder="Поиск мероприятия..." class="border-gray-300 rounded-lg w-full sm:max-w-xs" />
                 <div class="flex gap-2">
                     <button v-if="!readOnly" type="button" @click="showHosts = !showHosts" class="px-4 py-2 border rounded-lg text-sm">
                         {{ showHosts ? 'Скрыть ведущих' : 'Ведущие' }}
@@ -148,7 +148,7 @@ const eventsList = () => props.events?.data ?? [];
 
             <div v-if="showHosts && !readOnly" class="bg-white p-6 rounded-xl border border-slate-100">
                 <h3 class="font-bold mb-4">Ведущие мероприятий</h3>
-                <form @submit.prevent="saveHost" class="grid md:grid-cols-6 gap-3 mb-4">
+                <form @submit.prevent="saveHost" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
                     <input v-model="hostForm.full_name" placeholder="ФИО" required class="border-gray-300 rounded-lg md:col-span-2" />
                     <input v-model="hostForm.birth_date" type="date" placeholder="Дата рождения" class="border-gray-300 rounded-lg" />
                     <input v-model="hostForm.rank" placeholder="Спорт. разряд" class="border-gray-300 rounded-lg" />
@@ -157,7 +157,7 @@ const eventsList = () => props.events?.data ?? [];
                     <button type="submit" class="bg-emerald-600 text-white rounded-lg px-3 text-sm font-medium">{{ hostForm.id ? 'Сохранить' : 'Добавить' }}</button>
                 </form>
                 <div class="space-y-2">
-                    <div v-for="host in eventHosts" :key="host.id" class="flex justify-between items-center p-3 rounded-lg border border-slate-100 text-sm">
+                    <div v-for="host in eventHosts" :key="host.id" class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 p-3 rounded-lg border border-slate-100 text-sm">
                         <div>
                             <b>{{ host.full_name }}</b>
                             <span class="text-slate-500 ml-2">{{ host.rank }} · {{ host.city }}</span>
@@ -171,7 +171,7 @@ const eventsList = () => props.events?.data ?? [];
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden app-table-wrap">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50">
                         <tr>

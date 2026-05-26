@@ -77,7 +77,7 @@ const statusLabel = (status, daysLeft) => {
                 <button type="button" @click="filter = 'all'" class="text-sm text-indigo-600 font-medium">Показать все</button>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden app-table-wrap">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50 text-slate-600">
                         <tr>

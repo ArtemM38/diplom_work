@@ -131,12 +131,13 @@ const removeSchedule = (schedule) => {
                 </div>
 
                 <!-- Сетка календаря -->
-                <div class="grid grid-cols-7 gap-2">
+                <div class="calendar-scroll">
+                <div class="calendar-grid">
                     <div v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']" :key="d"
                         class="text-center text-xs font-bold text-slate-400 py-2">{{ d }}</div>
 
                     <div v-for="(date, idx) in calendarDays" :key="idx" @click="selectDay(date)" :class="[
-                        'h-24 border rounded-xl p-2 transition-all cursor-pointer relative',
+                        'min-h-16 sm:min-h-24 border rounded-xl p-1 sm:p-2 transition-all cursor-pointer relative',
                         !date ? 'bg-gray-50 border-transparent cursor-default' : 'hover:border-indigo-400',
                         selectedDate === date ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-100' : 'border-gray-100'
                     ]">
@@ -157,6 +158,7 @@ const removeSchedule = (schedule) => {
                             </div>
                         </div>
                     </div>
+                </div>
                 </div>
             </div>
 

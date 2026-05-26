@@ -37,7 +37,7 @@ const normalizeEmail = (event) => {
         <form @submit.prevent="submit" class="space-y-5">
             <div>
                 <h3 class="text-center font-semibold mb-3 text-sm text-slate-700">Тип аккаунта</h3>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button
                         type="button"
                         @click="form.role = 'athlete'"

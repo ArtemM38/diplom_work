@@ -151,7 +151,8 @@ watch([calendarMonth, statsPeriod], reload);
 
                 <h4 class="font-semibold text-slate-700 mb-3 capitalize">{{ monthLabel }}</h4>
 
-                <div class="grid grid-cols-7 gap-2">
+                <div class="calendar-scroll">
+                <div class="calendar-grid">
                     <div
                         v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']"
                         :key="d"
@@ -178,6 +179,7 @@ watch([calendarMonth, statsPeriod], reload);
                             </div>
                         </template>
                     </div>
+                </div>
                 </div>
                 <p class="text-xs text-slate-500 mt-3">Отображаются все отметки, в том числе по прошлым группам</p>
             </div>

@@ -7,6 +7,7 @@ use App\Models\Group;
 use App\Models\Athlete;
 use App\Models\AthleteFinance;
 use App\Support\AthletePricing;
+use App\Support\FormValidator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -46,10 +47,10 @@ class GroupController extends Controller
     public function store(Request $request)
     {
         abort_unless($request->user() && (! $request->user()->hasRole('accountant') || $request->user()->hasAnyRole(['admin', 'coach'])), 403);
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'type' => 'required|string',
-            'tariff_amount' => 'required|numeric',
+            'type' => 'required|string|max:100',
+            'tariff_amount' => 'required|numeric|min:0',
         ]);
 
         Group::create($validated);
@@ -83,7 +84,7 @@ class GroupController extends Controller
     public function attachAthlete(Request $request, Group $group)
     {
         abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
-        $request->validate([
+        FormValidator::validate($request, [
             'athlete_id' => 'required|exists:athletes,id',
         ]);
 
@@ -110,7 +111,7 @@ class GroupController extends Controller
     public function update(Request $request, Group $group)
     {
         if ($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach'])) {
-            $validated = $request->validate([
+            $validated = FormValidator::validate($request, [
                 'tariff_amount' => 'required|numeric|min:0',
             ]);
             $group->update(['tariff_amount' => $validated['tariff_amount']]);
@@ -118,7 +119,7 @@ class GroupController extends Controller
             return redirect()->back()->with('success', 'Стоимость тренировки обновлена');
         }
 
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'type' => 'required|string|max:100',
             'tariff_amount' => 'required|numeric|min:0',

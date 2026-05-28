@@ -48,8 +48,18 @@ const selectDay = (date) => {
 };
 
 const daySchedules = computed(() =>
-    props.schedules.filter((s) => s.lesson_date === selectedDate.value)
+    props.schedules
+        .filter((s) => s.lesson_date === selectedDate.value)
+        .slice()
+        .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
 );
+
+const attendanceLabel = (status) => {
+    if (status === 'Я') return { text: 'Явка', class: 'bg-green-100 text-green-800' };
+    if (status === 'Н') return { text: 'Неявка', class: 'bg-red-100 text-red-800' };
+    if (status === 'У') return { text: 'Уваж. пропуск', class: 'bg-amber-100 text-amber-800' };
+    return { text: 'Не отмечено', class: 'bg-slate-100 text-slate-500' };
+};
 </script>
 
 <template>
@@ -159,16 +169,38 @@ const daySchedules = computed(() =>
                     <div
                         v-for="s in daySchedules"
                         :key="s.id"
-                        class="p-3 bg-gray-50 rounded-xl mb-3 text-sm border border-gray-100"
+                        :class="[
+                            'p-3 rounded-xl mb-3 text-sm border',
+                            s.is_cancelled ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-100',
+                        ]"
                     >
-                        <div class="font-bold text-indigo-700">
-                            {{ s.start_time.substring(0, 5) }} - {{ s.end_time.substring(0, 5) }}
+                        <div class="flex justify-between items-start gap-2">
+                            <div class="font-bold" :class="s.is_cancelled ? 'text-red-600 line-through' : 'text-indigo-700'">
+                                {{ s.start_time.substring(0, 5) }} - {{ s.end_time.substring(0, 5) }}
+                            </div>
+                            <span
+                                v-if="s.is_cancelled"
+                                class="text-xs font-semibold text-red-700 bg-red-100 px-2 py-0.5 rounded"
+                            >Отменена</span>
+                            <span
+                                v-else
+                                class="text-xs font-semibold px-2 py-0.5 rounded shrink-0"
+                                :class="attendanceLabel(s.attendance_status).class"
+                            >
+                                {{ attendanceLabel(s.attendance_status).text }}
+                            </span>
                         </div>
                         <div class="text-slate-600 mt-1">
                             <span class="font-semibold text-slate-900">{{ s.group?.name }}</span>
                             <span v-if="s.location?.name"> | {{ s.location.name }}</span>
                         </div>
-                        <div class="text-slate-500 mt-1">
+                        <div
+                            v-if="s.location_address || s.location?.address"
+                            class="text-slate-500 mt-1 text-xs break-words"
+                        >
+                            Адрес зала: {{ s.location_address || s.location?.address }}
+                        </div>
+                        <div class="text-slate-500 mt-1 text-xs">
                             Тренер: {{ s.coach?.name || '—' }}
                         </div>
                     </div>

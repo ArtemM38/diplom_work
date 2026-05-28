@@ -9,7 +9,8 @@ class Attendance extends Model
     protected $fillable = [
         'schedule_id',
         'athlete_id',
-        'status'
+        'status',
+        'excused_certificate',
     ];
 
     public function athlete()

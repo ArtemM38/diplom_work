@@ -44,7 +44,9 @@ class AdminDashboardController extends Controller
         if (in_array($sortByAge, ['asc', 'desc'], true)) {
             $query->orderBy('birth_date', $sortByAge === 'asc' ? 'desc' : 'asc');
         } else {
-            $query->latest();
+            $query->orderBy('last_name_nom')
+                ->orderBy('first_name_nom')
+                ->orderBy('middle_name_nom');
         }
 
         $athletes = $query->paginate(15)->withQueryString()->through(function ($athlete) {

@@ -11,6 +11,7 @@ use App\Models\EventParticipant;
 use App\Models\EventType;
 use App\Models\Rank;
 use App\Support\AthleteDocumentStatus;
+use App\Support\FormValidator;
 use App\Support\AthleteRankSync;
 use App\Support\PortfolioAchievementSync;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -339,15 +340,14 @@ class EventController extends Controller
 
     private function validateEvent(Request $request): array
     {
-        return $request->validate([
+        return FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'cost' => 'required|numeric|min:0',
             'event_type_id' => 'required|exists:event_types,id',
             'event_level_id' => 'nullable|exists:event_levels,id',
             'event_place' => 'nullable|string|max:255',
             'event_host_id' => 'nullable|exists:event_hosts,id',
-            'event_date' => 'nullable|date',
-            'event_period' => 'nullable|string|max:255',
+            'event_date' => 'required|date',
             'status' => 'nullable|in:planned,completed',
         ]);
     }

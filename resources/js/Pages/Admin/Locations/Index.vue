@@ -1,6 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import InputError from '@/Components/InputError.vue';
+import { fieldClass } from '@/utils/formErrors';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
@@ -44,9 +47,27 @@ watch(search, debounce((value) => {
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-fit">
                 <h3 class="font-bold mb-4">Добавить зал</h3>
                 <form @submit.prevent="createLocation" class="space-y-3">
-                    <input v-model="createForm.name" placeholder="Название зала" class="w-full border-slate-300 rounded-xl" required />
-                    <input v-model="createForm.address" placeholder="Адрес" class="w-full border-slate-300 rounded-xl" />
-                    <button class="w-full bg-indigo-600 text-white py-2 rounded-xl font-bold">Создать</button>
+                    <FormErrorsAlert :errors="createForm.errors" />
+                    <div>
+                        <input
+                            v-model="createForm.name"
+                            placeholder="Название зала"
+                            :class="fieldClass(createForm.errors, 'name', 'w-full rounded-xl')"
+                            required
+                        />
+                        <InputError :message="createForm.errors.name" />
+                    </div>
+                    <div>
+                        <input
+                            v-model="createForm.address"
+                            placeholder="Адрес"
+                            :class="fieldClass(createForm.errors, 'address', 'w-full rounded-xl')"
+                        />
+                        <InputError :message="createForm.errors.address" />
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-xl font-bold" :disabled="createForm.processing">
+                        Создать
+                    </button>
                 </form>
             </div>
 
@@ -58,8 +79,8 @@ watch(search, debounce((value) => {
                         <input v-model="location.address" placeholder="Адрес" class="border-slate-300 rounded-xl" />
                     </div>
                     <div class="flex gap-2 justify-end">
-                        <button @click="saveLocation(location)" class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl text-sm font-medium">Сохранить</button>
-                        <button @click="removeLocation(location.id)" class="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm">Удалить</button>
+                        <button type="button" @click="saveLocation(location)" class="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-xl text-sm font-medium">Сохранить</button>
+                        <button type="button" @click="removeLocation(location.id)" class="bg-red-100 text-red-700 px-4 py-2 rounded-xl text-sm">Удалить</button>
                     </div>
                 </div>
                 <Pagination :links="locations.links" :meta="locations" />

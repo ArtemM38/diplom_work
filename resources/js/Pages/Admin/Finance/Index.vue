@@ -1,6 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import InputError from '@/Components/InputError.vue';
+import { fieldClass } from '@/utils/formErrors';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
@@ -163,6 +166,7 @@ const saveDiscount = () => {
                     <div class="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-100">
                         <h3 class="font-bold mb-4 hidden lg:block">{{ selectedAthlete.full_name }}</h3>
                         <p class="lg:hidden text-xs text-slate-500 mb-3">Операция с балансом</p>
+                        <FormErrorsAlert :errors="form.errors" class="mb-4" />
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
                                 <label class="text-xs text-gray-500">Текущий баланс</label>
@@ -170,18 +174,21 @@ const saveDiscount = () => {
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500">Операция</label>
-                                <select v-model="form.operation" class="w-full border-gray-300 rounded-lg mt-1">
+                                <select v-model="form.operation" :class="fieldClass(form.errors, 'operation', 'w-full rounded-lg mt-1')">
                                     <option value="add">Пополнить</option>
                                     <option value="subtract">Списать</option>
                                 </select>
+                                <InputError :message="form.errors.operation" />
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500">Сумма</label>
-                                <input v-model="form.amount" type="number" step="0.01" min="0.01" class="w-full border-gray-300 rounded-lg mt-1" />
+                                <input v-model="form.amount" type="number" step="0.01" min="0.01" :class="fieldClass(form.errors, 'amount', 'w-full rounded-lg mt-1')" />
+                                <InputError :message="form.errors.amount" />
                             </div>
                             <div class="sm:col-span-2 lg:col-span-1">
-                                <label class="text-xs text-gray-500">Причина</label>
-                                <input v-model="form.reason" class="w-full border-gray-300 rounded-lg mt-1" placeholder="Комментарий" />
+                                <label class="text-xs text-gray-500">Причина *</label>
+                                <input v-model="form.reason" :class="fieldClass(form.errors, 'reason', 'w-full rounded-lg mt-1')" placeholder="Комментарий" required />
+                                <InputError :message="form.errors.reason" />
                             </div>
                         </div>
                         <button

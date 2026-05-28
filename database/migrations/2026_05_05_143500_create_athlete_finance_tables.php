@@ -13,6 +13,7 @@ return new class extends Migration
             $table->foreignId('athlete_id')->unique()->constrained()->onDelete('cascade');
             $table->decimal('balance', 10, 2)->default(0);
             $table->decimal('training_price', 10, 2)->default(0);
+            $table->unsignedTinyInteger('discount_percent')->default(0);
             $table->timestamps();
         });
 

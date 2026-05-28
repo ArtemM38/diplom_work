@@ -2,59 +2,83 @@
 
 namespace App\Http\Controllers;
 
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\Athlete;
+use App\Support\AthleteDocumentGenerator;
+use App\Support\GuardianChildAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AthleteDocumentsController extends Controller
 {
-    private function getAthleteOrFail()
+    public function templates(Request $request)
     {
-        $athlete = Auth::user()?->athlete;
-        abort_unless($athlete, 404, 'Профиль спортсмена не найден');
-        return $athlete;
-    }
-
-    private function templateTitle(int $template): string
-    {
-        return match ($template) {
-            1 => 'Приложение 1. Заявление на участие',
-            2 => 'Приложение 2. Согласие на обработку персональных данных',
-            3 => 'Приложение 3. Согласие на участие в тренировочном процессе',
-            default => 'Приложение 4. Заявление родителя/законного представителя',
-        };
-    }
-
-    public function downloadPdf(Request $request, int $template)
-    {
-        abort_unless(in_array($template, [1, 2, 3, 4], true), 404);
-        $athlete = $this->getAthleteOrFail();
-
-        $pdf = Pdf::loadView('pdf.athlete-template', [
-            'athlete' => $athlete,
-            'title' => $this->templateTitle($template),
-            'template' => $template,
-            'generatedAt' => now(),
-        ])->setPaper('a4');
-
-        return $pdf->download('template-' . $template . '-' . now()->format('Ymd-His') . '.pdf');
-    }
-
-    public function downloadWord(Request $request, int $template)
-    {
-        abort_unless(in_array($template, [1, 2, 3, 4], true), 404);
-        $athlete = $this->getAthleteOrFail();
-
-        $html = view('word.athlete-template', [
-            'athlete' => $athlete,
-            'title' => $this->templateTitle($template),
-            'template' => $template,
-            'generatedAt' => now(),
-        ])->render();
-
-        return response($html, 200, [
-            'Content-Type' => 'application/msword; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="template-' . $template . '.doc"',
+        return response()->json([
+            'templates' => AthleteDocumentGenerator::templateList(),
         ]);
+    }
+
+    public function download(Request $request, int $template)
+    {
+        abort_unless(array_key_exists($template, config('athlete_document_templates.templates', [])), 404);
+
+        $athlete = $this->resolveAthlete($request);
+        $format = $request->string('format')->toString() ?: 'docx';
+        $rules = $this->validationRules($template);
+        $extra = $rules !== [] ? $request->validate($rules) : [];
+
+        $allowed = config("athlete_document_templates.templates.{$template}.formats", ['docx']);
+        abort_unless(in_array($format, $allowed, true), 422, 'Недопустимый формат файла.');
+
+        return app(AthleteDocumentGenerator::class)->download($template, $athlete, $format, $extra);
+    }
+
+    private function resolveAthlete(Request $request): Athlete
+    {
+        $user = $request->user();
+
+        if ($user->hasRole('athlete') && $user->athlete) {
+            return $user->athlete->load(['guardians', 'groups', 'finance']);
+        }
+
+        if ($user->hasRole('guardian')) {
+            $athleteId = GuardianChildAccess::resolveChildId(
+                $user,
+                $request->integer('athlete_id') ?: null,
+            );
+
+            return Athlete::with(['guardians', 'groups', 'finance'])->findOrFail($athleteId);
+        }
+
+        if ($user->hasAnyRole(['admin', 'coach', 'accountant'])) {
+            $athleteId = $request->integer('athlete_id');
+            abort_unless($athleteId, 422, 'Укажите спортсмена.');
+
+            return Athlete::with(['guardians', 'groups', 'finance'])->findOrFail($athleteId);
+        }
+
+        abort(403);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validationRules(int $template): array
+    {
+        $fields = config("athlete_document_templates.constructor_fields.{$template}", []);
+        $rules = [];
+
+        foreach ($fields as $field) {
+            $name = $field['name'];
+            $rule = ($field['required'] ?? false) ? 'required' : 'nullable';
+
+            $rules[$name] = match ($field['type'] ?? 'text') {
+                'date' => "{$rule}|date",
+                'number' => "{$rule}|numeric|min:0",
+                'textarea' => "{$rule}|string|max:2000",
+                default => "{$rule}|string|max:500",
+            };
+        }
+
+        return $rules;
     }
 }

@@ -3,6 +3,9 @@ import { useForm, Head } from '@inertiajs/vue3';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import InputError from '@/Components/InputError.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import { fieldClass } from '@/utils/formErrors';
 
 const props = defineProps({
     prefilledFullName: {
@@ -50,9 +53,18 @@ const submit = () => {
             </div>
 
             <form @submit.prevent="submit" class="space-y-5">
+                <FormErrorsAlert :errors="form.errors" />
+
                 <div>
                     <InputLabel value="Ваше ФИО" />
-                    <TextInput v-model="form.full_name" class="w-full" required placeholder="Иванов Иван Иванович" />
+                    <TextInput
+                        v-model="form.full_name"
+                        class="w-full"
+                        required
+                        placeholder="Иванов Иван Иванович"
+                        :invalid="!!form.errors.full_name"
+                    />
+                    <InputError :message="form.errors.full_name" />
                 </div>
                 <div>
                     <InputLabel value="Ваш телефон" />
@@ -61,21 +73,24 @@ const submit = () => {
                         class="w-full"
                         required
                         placeholder="+7 (___) ___-__-__"
+                        :invalid="!!form.errors.phone"
                         @input="onPhoneInput"
                     />
+                    <InputError :message="form.errors.phone" />
                 </div>
                 <div>
                     <InputLabel value="Кем вы являетесь ребёнку?" />
                     <select
                         v-model="form.relation"
-                        class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-blue-500"
+                        :class="fieldClass(form.errors, 'relation', 'w-full rounded-lg shadow-sm')"
                     >
                         <option value="Отец">Отец</option>
                         <option value="Мать">Мать</option>
                         <option value="Опекун">Опекун</option>
                     </select>
+                    <InputError :message="form.errors.relation" />
                 </div>
-                <PrimaryButton class="w-full justify-center py-3 text-lg bg-blue-600">
+                <PrimaryButton class="w-full justify-center py-3 text-lg bg-blue-600" :disabled="form.processing">
                     Далее: данные ребёнка
                 </PrimaryButton>
             </form>

@@ -18,8 +18,9 @@ return new class extends Migration
             // Привязка к спортсмену
             $table->foreignId('athlete_id')->constrained()->onDelete('cascade');
 
-            // Статус по ТЗ: Явка/Н/УН
+            // Статус по ТЗ: Явка/Н/У
             $table->enum('status', ['Я', 'Н', 'У'])->default('Н');
+            $table->string('excused_certificate')->nullable();
 
             $table->timestamps();
         });

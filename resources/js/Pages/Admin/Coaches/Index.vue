@@ -2,6 +2,9 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AvatarZoomable from '@/Components/AvatarZoomable.vue';
 import Pagination from '@/Components/Pagination.vue';
+import InputError from '@/Components/InputError.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import { fieldClass } from '@/utils/formErrors';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
@@ -61,7 +64,7 @@ const createCoach = () => {
 
 const updateCoach = (user) => {
     router.patch(route('admin.coaches.update', user.id), {
-        name: user.name,
+        name: user.profile_name ?? user.display_name ?? user.name,
         email: user.email,
         password: user.password || '',
         roles: user.roles?.length ? user.roles : [user.role],
@@ -95,22 +98,30 @@ watch([roleFilter, activeFilter], () => {
     <AuthenticatedLayout>
         <template #header>Управление аккаунтами</template>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
                 <h3 class="font-bold mb-4 text-slate-800">Создать аккаунт</h3>
                 <form @submit.prevent="createCoach" class="space-y-3">
-                    <div v-if="Object.keys(createForm.errors).length" class="rounded-xl bg-red-50 border border-red-100 p-3 text-sm text-red-700 space-y-1">
-                        <p v-for="(msg, key) in createForm.errors" :key="key">{{ msg }}</p>
+                    <FormErrorsAlert :errors="createForm.errors" />
+                    <div>
+                        <input v-model="createForm.name" placeholder="ФИО" :class="fieldClass(createForm.errors, 'name', 'w-full rounded-xl')" required />
+                        <InputError :message="createForm.errors.name" />
                     </div>
-                    <input v-model="createForm.name" placeholder="ФИО" class="w-full border-slate-300 rounded-xl" required />
-                    <input v-model="createForm.email" type="email" placeholder="Email" class="w-full border-slate-300 rounded-xl" required />
-                    <input v-model="createForm.password" type="password" placeholder="Пароль" class="w-full border-slate-300 rounded-xl" required />
+                    <div>
+                        <input v-model="createForm.email" type="email" placeholder="Email" :class="fieldClass(createForm.errors, 'email', 'w-full rounded-xl')" required />
+                        <InputError :message="createForm.errors.email" />
+                    </div>
+                    <div>
+                        <input v-model="createForm.password" type="password" placeholder="Пароль" :class="fieldClass(createForm.errors, 'password', 'w-full rounded-xl')" required />
+                        <InputError :message="createForm.errors.password" />
+                    </div>
                     <div class="space-y-1">
                         <p class="text-xs font-medium text-slate-500 uppercase">Роли</p>
                         <label v-for="role in staffRoles" :key="role" class="flex items-center text-sm gap-2">
                             <input type="checkbox" :checked="createForm.roles.includes(role)" @change="toggleCreateRole(role)" />
                             {{ roleLabels[role] || role }}
                         </label>
+                        <InputError :message="createForm.errors.roles" />
                     </div>
                     <label class="flex items-center text-sm text-slate-600">
                         <input type="checkbox" v-model="createForm.is_active" class="mr-2 rounded border-slate-300" />
@@ -120,7 +131,7 @@ watch([roleFilter, activeFilter], () => {
                 </form>
             </div>
 
-            <div class="lg:col-span-2 space-y-3">
+            <div class="md:col-span-1 xl:col-span-2 space-y-3 min-w-0">
                 <div class="grid md:grid-cols-3 gap-2">
                     <input v-model="search" class="w-full border-slate-300 rounded-xl" placeholder="Поиск по ФИО или email..." />
                     <select v-model="roleFilter" class="border-slate-300 rounded-xl">
@@ -158,7 +169,7 @@ watch([roleFilter, activeFilter], () => {
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        <input v-model="user.name" class="border-slate-300 rounded-xl text-sm" placeholder="ФИО в аккаунте" />
+                        <input v-model="user.profile_name" class="border-slate-300 rounded-xl text-sm" placeholder="ФИО" />
                         <input v-model="user.email" class="border-slate-300 rounded-xl text-sm" />
                     </div>
 

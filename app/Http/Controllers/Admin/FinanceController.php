@@ -7,6 +7,7 @@ use App\Models\Athlete;
 use App\Models\AthleteFinance;
 use App\Models\AthleteBalanceHistory;
 use App\Support\AthletePricing;
+use App\Support\FormValidator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -117,8 +118,11 @@ class FinanceController extends Controller
         if ($request->has('discount_percent')) {
             abort_unless($request->user()?->hasRole('admin'), 403);
 
-            $validated = $request->validate([
-                'discount_percent' => 'nullable|integer|min:10|max:100',
+            $validated = FormValidator::validate($request, [
+                'discount_percent' => 'nullable|integer|min:0|max:100',
+            ], [
+                'discount_percent.min' => 'Скидка не может быть отрицательной.',
+                'discount_percent.max' => 'Скидка не может превышать 100%.',
             ]);
 
             $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athlete->id], ['balance' => 0]);
@@ -128,10 +132,12 @@ class FinanceController extends Controller
             return back()->with('success', 'Скидка применена, стоимость тренировок пересчитана');
         }
 
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'amount' => 'required|numeric|min:0.01',
             'operation' => 'required|in:add,subtract',
-            'reason' => 'nullable|string|max:255',
+            'reason' => 'required|string|max:255',
+        ], [
+            'reason.required' => 'Укажите причину операции.',
         ]);
 
         $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athlete->id], [

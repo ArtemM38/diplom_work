@@ -46,6 +46,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('athlete_id')->constrained()->onDelete('cascade');
             $table->string('type'); // medical, insurance, identity
+            $table->string('identity_kind')->nullable(); // passport, birth_certificate
             $table->string('series')->nullable();
             $table->string('number')->nullable();
             $table->string('issued_by')->nullable();

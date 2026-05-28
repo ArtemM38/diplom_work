@@ -1,6 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import InputError from '@/Components/InputError.vue';
+import { fieldClass } from '@/utils/formErrors';
 import { useForm, Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
@@ -94,21 +97,25 @@ watch(showArchived, () => {
             <div v-if="canCreateGroups" class="bg-white p-6 rounded-xl shadow-sm h-fit">
                 <h3 class="font-bold mb-4">Создать новую группу</h3>
                 <form @submit.prevent="submit" class="space-y-4">
+                    <FormErrorsAlert :errors="form.errors" />
                     <div>
                         <label class="text-sm">Название</label>
-                        <input v-model="form.name" type="text" class="w-full border-gray-300 rounded-lg">
+                        <input v-model="form.name" type="text" :class="fieldClass(form.errors, 'name', 'w-full rounded-lg')" />
+                        <InputError :message="form.errors.name" />
                     </div>
                     <div>
                         <label class="text-sm">Тип</label>
-                        <select v-model="form.type" class="w-full border-gray-300 rounded-lg">
+                        <select v-model="form.type" :class="fieldClass(form.errors, 'type', 'w-full rounded-lg')">
                             <option value="Учебная">Учебная (У)</option>
                             <option value="Спортивная">Спортивная (С)</option>
                             <option value="Индивидуальная">Индивидуальная</option>
                         </select>
+                        <InputError :message="form.errors.type" />
                     </div>
                     <div>
                         <label class="text-sm">Стоимость за тренировку (руб)</label>
-                        <input v-model="form.tariff_amount" type="number" class="w-full border-gray-300 rounded-lg">
+                        <input v-model="form.tariff_amount" type="number" min="0" step="0.01" :class="fieldClass(form.errors, 'tariff_amount', 'w-full rounded-lg')" />
+                        <InputError :message="form.errors.tariff_amount" />
                     </div>
                     <button class="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold">Создать</button>
                 </form>

@@ -4,6 +4,7 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
@@ -35,14 +36,19 @@ const normalizeEmail = (event) => {
         </div>
 
         <form @submit.prevent="submit" class="space-y-5">
+            <FormErrorsAlert :errors="form.errors" />
+
             <div>
                 <h3 class="text-center font-semibold mb-3 text-sm text-slate-700">Тип аккаунта</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button
                         type="button"
                         @click="form.role = 'athlete'"
-                        :class="form.role === 'athlete' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
-                        class="border-2 p-4 rounded-xl transition-all text-center"
+                        :class="[
+                            'border-2 p-4 rounded-xl transition-all text-center',
+                            form.role === 'athlete' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200',
+                            form.errors.role ? 'border-red-500' : '',
+                        ]"
                     >
                         <span class="text-2xl">🥋</span>
                         <p class="font-bold text-sm mt-2">Спортсмен</p>
@@ -50,13 +56,17 @@ const normalizeEmail = (event) => {
                     <button
                         type="button"
                         @click="form.role = 'guardian'"
-                        :class="form.role === 'guardian' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
-                        class="border-2 p-4 rounded-xl transition-all text-center"
+                        :class="[
+                            'border-2 p-4 rounded-xl transition-all text-center',
+                            form.role === 'guardian' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200',
+                            form.errors.role ? 'border-red-500' : '',
+                        ]"
                     >
                         <span class="text-2xl">👨‍👩‍👦</span>
                         <p class="font-bold text-sm mt-2">Родитель</p>
                     </button>
                 </div>
+                <InputError class="mt-2 text-center" :message="form.errors.role" />
             </div>
 
             <div>
@@ -69,6 +79,7 @@ const normalizeEmail = (event) => {
                     required
                     autofocus
                     placeholder="Иванов Иван Иванович"
+                    :invalid="!!form.errors.name"
                 />
                 <InputError class="mt-2" :message="form.errors.name" />
             </div>
@@ -80,6 +91,7 @@ const normalizeEmail = (event) => {
                     type="email"
                     class="mt-1 block w-full"
                     v-model="form.email"
+                    :invalid="!!form.errors.email"
                     @input="normalizeEmail"
                     autocomplete="email"
                     required
@@ -96,10 +108,10 @@ const normalizeEmail = (event) => {
                         type="password"
                         class="mt-1 block w-full"
                         v-model="form.password"
+                        :invalid="!!form.errors.password"
                         autocomplete="new-password"
                         required
-                    placeholder="••••••••"
-
+                        placeholder="••••••••"
                     />
                     <InputError class="mt-2" :message="form.errors.password" />
                 </div>
@@ -110,10 +122,10 @@ const normalizeEmail = (event) => {
                         type="password"
                         class="mt-1 block w-full"
                         v-model="form.password_confirmation"
+                        :invalid="!!form.errors.password_confirmation"
                         autocomplete="new-password"
                         required
-                    placeholder="••••••••"
-
+                        placeholder="••••••••"
                     />
                     <InputError class="mt-2" :message="form.errors.password_confirmation" />
                 </div>

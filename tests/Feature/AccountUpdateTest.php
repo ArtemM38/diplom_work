@@ -36,8 +36,10 @@ class AccountUpdateTest extends TestCase
             'id' => $user->id,
             'name' => 'New Name',
             'email' => 'new@example.com',
-            'role' => 'accountant',
             'is_active' => 0,
         ]);
+
+        $user->refresh();
+        $this->assertTrue($user->hasRole('accountant'));
     }
 }

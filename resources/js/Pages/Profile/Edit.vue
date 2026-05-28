@@ -1,14 +1,16 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import AvatarZoomable from '@/Components/AvatarZoomable.vue';
 import AthleteDataSummary from './Partials/AthleteDataSummary.vue';
+import FormedDocuments from './Partials/FormedDocuments.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import { fieldClass } from '@/utils/formErrors';
 import { Head, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -86,6 +88,10 @@ const hasRoleBlocks = computed(
 );
 
 const isAthleteProfile = computed(() => !!props.profileData?.athlete);
+
+const documentTemplates = computed(() => props.profileData?.documentTemplates ?? []);
+
+const selectedChildId = ref(props.profileData?.children?.[0]?.id ?? null);
 </script>
 
 <template>
@@ -170,7 +176,28 @@ const isAthleteProfile = computed(() => !!props.profileData?.athlete);
                     :athlete="profileData.athlete"
                     :user-avatar-url="profileData?.user?.avatar_url"
                     :user-name="profileData?.user?.name"
+                    :document-templates="documentTemplates"
                 />
+
+                <section
+                    v-if="profileData?.children?.length && documentTemplates.length"
+                    class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                >
+                    <h3 class="text-lg font-semibold text-slate-900 mb-3">Документы ребёнка</h3>
+                    <label class="text-xs text-slate-500 uppercase font-medium">Спортсмен</label>
+                    <select
+                        v-model="selectedChildId"
+                        class="mt-1 mb-4 w-full max-w-md border-slate-300 rounded-xl"
+                    >
+                        <option v-for="child in profileData.children" :key="child.id" :value="child.id">
+                            {{ childName(child) }}
+                        </option>
+                    </select>
+                    <FormedDocuments
+                        :templates="documentTemplates"
+                        :athlete-id="selectedChildId"
+                    />
+                </section>
 
                 <div class="grid gap-6 lg:grid-cols-2">
                     <!-- Левая колонка: роль -->
@@ -184,11 +211,13 @@ const isAthleteProfile = computed(() => !!props.profileData?.athlete);
                                 Контакты и связь с ребёнком
                             </p>
                             <form @submit.prevent="saveGuardian" class="space-y-4">
+                                <FormErrorsAlert :errors="guardianForm.errors" />
                                 <div>
                                     <InputLabel value="ФИО" />
                                     <TextInput
                                         v-model="guardianForm.full_name"
                                         class="mt-1.5 w-full rounded-xl"
+                                        :invalid="!!guardianForm.errors.full_name"
                                         required
                                         placeholder="Иванов Иван Иванович"
                                     />
@@ -199,6 +228,7 @@ const isAthleteProfile = computed(() => !!props.profileData?.athlete);
                                     <TextInput
                                         v-model="guardianForm.phone"
                                         class="mt-1.5 w-full rounded-xl"
+                                        :invalid="!!guardianForm.errors.phone"
                                         required
                                         placeholder="+7 (___) ___-__-__"
                                         @input="onPhoneInput"
@@ -209,7 +239,7 @@ const isAthleteProfile = computed(() => !!props.profileData?.athlete);
                                     <InputLabel value="Кем вы приходитесь ребёнку" />
                                     <select
                                         v-model="guardianForm.relation"
-                                        class="mt-1.5 w-full rounded-xl border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                        :class="fieldClass(guardianForm.errors, 'relation', 'mt-1.5 w-full rounded-xl shadow-sm')"
                                     >
                                         <option value="Отец">Отец</option>
                                         <option value="Мать">Мать</option>
@@ -290,11 +320,6 @@ const isAthleteProfile = computed(() => !!props.profileData?.athlete);
                             <UpdatePasswordForm />
                         </section>
 
-                        <section class="rounded-2xl border border-red-100 bg-red-50/50 p-6">
-                            <h3 class="text-lg font-semibold text-red-900">Опасная зона</h3>
-                            <p class="mt-1 text-sm text-red-800/80 mb-4">Удаление аккаунта без возможности восстановления</p>
-                            <DeleteUserForm />
-                        </section>
                     </div>
                 </div>
             </div>

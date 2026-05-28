@@ -32,6 +32,7 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->date('birth_date');
             $table->enum('gender', ['male', 'female']);
+            $table->string('occupation_type')->nullable();
 
             // Адрес (будем складывать сюда ответ от DaData)
             $table->text('registration_address')->nullable();
@@ -40,6 +41,8 @@ return new class extends Migration
             $table->string('school_name')->nullable();
             $table->string('school_director_dat')->nullable(); // ФИО директора в дат. падеже
             $table->string('school_class')->nullable();
+
+            $table->string('kindergarten_name')->nullable();
 
             // Место работы
             $table->string('work_place')->nullable();

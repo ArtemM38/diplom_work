@@ -1,11 +1,13 @@
 <script setup>
 import { useForm, Head, Link } from '@inertiajs/vue3';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import TextInput from '@/Components/TextInput.vue';
 import InputError from '@/Components/InputError.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import { fieldClass } from '@/utils/formErrors';
 
 const props = defineProps({
     ranks: Array,
@@ -53,6 +55,7 @@ const form = useForm({
     school_name: '',
     school_director_dat: '',
     school_class: '',
+    kindergarten_name: '',
     work_place: '',
     work_position: '',
 
@@ -88,6 +91,7 @@ const form = useForm({
     doc_insurance_issue: '',
     doc_insurance_expiry: '',
 
+    doc_identity_kind: 'passport',
     doc_identity_file: null,
     doc_identity_series: '',
     doc_identity_number: '',
@@ -122,6 +126,7 @@ const onPhoneInput = (event) => {
 const addressSuggestions = ref([]);
 const showAddressSuggestions = ref(false);
 const suppressAddressSuggestOnce = ref(false);
+const addressBoxRef = ref(null);
 
 const fetchAddressSuggestions = debounce(async (value) => {
     if (!value || value.length < 3) {
@@ -151,6 +156,14 @@ const pickAddress = (value) => {
     form.registration_address = value;
     addressSuggestions.value = [];
     showAddressSuggestions.value = false;
+};
+
+const onDocumentPointerDown = (event) => {
+    const root = addressBoxRef.value;
+    if (!root) return;
+    if (!root.contains(event.target)) {
+        showAddressSuggestions.value = false;
+    }
 };
 
 const targetRoute = computed(() => props.submitRoute || route('athlete.store'));
@@ -217,6 +230,8 @@ const submit = () => {
 };
 
 onMounted(() => {
+    document.addEventListener('pointerdown', onDocumentPointerDown);
+
     if (!props.editingAthlete && props.prefilledName) {
         form.last_name_nom = props.prefilledName.last_name_nom ?? '';
         form.first_name_nom = props.prefilledName.first_name_nom ?? '';
@@ -256,6 +271,10 @@ onMounted(() => {
     form.relation = props.editingAthlete.guardians?.[0]?.relation ?? '';
     form.occupation_type = props.editingAthlete.occupation_type || (props.editingAthlete.school_name ? 'study' : props.editingAthlete.work_place ? 'work' : 'study');
 });
+
+onUnmounted(() => {
+    document.removeEventListener('pointerdown', onDocumentPointerDown);
+});
 </script>
 
 <template>
@@ -272,29 +291,39 @@ onMounted(() => {
         <div class="py-2">
         <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 min-w-0">
             <form @submit.prevent="submit" class="space-y-8 min-w-0">
+                <FormErrorsAlert :errors="form.errors" />
+
                 <!-- БЛОК 1: Основная информация -->
-                <div class="bg-white p-6 shadow rounded-lg min-w-0 overflow-hidden">
+                <div class="bg-white p-6 shadow rounded-lg min-w-0 overflow-visible">
                     <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2 break-words">1. Личные данные</h2>
 
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 min-w-0">
                         <div class="md:col-span-1">
                             <InputLabel value="Фото спортсмена" />
-                            <input type="file" @input="form.photo = $event.target.files[0]"
-                                class="mt-1 block w-full text-sm" />
+                            <input
+                                type="file"
+                                accept="image/*"
+                                @input="form.photo = $event.target.files[0]"
+                                :class="fieldClass(form.errors, 'photo', 'mt-1 block w-full text-sm rounded-md border')"
+                            />
+                            <InputError class="mt-1" :message="form.errors.photo" />
                         </div>
 
                         <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4 min-w-0">
                             <div class="min-w-0">
                                 <InputLabel value="Фамилия (Им.п)" />
-                                <TextInput v-model="form.last_name_nom" class="w-full" required />
+                                <TextInput v-model="form.last_name_nom" class="w-full" required :invalid="!!form.errors.last_name_nom" />
+                                <InputError class="mt-1" :message="form.errors.last_name_nom" />
                             </div>
                             <div>
                                 <InputLabel value="Имя (Им.п)" />
-                                <TextInput v-model="form.first_name_nom" class="w-full" required />
+                                <TextInput v-model="form.first_name_nom" class="w-full" required :invalid="!!form.errors.first_name_nom" />
+                                <InputError class="mt-1" :message="form.errors.first_name_nom" />
                             </div>
                             <div>
                                 <InputLabel value="Отчество (Им.п)" />
-                                <TextInput v-model="form.middle_name_nom" class="w-full" />
+                                <TextInput v-model="form.middle_name_nom" class="w-full" :invalid="!!form.errors.middle_name_nom" />
+                                <InputError class="mt-1" :message="form.errors.middle_name_nom" />
                             </div>
                         </div>
                     </div>
@@ -306,40 +335,48 @@ onMounted(() => {
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
                         <div>
                             <InputLabel value="Телефон" />
-                            <TextInput v-model="form.phone" @input="onPhoneInput" type="tel" class="w-full"
-                                placeholder="+7 (___) ___-__-__" required />
+                            <TextInput
+                                v-model="form.phone"
+                                @input="onPhoneInput"
+                                type="tel"
+                                class="w-full"
+                                placeholder="+7 (___) ___-__-__"
+                                :invalid="!!form.errors.phone"
+                            />
                             <InputError class="mt-1" :message="form.errors.phone" />
                         </div>
                         <div>
                             <InputLabel value="Дата рождения" />
-                            <TextInput v-model="form.birth_date" type="date" :max="today" class="w-full" required />
+                            <TextInput v-model="form.birth_date" type="date" :max="today" class="w-full" required :invalid="!!form.errors.birth_date" />
+                            <InputError class="mt-1" :message="form.errors.birth_date" />
                         </div>
                         <div>
                             <InputLabel value="Пол" />
-                            <select v-model="form.gender" class="w-full border-gray-300 rounded-md shadow-sm">
+                            <select v-model="form.gender" :class="fieldClass(form.errors, 'gender', 'w-full rounded-md shadow-sm')">
                                 <option value="male">Мужской</option>
                                 <option value="female">Женский</option>
                             </select>
                         </div>
-                        <div>
+                        <div ref="addressBoxRef" class="relative">
                             <InputLabel value="Адрес регистрации" />
-                            <TextInput v-model="form.registration_address" class="w-full"
+                            <TextInput v-model="form.registration_address" class="w-full text-slate-900"
                                 @focus="showAddressSuggestions = true"
                                 @blur="setTimeout(() => (showAddressSuggestions = false), 120)"
                                 placeholder="Город, улица..." />
-                            <div v-if="showAddressSuggestions && addressSuggestions.length" class="relative">
-                                <div class="absolute z-20 mt-1 w-full bg-white border rounded-lg shadow">
+                            <div
+                                v-if="showAddressSuggestions && addressSuggestions.length"
+                                class="absolute top-full left-0 z-50 mt-1 w-full bg-white border rounded-lg shadow-xl max-h-96 overflow-auto"
+                            >
                                     <button
                                         v-for="item in addressSuggestions"
                                         :key="item.value"
                                         type="button"
                                         @mousedown.prevent
                                         @click="pickAddress(item.value)"
-                                        class="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                        class="w-full text-left px-3 py-2 text-sm text-slate-900 hover:bg-gray-50"
                                     >
                                         {{ item.value }}
                                     </button>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -348,16 +385,22 @@ onMounted(() => {
                 <!-- БЛОК 2: Обучение и Работа -->
                 <div class="bg-white p-6 shadow rounded-lg">
                     <h2 class="text-xl font-bold mb-4 text-blue-900 border-b pb-2">2. Учёба или работа</h2>
+                    <InputError class="mb-3" :message="form.errors.occupation_type" />
                     <div class="flex flex-wrap gap-4 mb-6">
                         <label class="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-xl border-2 transition"
                             :class="form.occupation_type === 'study' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'">
                             <input type="radio" v-model="form.occupation_type" value="study" class="text-indigo-600" />
-                            <span class="font-medium">Учусь</span>
+                            <span class="font-medium">Учёба</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-xl border-2 transition"
                             :class="form.occupation_type === 'work' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'">
                             <input type="radio" v-model="form.occupation_type" value="work" class="text-indigo-600" />
-                            <span class="font-medium">Работаю</span>
+                            <span class="font-medium">Работа</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer px-4 py-3 rounded-xl border-2 transition"
+                            :class="form.occupation_type === 'kindergarten' ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'">
+                            <input type="radio" v-model="form.occupation_type" value="kindergarten" class="text-indigo-600" />
+                            <span class="font-medium">Детский сад</span>
                         </label>
                     </div>
                     <div v-if="form.occupation_type === 'study'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -366,22 +409,31 @@ onMounted(() => {
                             <TextInput v-model="form.school_name" class="w-full" />
                         </div>
                         <div>
-                            <InputLabel value="ФИО Директора (в Дат.п)" />
+                            <InputLabel value="ФИО Директора" />
                             <TextInput v-model="form.school_director_dat" class="w-full" />
                         </div>
                         <div>
-                            <InputLabel value="Класс" />
+                            <InputLabel value="Класс/курс" />
                             <TextInput v-model="form.school_class" class="w-full" />
                         </div>
                     </div>
-                    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-else-if="form.occupation_type === 'work'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <InputLabel value="Место работы" />
-                            <TextInput v-model="form.work_place" class="w-full" />
+                            <TextInput v-model="form.work_place" class="w-full" :class="{ 'border-red-500': form.errors.work_place }" />
+                            <p v-if="form.errors.work_place" class="text-red-600 text-xs mt-1">{{ form.errors.work_place }}</p>
                         </div>
                         <div>
                             <InputLabel value="Должность" />
-                            <TextInput v-model="form.work_position" class="w-full" />
+                            <TextInput v-model="form.work_position" class="w-full" :class="{ 'border-red-500': form.errors.work_position }" />
+                            <p v-if="form.errors.work_position" class="text-red-600 text-xs mt-1">{{ form.errors.work_position }}</p>
+                        </div>
+                    </div>
+                    <div v-else-if="form.occupation_type === 'kindergarten'" class="grid grid-cols-1 gap-4">
+                        <div>
+                            <InputLabel value="Наименование детского сада" />
+                            <TextInput v-model="form.kindergarten_name" class="w-full" :class="{ 'border-red-500': form.errors.kindergarten_name }" />
+                            <p v-if="form.errors.kindergarten_name" class="text-red-600 text-xs mt-1">{{ form.errors.kindergarten_name }}</p>
                         </div>
                     </div>
                 </div>
@@ -525,7 +577,18 @@ onMounted(() => {
                             class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded bg-gray-50 min-w-0"
                             :class="docIdentityWarnings.length ? 'border-amber-400 !bg-amber-50/40' : ''"
                         >
-                            <div class="font-semibold break-words">Удостоверение личности</div>
+                            <div class="font-semibold break-words md:col-span-4">Удостоверение личности</div>
+                            <div class="md:col-span-4 flex flex-wrap gap-4 text-sm">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input v-model="form.doc_identity_kind" type="radio" value="passport" class="rounded border-gray-300" />
+                                    Паспорт
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input v-model="form.doc_identity_kind" type="radio" value="birth_certificate" class="rounded border-gray-300" />
+                                    Свидетельство о рождении
+                                </label>
+                                <InputError :message="form.errors.doc_identity_kind" />
+                            </div>
                             <div class="space-y-2 min-w-0">
                                 <TextInput v-model="form.doc_identity_series" placeholder="Серия"
                                     class="w-full text-sm" />

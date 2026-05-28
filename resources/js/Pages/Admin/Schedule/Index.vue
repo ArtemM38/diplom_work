@@ -56,6 +56,16 @@ const editForm = useForm({
 const editingScheduleId = ref(null);
 const showEditModal = ref(false);
 const editingSchedule = ref(null);
+const cancellingSchedule = ref(null);
+const cancelForm = useForm({ cancellation_reason: '' });
+const showCancelModal = ref(false);
+
+const attendanceStatusLabel = (status) => {
+    if (status === 'Я') return { text: 'Явка', class: 'bg-green-100 text-green-800' };
+    if (status === 'Н') return { text: 'Неявка', class: 'bg-red-100 text-red-800' };
+    if (status === 'У') return { text: 'Уваж. пропуск', class: 'bg-amber-100 text-amber-800' };
+    return null;
+};
 
 // Клик по дню в календаре
 const selectDay = (date) => {
@@ -72,9 +82,10 @@ const submit = () => {
 
 const canMarkAttendance = (schedule) => schedule.can_mark_attendance === true;
 
-const canDeleteSchedule = (schedule) => schedule.can_delete === true;
+const canCancelSchedule = (schedule) => schedule.can_cancel === true && !schedule.is_cancelled;
 
 const startEdit = (schedule) => {
+    if (schedule.is_cancelled) return;
     editingSchedule.value = schedule;
     editingScheduleId.value = schedule.id;
     editForm.lesson_date = schedule.lesson_date;
@@ -100,24 +111,52 @@ const saveEdit = () => {
     });
 };
 
-const removeSchedule = (schedule) => {
-    if (!canDeleteSchedule(schedule)) {
-        alert('Удалить тренировку можно не позднее чем за 10 минут до начала.');
-        return;
-    }
-    if (!confirm('Удалить тренировку?')) return;
-    form.delete(route('admin.schedule.destroy', schedule.id));
+const openCancelModal = (schedule) => {
+    if (!canCancelSchedule(schedule)) return;
+    cancellingSchedule.value = schedule;
+    cancelForm.cancellation_reason = '';
+    cancelForm.clearErrors();
+    showCancelModal.value = true;
 };
+
+const closeCancelModal = () => {
+    showCancelModal.value = false;
+    cancellingSchedule.value = null;
+    cancelForm.reset();
+};
+
+const submitCancel = () => {
+    if (!cancellingSchedule.value) return;
+    cancelForm.post(route('admin.schedule.cancel', cancellingSchedule.value.id), {
+        onSuccess: () => closeCancelModal(),
+    });
+};
+
+const coachLine = (schedule) => {
+    const initial = schedule.initial_coach_name || schedule.initial_coach?.name;
+    const current = schedule.coach?.name;
+    if (initial && current && initial !== current) {
+        return `${current} (изначально: ${initial})`;
+    }
+    return current || initial || '—';
+};
+
+const schedulesForDay = computed(() =>
+    props.schedules
+        .filter((s) => s.lesson_date === selectedDate.value)
+        .slice()
+        .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
+);
 </script>
 
 <template>
     <AuthenticatedLayout>
         <template #header>Планировщик расписания</template>
 
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
 
             <!-- ЛЕВАЯ КОЛОНКА: Календарь месяца -->
-            <div class="lg:col-span-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div class="md:col-span-7 lg:col-span-8 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-gray-100 min-w-0">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-bold text-slate-800 capitalize">
                         {{ currentMonth.format('MMMM YYYY') }}
@@ -163,7 +202,7 @@ const removeSchedule = (schedule) => {
             </div>
 
             <!-- ПРАВАЯ КОЛОНКА: Форма добавления -->
-            <div class="lg:col-span-4 space-y-6">
+            <div class="md:col-span-5 lg:col-span-4 space-y-4 md:space-y-6 min-w-0">
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 sticky top-6">
                     <h3 class="font-bold text-lg mb-4 text-slate-800">Добавить на {{ dayjs(selectedDate).format('DD.MM')
                         }}</h3>
@@ -173,41 +212,47 @@ const removeSchedule = (schedule) => {
                     </div>
 
                     <form @submit.prevent="submit" class="space-y-4">
-                        <div v-if="form.errors.conflict"
-                            class="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100">
-                            {{ form.errors.conflict }}
-                        </div>
+                        <p v-if="form.errors.conflict" class="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100">{{ form.errors.conflict }}</p>
+                        <p v-if="form.errors.lesson_date" class="text-red-600 text-xs">{{ form.errors.lesson_date }}</p>
 
                         <div class="grid grid-cols-2 gap-2">
                             <div>
                                 <label class="text-xs text-gray-500">Начало</label>
-                                <input v-model="form.start_time" type="time" class="w-full border-gray-300 rounded-lg">
+                                <input v-model="form.start_time" type="time" :class="['w-full rounded-lg', form.errors.start_time ? 'border-red-500' : 'border-gray-300']" />
+                                <p v-if="form.errors.start_time" class="text-red-600 text-xs mt-1">{{ form.errors.start_time }}</p>
                             </div>
                             <div>
                                 <label class="text-xs text-gray-500">Конец</label>
-                                <input v-model="form.end_time" type="time" class="w-full border-gray-300 rounded-lg">
+                                <input v-model="form.end_time" type="time" :class="['w-full rounded-lg', form.errors.end_time ? 'border-red-500' : 'border-gray-300']" />
+                                <p v-if="form.errors.end_time" class="text-red-600 text-xs mt-1">{{ form.errors.end_time }}</p>
                             </div>
                         </div>
 
                         <div>
                             <label class="text-xs text-gray-500">Группа</label>
-                            <select v-model="form.group_id" class="w-full border-gray-300 rounded-lg">
+                            <select v-model="form.group_id" :class="['w-full rounded-lg', form.errors.group_id ? 'border-red-500' : 'border-gray-300']">
+                                <option value="">—</option>
                                 <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
                             </select>
+                            <p v-if="form.errors.group_id" class="text-red-600 text-xs mt-1">{{ form.errors.group_id }}</p>
                         </div>
 
                         <div>
                             <label class="text-xs text-gray-500">Зал</label>
-                            <select v-model="form.location_id" class="w-full border-gray-300 rounded-lg">
+                            <select v-model="form.location_id" :class="['w-full rounded-lg', form.errors.location_id ? 'border-red-500' : 'border-gray-300']">
+                                <option value="">—</option>
                                 <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
                             </select>
+                            <p v-if="form.errors.location_id" class="text-red-600 text-xs mt-1">{{ form.errors.location_id }}</p>
                         </div>
 
                         <div>
                             <label class="text-xs text-gray-500">Тренер</label>
-                            <select v-model="form.coach_id" class="w-full border-gray-300 rounded-lg">
+                            <select v-model="form.coach_id" :class="['w-full rounded-lg', form.errors.coach_id ? 'border-red-500' : 'border-gray-300']">
+                                <option value="">—</option>
                                 <option v-for="c in coaches" :key="c.id" :value="c.id">{{ c.name }}</option>
                             </select>
+                            <p v-if="form.errors.coach_id" class="text-red-600 text-xs mt-1">{{ form.errors.coach_id }}</p>
                         </div>
 
                         <button
@@ -222,48 +267,48 @@ const removeSchedule = (schedule) => {
                             dayjs(selectedDate).format('DD.MM') }}:
                         </h4>
 
-                        <div v-for="s in schedules.filter(s => s.lesson_date === selectedDate)" :key="s.id"
-                            class="flex items-center justify-between p-3 bg-gray-50 rounded-xl mb-3 text-xs border border-transparent hover:border-indigo-200 transition shadow-sm">
+                        <div v-for="s in schedulesForDay" :key="s.id"
+                            :class="[
+                                'flex items-center justify-between p-3 rounded-xl mb-3 text-xs border transition shadow-sm',
+                                s.is_cancelled ? 'bg-red-50 border-red-200 opacity-80' : 'bg-gray-50 border-transparent hover:border-indigo-200',
+                            ]">
 
                             <div class="flex flex-col flex-1">
-                                <span class="font-bold text-indigo-700">{{ s.start_time.substring(0, 5) }} - {{
-                                    s.end_time.substring(0, 5) }}</span>
+                                <span class="font-bold" :class="s.is_cancelled ? 'text-red-600 line-through' : 'text-indigo-700'">
+                                    {{ s.start_time.substring(0, 5) }} - {{ s.end_time.substring(0, 5) }}
+                                </span>
+                                <span v-if="s.is_cancelled" class="text-red-700 font-semibold text-[10px] mt-0.5">Отменена</span>
                                 <span class="text-slate-600">
                                     <span class="font-semibold text-slate-900">{{ s.location?.name }}</span>
                                     | {{ s.group.name }}
                                 </span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">{{ s.coach?.name }}</span>
+                                <span class="text-[10px] text-slate-400 mt-0.5">{{ coachLine(s) }}</span>
                             </div>
 
                             <div class="flex items-center gap-2 ml-2">
-                                <!-- КНОПКА ОТМЕТИТЬ (Переход в журнал) -->
-                                <Link v-if="canMarkAttendance(s)" :href="route('admin.attendance.show', s.id)"
-                                    class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-600 hover:text-white transition font-bold flex items-center gap-1">
-                                <span>Журнал</span>
+                                <Link v-if="!s.is_cancelled && canMarkAttendance(s)" :href="route('admin.attendance.show', s.id)"
+                                    class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-600 hover:text-white transition font-bold">
+                                    Журнал
                                 </Link>
-                                <span v-else class="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-400 font-semibold" title="Журнал открывается за 10 минут до начала">
+                                <span v-else-if="!s.is_cancelled" class="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-400 font-semibold">
                                     Журнал с −10 мин
                                 </span>
 
-                                <button @click="startEdit(s)" class="px-2 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-700 text-xs font-medium hover:bg-indigo-50">Изменить</button>
+                                <button v-if="!s.is_cancelled" @click="startEdit(s)" class="px-2 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-700 text-xs font-medium hover:bg-indigo-50">Изменить</button>
 
                                 <button
-                                    @click="removeSchedule(s)"
-                                    :disabled="!canDeleteSchedule(s)"
-                                    :class="canDeleteSchedule(s) ? 'text-red-400 hover:text-red-600' : 'text-gray-300 cursor-not-allowed'"
-                                    class="transition p-1"
-                                    :title="canDeleteSchedule(s) ? 'Удалить' : 'Удаление недоступно (менее 10 мин до начала)'"
+                                    v-if="!s.is_cancelled"
+                                    @click="openCancelModal(s)"
+                                    :disabled="!canCancelSchedule(s)"
+                                    class="px-2 py-1 rounded-lg text-xs font-medium border"
+                                    :class="canCancelSchedule(s) ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-gray-200 text-gray-300 cursor-not-allowed'"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
-                                        viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
+                                    Отменить
                                 </button>
                             </div>
                         </div>
 
-                        <div v-if="schedules.filter(s => s.lesson_date === selectedDate).length === 0"
+                        <div v-if="schedulesForDay.length === 0"
                             class="text-center py-4 text-gray-400 italic text-xs">
                             На этот день ничего не запланировано
                         </div>
@@ -325,6 +370,25 @@ const removeSchedule = (schedule) => {
                         </button>
                     </div>
                 </form>
+            </div>
+        </div>
+
+        <div v-if="showCancelModal && cancellingSchedule" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="closeCancelModal">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+                <h3 class="text-lg font-bold text-slate-900">Отмена тренировки</h3>
+                <p class="text-sm text-slate-500 mt-1">{{ dayjs(cancellingSchedule.lesson_date).format('DD.MM.YYYY') }}, {{ cancellingSchedule.start_time?.substring(0, 5) }}</p>
+                <div v-if="cancellingSchedule.cancellation_reason_required" class="mt-4">
+                    <label class="text-xs text-slate-500 font-medium">Причина отмены (обязательно — менее 5 ч до начала)</label>
+                    <textarea v-model="cancelForm.cancellation_reason" rows="3" :class="['w-full mt-1 rounded-xl', cancelForm.errors.cancellation_reason ? 'border-red-500' : 'border-gray-300']" />
+                    <p v-if="cancelForm.errors.cancellation_reason" class="text-red-600 text-xs mt-1">{{ cancelForm.errors.cancellation_reason }}</p>
+                </div>
+                <p v-else class="mt-4 text-sm text-slate-600">Подтвердите отмену тренировки.</p>
+                <div class="flex gap-2 mt-6">
+                    <button type="button" @click="submitCancel" class="flex-1 bg-red-600 text-white py-2.5 rounded-xl font-semibold hover:bg-red-700" :disabled="cancelForm.processing">
+                        Отменить тренировку
+                    </button>
+                    <button type="button" @click="closeCancelModal" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600">Назад</button>
+                </div>
             </div>
         </div>
     </AuthenticatedLayout>

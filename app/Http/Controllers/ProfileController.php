@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\AthleteDocumentGenerator;
 use App\Support\RoleLabels;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -44,6 +45,7 @@ class ProfileController extends Controller
                 'athlete' => $user->athlete,
                 'guardian' => $user->guardian,
                 'children' => $user->guardian?->athletes ?? [],
+                'documentTemplates' => AthleteDocumentGenerator::templateList(),
             ],
         ]);
     }
@@ -118,23 +120,8 @@ class ProfileController extends Controller
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request): never
     {
-        $request->validate(
-            ['password' => ['required', 'current_password']],
-            [],
-            ['password' => 'пароль'],
-        );
-
-        $user = $request->user();
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
+        abort(403, 'Удаление собственного аккаунта недоступно.');
     }
 }

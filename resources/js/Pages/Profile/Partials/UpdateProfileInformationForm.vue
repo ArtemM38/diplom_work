@@ -34,6 +34,7 @@ const normalizeEmail = (event) => {
                 v-model="form.name"
                 required
                 autocomplete="name"
+                :invalid="!!form.errors.name"
             />
             <InputError class="mt-2" :message="form.errors.name" />
         </div>
@@ -45,6 +46,7 @@ const normalizeEmail = (event) => {
                 type="email"
                 class="mt-1.5 block w-full rounded-xl border-slate-300"
                 v-model="form.email"
+                :invalid="!!form.errors.email"
                 @input="normalizeEmail"
                 required
                 autocomplete="username"

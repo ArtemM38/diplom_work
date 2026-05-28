@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
     src: { type: String, default: null },
@@ -18,11 +18,22 @@ const props = defineProps({
 });
 
 const open = ref(false);
+const imgFailed = ref(false);
+
+watch(() => props.src, () => {
+    imgFailed.value = false;
+});
+
+const initials = computed(() => {
+    const parts = (props.name || 'U').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return 'U';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+});
 
 const displaySrc = computed(() => {
-    if (props.src) return props.src;
-    const label = encodeURIComponent((props.name || 'U').trim() || 'U');
-    return `https://ui-avatars.com/api/?name=${label}&background=4f46e5&color=fff`;
+    if (!props.src || imgFailed.value) return null;
+    return props.src;
 });
 
 const sizeClass = computed(() => {
@@ -37,8 +48,12 @@ const sizeClass = computed(() => {
 
 const shapeClass = computed(() => (props.shape === 'circle' ? 'rounded-full' : 'rounded-2xl'));
 
+const onImgError = () => {
+    imgFailed.value = true;
+};
+
 const openPreview = () => {
-    if (!props.zoomable) return;
+    if (!props.zoomable || !displaySrc.value) return;
     open.value = true;
     document.body.style.overflow = 'hidden';
 };
@@ -60,22 +75,30 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <div class="inline-flex flex-col items-center gap-1">
+    <div class="inline-flex flex-col items-center gap-1 shrink-0">
         <button
             type="button"
-            class="group relative shrink-0 overflow-hidden border-4 border-white shadow-lg ring-2 ring-indigo-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-400"
-            :class="[$attrs.class, sizeClass, shapeClass, zoomable ? 'cursor-zoom-in' : 'cursor-default']"
-            :disabled="!zoomable"
-            :aria-label="zoomable ? 'Увеличить фото' : undefined"
+            class="group relative shrink-0 overflow-hidden border-4 border-white shadow-lg ring-2 ring-indigo-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-400 bg-indigo-600"
+            :class="[$attrs.class, sizeClass, shapeClass, zoomable && displaySrc ? 'cursor-zoom-in' : 'cursor-default']"
+            :disabled="!zoomable || !displaySrc"
+            :aria-label="zoomable && displaySrc ? 'Увеличить фото' : undefined"
             @click="openPreview"
         >
             <img
+                v-if="displaySrc"
                 :src="displaySrc"
                 :alt="name || 'Аватар'"
                 class="h-full w-full object-cover"
+                @error="onImgError"
             />
             <span
-                v-if="zoomable"
+                v-else
+                class="flex h-full w-full items-center justify-center font-bold text-white select-none"
+            >
+                {{ initials }}
+            </span>
+            <span
+                v-if="zoomable && displaySrc"
                 class="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 to-transparent pb-1 opacity-0 transition group-hover:opacity-100"
             >
                 <span class="text-[10px] font-medium text-white px-1">Увеличить</span>
@@ -92,7 +115,7 @@ onUnmounted(() => {
                 leave-to-class="opacity-0"
             >
                 <div
-                    v-if="open"
+                    v-if="open && displaySrc"
                     class="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
                     role="dialog"
                     aria-modal="true"

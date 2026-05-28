@@ -26,10 +26,13 @@ class AttendanceController extends Controller
 
         $schedule->load(['group.athletes', 'attendances']);
 
+        $existingCertificates = $schedule->attendances->pluck('excused_certificate', 'athlete_id');
+
         return Inertia::render('Admin/Attendance/Mark', [
-            'schedule' => $schedule,
+            'schedule' => $schedule->load('coach', 'initialCoach'),
             'athletes' => $schedule->group->athletes,
             'existingAttendances' => $schedule->attendances->pluck('status', 'athlete_id'),
+            'existingCertificates' => $existingCertificates,
         ]);
     }
 
@@ -39,6 +42,40 @@ class AttendanceController extends Controller
 
         if (! ScheduleAccess::canMarkAttendance($schedule)) {
             return redirect()->route('admin.schedule')->with('error', 'Отметку можно сохранять не ранее чем за 10 минут до начала тренировки.');
+        }
+
+        $validated = $request->validate(
+            [
+                'attendance' => 'required|array',
+                'attendance.*' => 'required|in:Я,Н,У',
+                'certificates' => 'nullable|array',
+                'certificates.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+            ],
+            [
+                'attendance.*.in' => 'Недопустимый статус посещаемости.',
+                'certificates.*.mimes' => 'Справка: PDF или изображение (JPG, PNG).',
+                'certificates.*.max' => 'Размер справки не более 5 МБ.',
+            ],
+            [
+                'attendance' => 'посещаемость',
+                'certificates' => 'справки',
+            ],
+        );
+
+        foreach ($validated['attendance'] as $athleteId => $status) {
+            if ($status === 'У') {
+                $hasNew = $request->hasFile("certificates.{$athleteId}");
+                $existing = Attendance::query()
+                    ->where('schedule_id', $schedule->id)
+                    ->where('athlete_id', $athleteId)
+                    ->value('excused_certificate');
+
+                if (! $hasNew && ! $existing) {
+                    return back()->withErrors([
+                        "certificates.{$athleteId}" => 'Для уважительного пропуска (У) приложите справку.',
+                    ])->withInput();
+                }
+            }
         }
 
         $schedule->load(['group.athletes.finance']);
@@ -55,11 +92,20 @@ class AttendanceController extends Controller
                 return [$athlete->id => $price];
             }) ?? collect();
 
-        DB::transaction(function () use ($request, $schedule, $priceByAthlete) {
-            foreach ($request->attendance as $athleteId => $status) {
+        DB::transaction(function () use ($request, $schedule, $priceByAthlete, $validated) {
+            foreach ($validated['attendance'] as $athleteId => $status) {
+                $data = ['status' => $status];
+
+                if ($request->hasFile("certificates.{$athleteId}")) {
+                    $data['excused_certificate'] = $request->file("certificates.{$athleteId}")
+                        ->store('attendance-certificates', 'public');
+                } elseif ($status !== 'У') {
+                    $data['excused_certificate'] = null;
+                }
+
                 $attendance = Attendance::updateOrCreate(
                     ['schedule_id' => $schedule->id, 'athlete_id' => $athleteId],
-                    ['status' => $status]
+                    $data
                 );
 
                 $price = (float) ($priceByAthlete->get((int) $athleteId, 0));

@@ -1,6 +1,9 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
+import InputError from '@/Components/InputError.vue';
+import { fieldClass } from '@/utils/formErrors';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
@@ -26,7 +29,6 @@ const form = useForm({
     event_place: '',
     event_host_id: '',
     event_date: '',
-    event_period: '',
     status: 'planned',
 });
 
@@ -99,20 +101,26 @@ const eventsList = () => props.events?.data ?? [];
             <div v-if="showCreate && !readOnly" class="bg-white p-6 rounded-xl border border-indigo-100 shadow-sm">
                 <h3 class="font-bold mb-4">Создать мероприятие</h3>
                 <form @submit.prevent="submitEvent" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="md:col-span-3">
+                        <FormErrorsAlert :errors="form.errors" />
+                    </div>
                     <div class="md:col-span-2">
-                        <label class="text-xs text-slate-500">Наименование</label>
-                        <input v-model="form.name" required class="w-full border-gray-300 rounded-lg" />
+                        <label class="text-xs text-slate-500">Наименование *</label>
+                        <input v-model="form.name" required :class="fieldClass(form.errors, 'name', 'w-full rounded-lg')" />
+                        <InputError :message="form.errors.name" />
                     </div>
                     <div>
-                        <label class="text-xs text-slate-500">Стоимость (₽)</label>
-                        <input v-model="form.cost" type="number" min="0" step="0.01" required class="w-full border-gray-300 rounded-lg" />
+                        <label class="text-xs text-slate-500">Стоимость (₽) *</label>
+                        <input v-model="form.cost" type="number" min="0" step="0.01" required :class="fieldClass(form.errors, 'cost', 'w-full rounded-lg')" />
+                        <InputError :message="form.errors.cost" />
                     </div>
                     <div>
-                        <label class="text-xs text-slate-500">Тип</label>
-                        <select v-model="form.event_type_id" required class="w-full border-gray-300 rounded-lg">
+                        <label class="text-xs text-slate-500">Тип *</label>
+                        <select v-model="form.event_type_id" required :class="fieldClass(form.errors, 'event_type_id', 'w-full rounded-lg')">
                             <option value="">—</option>
                             <option v-for="t in eventTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
                         </select>
+                        <InputError :message="form.errors.event_type_id" />
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Уровень</label>
@@ -133,12 +141,9 @@ const eventsList = () => props.events?.data ?? [];
                         <input v-model="form.event_place" class="w-full border-gray-300 rounded-lg" />
                     </div>
                     <div>
-                        <label class="text-xs text-slate-500">Дата</label>
-                        <input v-model="form.event_date" type="date" class="w-full border-gray-300 rounded-lg" />
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-500">Период (если несколько дней)</label>
-                        <input v-model="form.event_period" class="w-full border-gray-300 rounded-lg" placeholder="01.03–05.03.2026" />
+                        <label class="text-xs text-slate-500">Дата *</label>
+                        <input v-model="form.event_date" type="date" required :class="fieldClass(form.errors, 'event_date', 'w-full rounded-lg')" />
+                        <InputError :message="form.errors.event_date" />
                     </div>
                     <div class="md:col-span-3">
                         <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="form.processing">Создать</button>

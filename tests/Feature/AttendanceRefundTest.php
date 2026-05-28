@@ -9,6 +9,7 @@ use App\Models\Location;
 use App\Models\Schedule;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class AttendanceRefundTest extends TestCase
@@ -78,6 +79,9 @@ class AttendanceRefundTest extends TestCase
         $this->actingAs($admin)->post(route('admin.attendance.store', $schedule), [
             'attendance' => [
                 $athlete->id => 'У',
+            ],
+            'certificates' => [
+                $athlete->id => UploadedFile::fake()->create('spravka.pdf', 100, 'application/pdf'),
             ],
         ])->assertRedirect();
 

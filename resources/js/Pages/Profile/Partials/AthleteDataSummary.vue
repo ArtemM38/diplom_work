@@ -3,10 +3,13 @@ import AvatarZoomable from '@/Components/AvatarZoomable.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
+import FormedDocuments from './FormedDocuments.vue';
+
 const props = defineProps({
     athlete: { type: Object, required: true },
     userAvatarUrl: { type: String, default: null },
     userName: { type: String, default: '' },
+    documentTemplates: { type: Array, default: () => [] },
 });
 
 const avatarForm = useForm({ avatar: null });
@@ -47,6 +50,7 @@ const genderLabel = computed(() => (props.athlete.gender === 'male' ? 'Мужс�
 const occupationLabel = computed(() => {
     if (props.athlete.occupation_type === 'study') return 'Учёба';
     if (props.athlete.occupation_type === 'work') return 'Работа';
+    if (props.athlete.occupation_type === 'kindergarten') return 'Детский сад';
     return '—';
 });
 
@@ -241,5 +245,11 @@ const uploadAvatar = () => {
             </ul>
             <p v-else class="text-sm text-slate-400">Документы не загружены</p>
         </div>
+
+        <FormedDocuments
+            v-if="documentTemplates.length"
+            :templates="documentTemplates"
+            :athlete-id="athlete.id"
+        />
     </div>
 </template>

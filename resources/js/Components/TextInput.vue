@@ -1,10 +1,24 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 const model = defineModel({
-    type: String,   
+    type: String,
     required: true,
 });
+
+const props = defineProps({
+    invalid: {
+        type: Boolean,
+        default: false,
+    },
+});
+
+const inputClasses = computed(() => [
+    'w-full min-w-0 max-w-full rounded-md border shadow-sm focus:ring-1',
+    props.invalid
+        ? 'border-red-500 bg-red-50/80 focus:border-red-500 focus:ring-red-500'
+        : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500',
+]);
 
 const input = ref(null);
 
@@ -19,7 +33,7 @@ defineExpose({ focus: () => input.value.focus() });
 
 <template>
     <input
-        class="w-full min-w-0 max-w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+        :class="inputClasses"
         v-model="model"
         ref="input"
     />

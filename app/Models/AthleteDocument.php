@@ -9,6 +9,7 @@ class AthleteDocument extends Model
     protected $fillable = [
         'athlete_id',
         'type',
+        'identity_kind',
         'series',
         'number',
         'issued_by',

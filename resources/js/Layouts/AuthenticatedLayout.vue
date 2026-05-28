@@ -43,11 +43,11 @@ const safeRoute = (name, fallback = '#') => {
 const navigation = computed(() => [
     { name: 'Реестр спортсменов', href: safeRoute('admin.athletes'), roles: ['admin', 'coach'] },
     { name: 'Портфолио', href: safeRoute('admin.portfolio'), roles: ['admin', 'coach', 'accountant'] },
+    { name: 'Отчёты', href: safeRoute('admin.reports'), roles: ['admin', 'accountant'] },
     { name: 'Мероприятия', href: safeRoute('admin.events'), roles: ['admin', 'coach', 'accountant'] },
     { name: 'Группы и секции', href: safeRoute('admin.groups'), roles: ['admin', 'coach', 'accountant'] },
     { name: 'Расписание', href: safeRoute('admin.schedule'), roles: ['admin', 'coach'] },
     { name: 'Моё расписание', href: safeRoute('athlete.schedule.calendar', safeRoute('dashboard')), roles: ['athlete'] },
-    { name: 'Мой табель', href: safeRoute('athlete.attendance', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Моё портфолио', href: safeRoute('athlete.portfolio', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Мои финансы', href: safeRoute('finance', safeRoute('dashboard')), roles: ['athlete'] },
     { name: 'Мой ребёнок', href: safeRoute('dashboard'), roles: ['guardian'] },
@@ -69,7 +69,7 @@ const canSeeNavItem = (itemRoles) => itemRoles.some((role) => userRoles.value.in
         <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 bg-black/40 md:hidden" @click="mobileMenuOpen = false"></div>
         <aside
             :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
-            class="w-64 bg-slate-900 text-white fixed z-50 md:sticky md:top-0 md:translate-x-0 flex flex-col min-h-screen shrink-0 transition-transform duration-200"
+            class="w-64 bg-slate-900 text-white fixed z-50 md:sticky md:top-0 md:translate-x-0 lg:translate-x-0 flex flex-col min-h-screen shrink-0 transition-transform duration-200"
         >
             <a href="/profile">
                 <div class="p-6 flex items-center gap-3 border-b border-slate-800">

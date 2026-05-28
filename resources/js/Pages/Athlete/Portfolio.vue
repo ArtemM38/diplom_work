@@ -1,12 +1,33 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
+import { ref } from 'vue';
 
-defineProps({
+const props = defineProps({
     athleteName: String,
     achievements: Array,
     stats: Object,
+    filters: Object,
 });
+
+const dateFrom = ref(props.filters?.date_from ?? '');
+const dateTo = ref(props.filters?.date_to ?? '');
+const resultPlace = ref(props.filters?.result_place ?? '');
+
+const applyFilters = () => {
+    router.get(route('athlete.portfolio'), {
+        date_from: dateFrom.value || undefined,
+        date_to: dateTo.value || undefined,
+        result_place: resultPlace.value || undefined,
+    }, { preserveState: true, replace: true });
+};
+
+const resetFilters = () => {
+    dateFrom.value = '';
+    dateTo.value = '';
+    resultPlace.value = '';
+    applyFilters();
+};
 </script>
 
 <template>
@@ -34,6 +55,33 @@ defineProps({
                     <div class="rounded-xl bg-orange-50 p-3 text-center">
                         <p class="text-2xl font-bold text-orange-700">{{ stats?.places_3 ?? 0 }}</p>
                         <p class="text-xs text-orange-600">3 место</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <p class="text-sm font-medium text-slate-700 mb-3">Фильтры</p>
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div>
+                        <label class="text-xs text-slate-500">Дата с</label>
+                        <input v-model="dateFrom" type="date" class="w-full mt-1 border-gray-300 rounded-lg text-sm" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Дата по</label>
+                        <input v-model="dateTo" type="date" class="w-full mt-1 border-gray-300 rounded-lg text-sm" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Место</label>
+                        <select v-model="resultPlace" class="w-full mt-1 border-gray-300 rounded-lg text-sm">
+                            <option value="">Все</option>
+                            <option value="1">1 место</option>
+                            <option value="2">2 место</option>
+                            <option value="3">3 место</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end gap-2">
+                        <button type="button" @click="applyFilters" class="flex-1 bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700">Применить</button>
+                        <button type="button" @click="resetFilters" class="px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Сброс</button>
                     </div>
                 </div>
             </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Location;
+use App\Support\FormValidator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -30,7 +31,7 @@ class LocationController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:500',
         ]);
@@ -42,7 +43,7 @@ class LocationController extends Controller
 
     public function update(Request $request, Location $location)
     {
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'address' => 'nullable|string|max:500',
         ]);

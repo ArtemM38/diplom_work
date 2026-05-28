@@ -12,20 +12,47 @@ class ScheduleAccess
         return Carbon::parse($schedule->lesson_date . ' ' . $schedule->start_time);
     }
 
-    /** Удаление разрешено не позднее чем за 10 минут до начала. */
-    public static function canDelete(Schedule $schedule): bool
+    public static function isCancelled(Schedule $schedule): bool
+    {
+        return $schedule->cancelled_at !== null;
+    }
+
+    /** Создание/перенос — только на будущее время. */
+    public static function isInPast(string $lessonDate, string $startTime): bool
+    {
+        return now()->gt(Carbon::parse($lessonDate . ' ' . $startTime));
+    }
+
+    /** Отмена разрешена для любой неотменённой тренировки. */
+    public static function canCancel(Schedule $schedule): bool
+    {
+        if (self::isCancelled($schedule)) {
+            return false;
+        }
+
+        return $schedule->lesson_date && $schedule->start_time;
+    }
+
+    /** При отмене менее чем за 5 часов до начала нужна причина. */
+    public static function cancellationReasonRequired(Schedule $schedule): bool
     {
         if (! $schedule->lesson_date || ! $schedule->start_time) {
             return false;
         }
 
-        return now()->lte(self::lessonStart($schedule)->subMinutes(10));
+        return now()->gt(self::lessonStart($schedule)->subHours(5));
+    }
+
+    /** @deprecated use canCancel */
+    public static function canDelete(Schedule $schedule): bool
+    {
+        return self::canCancel($schedule);
     }
 
     /** Отметки в журнале — за 10 минут до начала и позже. */
     public static function canMarkAttendance(Schedule $schedule): bool
     {
-        if (! $schedule->lesson_date || ! $schedule->start_time) {
+        if (self::isCancelled($schedule) || ! $schedule->lesson_date || ! $schedule->start_time) {
             return false;
         }
 

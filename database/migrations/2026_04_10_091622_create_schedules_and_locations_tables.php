@@ -15,6 +15,7 @@ return new class extends Migration
         Schema::create('locations', function (Blueprint $table) {
             $table->id();
             $table->string('name'); // Название зала
+            $table->string('address')->nullable();
             $table->timestamps();
         });
 
@@ -23,7 +24,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('group_id')->constrained()->onDelete('cascade');
             $table->foreignId('location_id')->constrained()->onDelete('cascade');
-            $table->foreignId('coach_id')->constrained('users')->onDelete('cascade'); // Тренер из таблицы users
+            $table->foreignId('coach_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('initial_coach_id')->nullable()->constrained('users')->nullOnDelete();
 
             $table->integer('day_of_week');
             $table->date('lesson_date')->nullable();
@@ -31,7 +33,19 @@ return new class extends Migration
             $table->time('end_time');
 
             $table->enum('lesson_type', ['group', 'individual'])->default('group');
+            $table->timestamp('cancelled_at')->nullable();
+            $table->text('cancellation_reason')->nullable();
+            $table->foreignId('cancelled_by_user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
+        });
+
+        Schema::create('schedule_coach_changes', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('schedule_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('from_coach_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('to_coach_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('changed_by_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamp('created_at')->useCurrent();
         });
     }
 
@@ -40,6 +54,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('schedule_coach_changes');
         Schema::dropIfExists('schedules');
         Schema::dropIfExists('locations');
     }

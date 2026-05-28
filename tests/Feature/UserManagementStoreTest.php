@@ -31,7 +31,6 @@ class UserManagementStoreTest extends TestCase
         $this->assertDatabaseHas('users', [
             'email' => $email,
             'name' => 'Новый Тренер',
-            'role' => 'coach',
             'is_active' => 1,
         ]);
 

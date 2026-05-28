@@ -206,16 +206,11 @@ watch([from, to, groupId], () => {
                 </div>
 
                 <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
-                    <h4 class="font-bold mb-4 border-b pb-2">Типовые заявления и согласия</h4>
-                    <div class="grid md:grid-cols-2 gap-3">
-                        <div v-for="n in [1, 2, 3, 4]" :key="n" class="border rounded-lg p-3 flex items-center justify-between">
-                            <span>Приложение {{ n }}</span>
-                            <div class="flex gap-2">
-                                <a :href="route('athlete.documents.pdf', n)" class="text-indigo-600 hover:underline text-sm">PDF</a>
-                                <a :href="route('athlete.documents.word', n)" class="text-indigo-600 hover:underline text-sm">Word</a>
-                            </div>
-                        </div>
-                    </div>
+                    <h4 class="font-bold mb-2 border-b pb-2">Формируемые документы</h4>
+                    <p class="text-sm text-slate-500 mb-3">
+                        Все заявления и справки доступны в разделе
+                        <a :href="route('profile.edit')" class="text-indigo-600 font-medium hover:underline">Профиль</a>.
+                    </p>
                 </div>
             </template>
         </div>

@@ -7,6 +7,8 @@ use App\Models\Guardian;
 use App\Models\Rank;
 use App\Models\RefereeCategory;
 use App\Support\FullNameParser;
+use App\Support\AthleteProfileRules;
+use App\Support\FormValidator;
 use App\Support\RussianNameCases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -44,59 +46,11 @@ class AthleteController extends Controller
             return redirect()->route('dashboard')->with('info', 'Анкета спортсмена уже создана');
         }
 
-        $validated = $request->validate([
-            'last_name_nom' => 'required|string',
-            'first_name_nom' => 'required|string',
-            'middle_name_nom' => 'nullable|string',
-            'birth_date' => 'required|date|before_or_equal:today',
-            'gender' => 'required|in:male,female',
-            'occupation_type' => 'required|in:study,work',
-            'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
-            'registration_address' => 'nullable|string',
-            'school_name' => 'nullable|required_if:occupation_type,study|string',
-            'school_director_dat' => 'nullable|required_if:occupation_type,study|string',
-            'school_class' => 'nullable|required_if:occupation_type,study|string',
-            'work_place' => 'nullable|required_if:occupation_type,work|string',
-            'work_position' => 'nullable|required_if:occupation_type,work|string',
-            'photo' => 'nullable|file|image|max:4096',
-
-            'guardian_id' => 'nullable|exists:guardians,id',
-            'relation' => 'nullable|string|max:255',
-
-            'ranks' => 'nullable|array',
-            'ranks.*.rank_id' => 'required_with:ranks|exists:ranks,id',
-            'ranks.*.assigned_at' => 'required_with:ranks|date',
-
-            'referees' => 'nullable|array',
-            'referees.*.referee_category_id' => 'required_with:referees|exists:referee_categories,id',
-            'referees.*.assigned_at' => 'required_with:referees|date',
-
-            'inventory' => 'nullable|array',
-            'inventory.weapon_case' => 'sometimes|boolean',
-            'inventory.jo' => 'sometimes|boolean',
-            'inventory.boken' => 'sometimes|boolean',
-            'inventory.tanto' => 'sometimes|boolean',
-            'inventory.tshirt' => 'sometimes|boolean',
-            'inventory.olympic_jacket' => 'sometimes|boolean',
-            'inventory.cap' => 'sometimes|boolean',
-            'inventory.backpack' => 'sometimes|boolean',
-            'inventory.shoe_bag' => 'sometimes|boolean',
-            'inventory.budo_passport' => 'sometimes|boolean',
-            'inventory.qual_book' => 'sometimes|boolean',
-            'inventory.referee_book' => 'sometimes|boolean',
-
-            'doc_medical_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-            'doc_medical_issue' => 'nullable|date|required_with:doc_medical_file,doc_medical_expiry',
-            'doc_medical_expiry' => 'nullable|date|after_or_equal:doc_medical_issue|required_with:doc_medical_file,doc_medical_issue',
-            'doc_insurance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-            'doc_insurance_issue' => 'nullable|date|required_with:doc_insurance_file,doc_insurance_expiry',
-            'doc_insurance_expiry' => 'nullable|date|after_or_equal:doc_insurance_issue|required_with:doc_insurance_file,doc_insurance_issue',
-            'doc_identity_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-            'doc_identity_series' => 'nullable|string|max:50|required_with:doc_identity_file,doc_identity_number,doc_identity_issued_by,doc_identity_issue_date',
-            'doc_identity_number' => 'nullable|string|max:50|required_with:doc_identity_file,doc_identity_series,doc_identity_issued_by,doc_identity_issue_date',
-            'doc_identity_issued_by' => 'nullable|string|max:255|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issue_date',
-            'doc_identity_issue_date' => 'nullable|date|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issued_by',
-        ]);
+        $validated = FormValidator::validate(
+            $request,
+            AthleteProfileRules::rules(),
+            AthleteProfileRules::messages(),
+        );
 
         $validated = $this->applyOccupationFields($validated);
 
@@ -119,6 +73,7 @@ class AthleteController extends Controller
                 'school_name',
                 'school_director_dat',
                 'school_class',
+                'kindergarten_name',
                 'work_place',
                 'work_position',
             ])->toArray();
@@ -190,6 +145,7 @@ class AthleteController extends Controller
             if ($request->hasFile('doc_identity_file')) {
                 $athlete->documents()->create([
                     'type' => 'identity',
+                    'identity_kind' => $validated['doc_identity_kind'] ?? null,
                     'series' => $validated['doc_identity_series'] ?? null,
                     'number' => $validated['doc_identity_number'] ?? null,
                     'issued_by' => $validated['doc_identity_issued_by'] ?? null,
@@ -237,53 +193,11 @@ class AthleteController extends Controller
         );
         abort_unless($canEdit, 403);
 
-        $validated = $request->validate([
-            'last_name_nom' => 'required|string',
-            'first_name_nom' => 'required|string',
-            'middle_name_nom' => 'nullable|string',
-            'birth_date' => 'required|date|before_or_equal:today',
-            'gender' => ['required', Rule::in(['male', 'female'])],
-            'occupation_type' => 'required|in:study,work',
-            'phone' => 'nullable|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
-            'registration_address' => 'nullable|string',
-            'school_name' => 'nullable|required_if:occupation_type,study|string',
-            'school_class' => 'nullable|required_if:occupation_type,study|string',
-            'work_place' => 'nullable|required_if:occupation_type,work|string',
-            'work_position' => 'nullable|required_if:occupation_type,work|string',
-            'photo' => 'nullable|file|image|max:4096',
-            'guardian_id' => 'nullable|exists:guardians,id',
-            'relation' => 'nullable|string|max:255',
-            'ranks' => 'nullable|array',
-            'ranks.*.rank_id' => 'required_with:ranks|exists:ranks,id',
-            'ranks.*.assigned_at' => 'required_with:ranks|date',
-            'referees' => 'nullable|array',
-            'referees.*.referee_category_id' => 'required_with:referees|exists:referee_categories,id',
-            'referees.*.assigned_at' => 'required_with:referees|date',
-            'inventory' => 'nullable|array',
-            'inventory.weapon_case' => 'sometimes|boolean',
-            'inventory.jo' => 'sometimes|boolean',
-            'inventory.boken' => 'sometimes|boolean',
-            'inventory.tanto' => 'sometimes|boolean',
-            'inventory.tshirt' => 'sometimes|boolean',
-            'inventory.olympic_jacket' => 'sometimes|boolean',
-            'inventory.cap' => 'sometimes|boolean',
-            'inventory.backpack' => 'sometimes|boolean',
-            'inventory.shoe_bag' => 'sometimes|boolean',
-            'inventory.budo_passport' => 'sometimes|boolean',
-            'inventory.qual_book' => 'sometimes|boolean',
-            'inventory.referee_book' => 'sometimes|boolean',
-            'doc_medical_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-            'doc_medical_issue' => 'nullable|date|required_with:doc_medical_file,doc_medical_expiry',
-            'doc_medical_expiry' => 'nullable|date|after_or_equal:doc_medical_issue|required_with:doc_medical_file,doc_medical_issue',
-            'doc_insurance_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-            'doc_insurance_issue' => 'nullable|date|required_with:doc_insurance_file,doc_insurance_expiry',
-            'doc_insurance_expiry' => 'nullable|date|after_or_equal:doc_insurance_issue|required_with:doc_insurance_file,doc_insurance_issue',
-            'doc_identity_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
-            'doc_identity_series' => 'nullable|string|max:50|required_with:doc_identity_file,doc_identity_number,doc_identity_issued_by,doc_identity_issue_date',
-            'doc_identity_number' => 'nullable|string|max:50|required_with:doc_identity_file,doc_identity_series,doc_identity_issued_by,doc_identity_issue_date',
-            'doc_identity_issued_by' => 'nullable|string|max:255|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issue_date',
-            'doc_identity_issue_date' => 'nullable|date|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issued_by',
-        ]);
+        $validated = FormValidator::validate(
+            $request,
+            AthleteProfileRules::rules(),
+            AthleteProfileRules::messages(),
+        );
 
         $validated = $this->applyOccupationFields($validated);
 
@@ -306,6 +220,7 @@ class AthleteController extends Controller
                 'school_name',
                 'school_director_dat',
                 'school_class',
+                'kindergarten_name',
                 'work_place',
                 'work_position',
             ])->toArray();
@@ -377,6 +292,7 @@ class AthleteController extends Controller
                 $athlete->documents()->where('type', 'identity')->delete();
                 $athlete->documents()->create([
                     'type' => 'identity',
+                    'identity_kind' => $validated['doc_identity_kind'] ?? null,
                     'series' => $validated['doc_identity_series'] ?? null,
                     'number' => $validated['doc_identity_number'] ?? null,
                     'issued_by' => $validated['doc_identity_issued_by'] ?? null,
@@ -422,10 +338,12 @@ class AthleteController extends Controller
             return redirect()->route('athlete.create');
         }
 
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'full_name' => 'required|string|max:255',
             'phone' => 'required|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
-            'relation' => 'required|string', // Кем является (Отец/Мать)
+            'relation' => 'required|string|max:255',
+        ], [
+            'phone.regex' => 'Телефон укажите в формате +7 (999) 999-99-99.',
         ]);
 
         Guardian::create([
@@ -450,10 +368,18 @@ class AthleteController extends Controller
         if (($validated['occupation_type'] ?? '') === 'study') {
             $validated['work_place'] = null;
             $validated['work_position'] = null;
+            $validated['kindergarten_name'] = null;
         } elseif (($validated['occupation_type'] ?? '') === 'work') {
             $validated['school_name'] = null;
             $validated['school_director_dat'] = null;
             $validated['school_class'] = null;
+            $validated['kindergarten_name'] = null;
+        } elseif (($validated['occupation_type'] ?? '') === 'kindergarten') {
+            $validated['school_name'] = null;
+            $validated['school_director_dat'] = null;
+            $validated['school_class'] = null;
+            $validated['work_place'] = null;
+            $validated['work_position'] = null;
         }
 
         return $validated;

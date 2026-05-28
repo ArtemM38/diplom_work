@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Schedule;
 use App\Models\User;
+use App\Support\FormValidator;
 use App\Support\RoleLabels;
+use App\Support\UserAvatar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -20,13 +22,8 @@ class UserManagementController extends Controller
         $active = request('active');
 
         $users = User::query()
-            ->with(['athlete', 'guardian'])
-            ->when($role && $role !== 'all', function ($q) use ($role) {
-                $q->where(function ($query) use ($role) {
-                    $query->where('role', $role)
-                        ->orWhereJsonContains('roles', $role);
-                });
-            })
+            ->with(['athlete', 'guardian', 'roleModels'])
+            ->when($role && $role !== 'all', fn ($q) => $q->whereHas('roleModels', fn ($r) => $r->where('slug', $role)))
             ->when($active !== null && $active !== '' && $active !== 'all', fn ($q) => $q->where('is_active', $active === '1'))
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
@@ -46,6 +43,7 @@ class UserManagementController extends Controller
             ->through(fn (User $user) => [
                 'id' => $user->id,
                 'name' => $user->name,
+                'profile_name' => $user->display_name,
                 'display_name' => $user->display_name,
                 'email' => $user->email,
                 'role' => $user->role,
@@ -53,7 +51,7 @@ class UserManagementController extends Controller
                 'role_labels' => RoleLabels::labelsList($user->getRolesList()),
                 'is_active' => $user->is_active,
                 'is_self' => $user->id === Auth::id(),
-                'avatar_url' => $user->avatar_url,
+                'avatar_url' => UserAvatar::url($user),
             ]);
 
         return Inertia::render('Admin/Coaches/Index', [
@@ -70,7 +68,7 @@ class UserManagementController extends Controller
 
     public function show(User $user)
     {
-        $user->load(['athlete', 'guardian.athletes']);
+        $user->load(['athlete', 'guardian.athletes', 'roleModels']);
 
         return Inertia::render('Admin/Users/Show', [
             'profileUser' => [
@@ -78,7 +76,7 @@ class UserManagementController extends Controller
                 'name' => $user->name,
                 'display_name' => $user->display_name,
                 'email' => $user->email,
-                'avatar_url' => $user->avatar_url,
+                'avatar_url' => UserAvatar::url($user),
                 'role_labels' => RoleLabels::labelsList($user->getRolesList()),
                 'roles' => $user->getRolesList(),
                 'is_active' => $user->is_active,
@@ -91,13 +89,16 @@ class UserManagementController extends Controller
 
     public function storeCoach(Request $request)
     {
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
             'password' => 'required|string|min:8',
             'roles' => 'required|array|min:1',
             'roles.*' => Rule::in(['admin', 'accountant', 'coach', 'athlete', 'guardian']),
             'is_active' => 'sometimes|boolean',
+        ], [
+            'roles.min' => 'Выберите хотя бы одну роль.',
+            'password.min' => 'Пароль не менее 8 символов.',
         ]);
 
         $roles = array_values(array_unique($validated['roles']));
@@ -108,27 +109,29 @@ class UserManagementController extends Controller
                 ->withInput();
         }
 
-        User::create([
+        $user = User::create([
             'name' => $validated['name'],
             'email' => strtolower($validated['email']),
             'password' => $validated['password'],
-            'role' => $roles[0],
-            'roles' => $roles,
             'is_active' => $request->boolean('is_active'),
         ]);
+        $user->syncRoles($roles);
 
         return redirect()->back()->with('success', 'Аккаунт добавлен');
     }
 
     public function updateCoach(Request $request, User $coach)
     {
-        $validated = $request->validate([
+        $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($coach->id)],
             'is_active' => 'required|boolean',
             'roles' => 'required|array|min:1',
             'roles.*' => Rule::in(['admin', 'accountant', 'coach', 'athlete', 'guardian']),
             'password' => 'nullable|string|min:8',
+        ], [
+            'roles.min' => 'Выберите хотя бы одну роль.',
+            'password.min' => 'Пароль не менее 8 символов.',
         ]);
 
         if ($coach->id === Auth::id() && ! $validated['is_active']) {
@@ -145,6 +148,7 @@ class UserManagementController extends Controller
         }
 
         $coach->save();
+        $this->syncProfileName($coach, $validated['name']);
 
         return redirect()->back()->with('success', 'Данные аккаунта обновлены');
     }
@@ -187,5 +191,23 @@ class UserManagementController extends Controller
         $coach->save();
 
         return redirect()->back()->with('success', 'Статус аккаунта обновлен');
+    }
+
+    private function syncProfileName(User $user, string $fullName): void
+    {
+        $user->loadMissing(['guardian', 'athlete']);
+
+        if ($user->guardian) {
+            $user->guardian->update(['full_name' => $fullName]);
+        }
+
+        if ($user->athlete) {
+            $parts = preg_split('/\s+/u', trim($fullName), 3, PREG_SPLIT_NO_EMPTY) ?: [];
+            $user->athlete->update([
+                'last_name_nom' => $parts[0] ?? $user->athlete->last_name_nom,
+                'first_name_nom' => $parts[1] ?? $user->athlete->first_name_nom,
+                'middle_name_nom' => $parts[2] ?? $user->athlete->middle_name_nom,
+            ]);
+        }
     }
 }

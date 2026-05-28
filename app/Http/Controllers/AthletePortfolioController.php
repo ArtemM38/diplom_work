@@ -17,6 +17,10 @@ class AthletePortfolioController extends Controller
         $athlete = $user->athlete;
         abort_unless($athlete, 404);
 
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $resultPlace = $request->input('result_place');
+
         $fromEvents = EventParticipant::query()
             ->with(['event.eventType', 'event.eventLevel', 'event.eventHost', 'resultRank'])
             ->where('athlete_id', $athlete->id)
@@ -57,9 +61,26 @@ class AthletePortfolioController extends Controller
             'evidence_file_path' => $a->evidence_file_path,
         ]))->sortByDesc('event_date')->values();
 
+        if ($dateFrom) {
+            $achievements = $achievements->filter(fn ($a) => $a['event_date'] && $a['event_date'] >= $dateFrom);
+        }
+        if ($dateTo) {
+            $achievements = $achievements->filter(fn ($a) => $a['event_date'] && $a['event_date'] <= $dateTo);
+        }
+        if ($resultPlace !== null && $resultPlace !== '') {
+            $achievements = $achievements->filter(fn ($a) => (int) $a['result_place'] === (int) $resultPlace);
+        }
+
+        $achievements = $achievements->values();
+
         return Inertia::render('Athlete/Portfolio', [
             'athleteName' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} {$athlete->middle_name_nom}"),
             'achievements' => $achievements,
+            'filters' => [
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'result_place' => $resultPlace,
+            ],
             'stats' => [
                 'total' => $achievements->count(),
                 'places_1' => $achievements->where('result_place', 1)->count(),

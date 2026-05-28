@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\MedicalCertificatesController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\PortfolioController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\ProfileController; // Обязательно добавь этот импорт
@@ -52,6 +53,8 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 // 3. Основная рабочая область CRM (С middleware profile.completed)
@@ -99,6 +102,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
                     'end_time' => $s->end_time,
                     'group' => $s->group?->name,
                     'location' => $s->location?->name,
+                    'location_address' => $s->location?->address,
                     'coach' => $s->coach?->name,
                 ]);
         }
@@ -123,13 +127,11 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::get('/athlete/portfolio', [AthletePortfolioController::class, 'index'])->name('athlete.portfolio');
     Route::get('/finance', [FinanceViewController::class, 'index'])->name('finance');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/athlete/schedule-calendar', [ScheduleController::class, 'athleteCalendar'])->name('athlete.schedule.calendar');
     Route::get('/athlete/attendance', [AthleteAttendanceController::class, 'index'])->name('athlete.attendance');
     Route::get('/guardian/schedule', [ScheduleController::class, 'guardianCalendar'])->name('guardian.schedule');
     Route::get('/guardian/attendance', [GuardianChildAttendanceController::class, 'index'])->name('guardian.attendance');
-    Route::get('/athlete/documents/template/{template}/pdf', [AthleteDocumentsController::class, 'downloadPdf'])->name('athlete.documents.pdf');
-    Route::get('/athlete/documents/template/{template}/word', [AthleteDocumentsController::class, 'downloadWord'])->name('athlete.documents.word');
+    Route::get('/athlete/documents/template/{template}/download', [AthleteDocumentsController::class, 'download'])->name('athlete.documents.download');
 
     // АДМИН-ПАНЕЛЬ
     Route::middleware(['can:access-admin-panel'])->group(function () {
@@ -152,7 +154,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::get('/admin/schedule', [ScheduleController::class, 'index'])->name('admin.schedule');
         Route::post('/admin/schedule', [ScheduleController::class, 'store'])->name('admin.schedule.store');
         Route::patch('/admin/schedule/{schedule}', [ScheduleController::class, 'update'])->name('admin.schedule.update');
-        Route::delete('/admin/schedule/{schedule}', [ScheduleController::class, 'destroy'])->name('admin.schedule.destroy');
+        Route::post('/admin/schedule/{schedule}/cancel', [ScheduleController::class, 'cancel'])->name('admin.schedule.cancel');
         Route::get('/admin/locations', [LocationController::class, 'index'])->name('admin.locations');
         Route::post('/admin/locations', [LocationController::class, 'store'])->name('admin.locations.store');
         Route::patch('/admin/locations/{location}', [LocationController::class, 'update'])->name('admin.locations.update');
@@ -172,6 +174,10 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::get('/admin/portfolio', [PortfolioController::class, 'index'])->name('admin.portfolio');
         Route::get('/admin/portfolio/export/athlete', [PortfolioController::class, 'exportAthleteCsv'])->name('admin.portfolio.export.athlete');
         Route::get('/admin/portfolio/export/athlete-pdf', [PortfolioController::class, 'exportAthletePdf'])->name('admin.portfolio.export.athlete.pdf');
+
+        Route::get('/admin/reports', [ReportController::class, 'index'])->name('admin.reports');
+        Route::get('/admin/reports/athletes/export', [ReportController::class, 'exportAthletes'])->name('admin.reports.athletes');
+        Route::get('/admin/reports/events/export', [ReportController::class, 'exportEvents'])->name('admin.reports.events');
 
         Route::get('/admin/events', [EventController::class, 'index'])->name('admin.events');
         Route::post('/admin/events', [EventController::class, 'store'])->name('admin.events.store');

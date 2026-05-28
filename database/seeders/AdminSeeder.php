@@ -12,11 +12,11 @@ class AdminSeeder extends Seeder
      */
     public function run(): void
 {
-    \App\Models\User::create([
+    $admin = \App\Models\User::create([
         'name' => 'Главный Админ',
         'email' => 'admin@test.ru',
         'password' => bcrypt('qawsedrf'),
-        'role' => 'admin',
     ]);
+    $admin->syncRoles(['admin']);
 }
 }

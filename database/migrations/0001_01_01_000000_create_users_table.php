@@ -15,9 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
+            $table->string('avatar')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['admin', 'accountant', 'coach', 'athlete', 'guardian'])->default('athlete');
             $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();

@@ -18,6 +18,8 @@ return new class extends Migration
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->string('type')->default('Учебная'); // У, С, А и т.д. по ТЗ
             $table->decimal('tariff_amount', 10, 2)->default(0); // Стоимость в месяц
+            $table->timestamp('archived_at')->nullable();
+            $table->softDeletes();
             $table->timestamps();
         });
 
@@ -26,6 +28,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('athlete_id')->constrained()->onDelete('cascade');
             $table->foreignId('group_id')->constrained()->onDelete('cascade');
+            $table->decimal('training_price', 10, 2)->nullable();
             $table->timestamps();
         });
     }

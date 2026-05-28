@@ -23,8 +23,9 @@ class Athlete extends Model
         'school_name',
         'school_director_dat',
         'school_class',
+        'kindergarten_name',
         'work_place',
-        'work_position'
+        'work_position',
     ];
 
     // Связи

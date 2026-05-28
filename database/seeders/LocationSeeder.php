@@ -13,9 +13,18 @@ class LocationSeeder extends Seeder
     public function run(): void
     {
         $locations = [
-            ['name' => 'Зал Муравьева, 4 (красный)'],
-            ['name' => 'Зал Муравьева, 4 (синий)'],
-            ['name' => 'Зал Байкальская, 172 (зеленый)'],
+            [
+                'name' => 'Муравьева, 4',
+                'color' => 'Зал красный',
+            ],
+            [
+                'name' => 'Муравьева, 4',
+                'color' => 'Зал синий',
+            ],
+            [
+                'name' => 'Байкальская, 172',
+                'color' => 'Зал зеленый',
+            ],
         ];
         \App\Models\Location::insert($locations);
     }

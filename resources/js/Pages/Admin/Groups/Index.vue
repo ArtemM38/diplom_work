@@ -106,9 +106,13 @@ watch(showArchived, () => {
                     <div>
                         <label class="text-sm">Тип</label>
                         <select v-model="form.type" :class="fieldClass(form.errors, 'type', 'w-full rounded-lg')">
-                            <option value="Учебная">Учебная (У)</option>
-                            <option value="Спортивная">Спортивная (С)</option>
-                            <option value="Индивидуальная">Индивидуальная</option>
+                            <option value="Учебная">Учебная</option>
+                            <option value="Семинар">Семинар</option>
+                            <option value="Аттестация">Аттестация</option>
+                            <option value="Спортивные сборы">Спортивные сборы</option>
+                            <option value="Соревнования">Соревнования</option>
+                            <option value="Интенсивные тренировки">Интенсивные тренировки</option>
+                            <option value="Индивидуальные тренировки">Индивидуальные тренировки</option>
                         </select>
                         <InputError :message="form.errors.type" />
                     </div>

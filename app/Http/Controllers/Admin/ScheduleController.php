@@ -12,6 +12,7 @@ use App\Models\ScheduleCoachChange;
 use App\Models\User;
 use App\Support\GuardianChildAccess;
 use App\Support\ScheduleAccess;
+use App\Support\DateFormatter;
 use App\Support\ScheduleConflictChecker;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -116,9 +117,11 @@ class ScheduleController extends Controller
     {
         return [
             ...$s->toArray(),
+            'lesson_date' => DateFormatter::toDateString($s->lesson_date),
             'coach' => $s->coach,
             'location' => $s->location,
             'location_address' => $s->location?->address,
+            'location_name' => $s->location?->name,
             'initial_coach' => $s->initialCoach,
             'initial_coach_name' => $s->initialCoach?->name,
             'is_cancelled' => ScheduleAccess::isCancelled($s),

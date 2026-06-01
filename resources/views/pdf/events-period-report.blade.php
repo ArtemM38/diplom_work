@@ -9,12 +9,14 @@
         table { width: 100%; border-collapse: collapse; margin-top: 12px; }
         th, td { border: 1px solid #ccc; padding: 4px; text-align: left; }
         th { background: #f3f4f6; }
+        .export-meta { margin-bottom: 10px; font-size: 10px; }
+        .export-meta p { margin: 2px 0; }
     </style>
 </head>
 <body>
     <h1>Отчёт по мероприятиям</h1>
     <p>Период: {{ $filters['date_from'] }} — {{ $filters['date_to'] }}</p>
-    <p>Сформирован: {{ $generatedAt->format('d.m.Y H:i') }}</p>
+    @include('pdf.partials.export-meta')
     <table>
         <thead>
             <tr>

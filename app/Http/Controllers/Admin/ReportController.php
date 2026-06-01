@@ -8,8 +8,10 @@ use App\Models\Event;
 use App\Models\EventParticipant;
 use App\Models\Group;
 use App\Models\Rank;
+use App\Support\ReportMeta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -17,15 +19,36 @@ class ReportController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = $this->readFilters($request);
+
+        $athletes = $this->athletesForFilters($filters)->map(function (Athlete $athlete) {
+            $birthDate = $athlete->birth_date ? Carbon::parse($athlete->birth_date) : null;
+            $age = $birthDate ? $birthDate->age : null;
+
+            return [
+                'id' => $athlete->id,
+                'full_name' => $this->athleteName($athlete),
+                'birth_date' => $birthDate?->format('d.m.Y'),
+                'age' => $age,
+                'current_rank' => $this->currentRankName($athlete),
+                'groups' => $athlete->groups->pluck('name')->values(),
+            ];
+        })->values();
+
         return Inertia::render('Admin/Reports/Index', [
             'ranks' => Rank::orderBy('name')->get(['id', 'name']),
             'groups' => Group::visible()->orderBy('name')->get(['id', 'name']),
-            'filters' => [
-                'date_from' => $request->string('date_from')->toString() ?: now()->startOfYear()->toDateString(),
-                'date_to' => $request->string('date_to')->toString() ?: now()->toDateString(),
-                'rank_id' => $request->input('rank_id'),
-                'group_id' => $request->input('group_id'),
-            ],
+            'events' => Event::query()
+                ->orderByDesc('event_date')
+                ->orderBy('name')
+                ->get(['id', 'name', 'event_date'])
+                ->map(fn (Event $e) => [
+                    'id' => $e->id,
+                    'name' => $e->name,
+                    'event_date' => $e->event_date?->format('d.m.Y'),
+                ]),
+            'athletes' => $athletes,
+            'filters' => $filters,
         ]);
     }
 
@@ -35,11 +58,10 @@ class ReportController extends Controller
         $rows = $this->athleteReportRows($validated);
 
         if ($request->string('format')->toString() === 'pdf') {
-            $pdf = Pdf::loadView('pdf.athletes-report', [
+            $pdf = Pdf::loadView('pdf.athletes-report', array_merge([
                 'rows' => $rows,
                 'filters' => $validated,
-                'generatedAt' => now(),
-            ])->setPaper('a4', 'landscape');
+            ], ReportMeta::forExport()))->setPaper('a4', 'landscape');
 
             return $pdf->download('athletes-report-' . now()->format('Ymd-His') . '.pdf');
         }
@@ -73,11 +95,10 @@ class ReportController extends Controller
         $rows = $this->eventsReportRows($validated);
 
         if ($request->string('format')->toString() === 'pdf') {
-            $pdf = Pdf::loadView('pdf.events-period-report', [
+            $pdf = Pdf::loadView('pdf.events-period-report', array_merge([
                 'rows' => $rows,
                 'filters' => $validated,
-                'generatedAt' => now(),
-            ])->setPaper('a4', 'landscape');
+            ], ReportMeta::forExport()))->setPaper('a4', 'landscape');
 
             return $pdf->download('events-report-' . now()->format('Ymd-His') . '.pdf');
         }
@@ -113,8 +134,12 @@ class ReportController extends Controller
         return $request->validate([
             'date_from' => 'required|date',
             'date_to' => 'required|date|after_or_equal:date_from',
+            'fio' => 'nullable|string|max:255',
             'rank_id' => 'nullable|exists:ranks,id',
             'group_id' => 'nullable|exists:groups,id',
+            'event_id' => 'nullable|exists:events,id',
+            'age_from' => 'nullable|integer|min:0|max:100',
+            'age_to' => 'nullable|integer|min:0|max:100',
         ]);
     }
 
@@ -124,16 +149,7 @@ class ReportController extends Controller
      */
     private function athleteReportRows(array $filters): array
     {
-        $athletes = Athlete::query()
-            ->with(['groups', 'rankHistories.rank'])
-            ->when($filters['group_id'] ?? null, fn ($q, $gid) => $q->whereHas('groups', fn ($g) => $g->where('groups.id', $gid)))
-            ->orderBy('last_name_nom')
-            ->orderBy('first_name_nom')
-            ->get();
-
-        if (! empty($filters['rank_id'])) {
-            $athletes = $athletes->filter(fn (Athlete $a) => $this->currentRankId($a) === (int) $filters['rank_id']);
-        }
+        $athletes = $this->athletesForFilters($filters);
 
         $athleteIds = $athletes->pluck('id');
         $participants = EventParticipant::query()
@@ -185,6 +201,65 @@ class ReportController extends Controller
         }
 
         return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     */
+    private function readFilters(Request $request): array
+    {
+        return [
+            'date_from' => $request->string('date_from')->toString() ?: now()->startOfYear()->toDateString(),
+            'date_to' => $request->string('date_to')->toString() ?: now()->toDateString(),
+            'fio' => $request->string('fio')->toString(),
+            'rank_id' => $request->input('rank_id'),
+            'group_id' => $request->input('group_id'),
+            'event_id' => $request->input('event_id'),
+            'age_from' => $request->input('age_from'),
+            'age_to' => $request->input('age_to'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return \Illuminate\Support\Collection<int, Athlete>
+     */
+    private function athletesForFilters(array $filters)
+    {
+        $fio = $filters['fio'] ?? null;
+        $groupId = $filters['group_id'] ?? null;
+        $rankId = $filters['rank_id'] ?? null;
+        $eventId = $filters['event_id'] ?? null;
+        $ageFrom = $filters['age_from'] ?? null;
+        $ageTo = $filters['age_to'] ?? null;
+
+        $athletes = Athlete::query()
+            ->with(['groups', 'rankHistories.rank'])
+            ->when($groupId, fn ($q, $gid) => $q->whereHas('groups', fn ($g) => $g->where('groups.id', $gid)))
+            ->when($eventId, fn ($q, $eid) => $q->whereIn('id', EventParticipant::query()->where('event_id', $eid)->select('athlete_id')))
+            ->when($fio, function ($q, $fioValue) {
+                $parts = preg_split('/\s+/u', trim((string) $fioValue)) ?: [];
+                foreach ($parts as $part) {
+                    $q->where(function ($qq) use ($part) {
+                        $qq->where('last_name_nom', 'like', '%' . $part . '%')
+                            ->orWhere('first_name_nom', 'like', '%' . $part . '%')
+                            ->orWhere('middle_name_nom', 'like', '%' . $part . '%');
+                    });
+                }
+            })
+            ->when($ageFrom !== null && $ageFrom !== '', fn ($q) => $q->whereRaw('TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) >= ?', [(int) $ageFrom]))
+            ->when($ageTo !== null && $ageTo !== '', fn ($q) => $q->whereRaw('TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) <= ?', [(int) $ageTo]))
+            ->orderBy('last_name_nom')
+            ->orderBy('first_name_nom')
+            ->orderBy('middle_name_nom')
+            ->get();
+
+        if (! empty($rankId)) {
+            $athletes = $athletes->filter(fn (Athlete $a) => $this->currentRankId($a) === (int) $rankId)->values();
+        }
+
+        return $athletes;
     }
 
     /**
@@ -268,6 +343,9 @@ class ReportController extends Controller
         return response()->streamDownload(function () use ($header, $rows, $mapRow) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Дата формирования', ReportMeta::generatedAtFormatted()], ';');
+            fputcsv($out, ['Сформировал', ReportMeta::generatedByName()], ';');
+            fputcsv($out, [], ';');
             fputcsv($out, $header, ';');
 
             foreach ($rows as $row) {

@@ -7,6 +7,8 @@ use App\Models\Athlete;
 use App\Models\EventParticipant;
 use App\Models\PortfolioAchievement;
 use App\Support\AthleteDocumentStatus;
+use App\Support\DateFormatter;
+use App\Support\ReportMeta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -109,12 +111,11 @@ class PortfolioController extends Controller
         $athlete = Athlete::findOrFail($athleteId);
         $rows = $this->collectAthleteRows($athleteId);
 
-        $pdf = Pdf::loadView('pdf.portfolio-summary', [
+        $pdf = Pdf::loadView('pdf.portfolio-summary', array_merge([
             'title' => 'Отчёт по спортсмену: ' . trim("{$athlete->last_name_nom} {$athlete->first_name_nom}"),
             'rows' => $rows,
-            'generatedAt' => now(),
             'athlete' => $athlete,
-        ])->setPaper('a4', 'landscape');
+        ], ReportMeta::forExport()))->setPaper('a4', 'landscape');
 
         return $pdf->download('portfolio-athlete-' . $athleteId . '-' . now()->format('Ymd-His') . '.pdf');
     }
@@ -141,6 +142,9 @@ class PortfolioController extends Controller
         return response()->streamDownload(function () use ($rows, $athlete) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Дата формирования', ReportMeta::generatedAtFormatted()], ';');
+            fputcsv($out, ['Сформировал', ReportMeta::generatedByName()], ';');
+            fputcsv($out, [], ';');
             fputcsv($out, [
                 'Спортсмен', 'Мероприятие', 'Тип', 'Уровень', 'Дата', 'Период',
                 'Место проведения', 'Ведущий', 'Результат', 'Место', 'Разряд', 'ID сертификата',
@@ -178,7 +182,8 @@ class PortfolioController extends Controller
             'source' => 'event',
             'event_id' => $event?->id,
             'event_name' => $event?->name,
-            'event_date' => $event?->event_date?->format('Y-m-d'),
+            'event_date' => DateFormatter::toDateString($event?->event_date),
+            'event_date_display' => DateFormatter::toDisplayDate($event?->event_date),
             'event_period' => $event?->event_period,
             'event_place' => $event?->event_place,
             'cost' => $event?->cost,
@@ -201,7 +206,8 @@ class PortfolioController extends Controller
             'id' => 'pa-' . $a->id,
             'source' => 'legacy',
             'event_name' => $a->event_name,
-            'event_date' => $a->event_date?->format('Y-m-d') ?? $a->event_date,
+            'event_date' => DateFormatter::toDateString($a->event_date),
+            'event_date_display' => DateFormatter::toDisplayDate($a->event_date),
             'event_period' => $a->event_period,
             'event_place' => $a->event_place,
             'event_type' => $a->eventType?->name,

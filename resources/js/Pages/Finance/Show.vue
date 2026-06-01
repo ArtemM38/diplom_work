@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
@@ -85,8 +86,8 @@ watch([operation, dateFrom, dateTo, historySort], reload);
                             <option value="add">Пополнения</option>
                             <option value="subtract">Списания</option>
                         </select>
-                        <input v-model="dateFrom" type="date" class="border-slate-300 rounded-xl text-sm" />
-                        <input v-model="dateTo" type="date" class="border-slate-300 rounded-xl text-sm" />
+                        <DateInput v-model="dateFrom" label="Дата с" input-class="w-full min-w-[10rem] border-slate-300 rounded-xl text-sm" />
+                        <DateInput v-model="dateTo" label="Дата по" input-class="w-full min-w-[10rem] border-slate-300 rounded-xl text-sm" />
                         <select v-model="historySort" class="border-slate-300 rounded-xl text-sm">
                             <option value="desc">Сначала новые</option>
                             <option value="asc">Сначала старые</option>

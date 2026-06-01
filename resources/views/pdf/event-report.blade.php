@@ -10,6 +10,8 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ccc; padding: 4px 6px; text-align: left; }
         th { background: #f3f4f6; }
+        .export-meta { margin-bottom: 8px; }
+        .export-meta p { margin: 2px 0; }
     </style>
 </head>
 <body>
@@ -22,7 +24,7 @@
         Ведущий: {{ $event->eventHost?->full_name ?? '—' }} |
         Стоимость: {{ $event->cost }} ₽
     </p>
-    <p class="meta">Сформировано: {{ $generatedAt->format('d.m.Y H:i') }}</p>
+    @include('pdf.partials.export-meta')
 
     <table>
         <thead>

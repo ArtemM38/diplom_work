@@ -24,6 +24,13 @@ class PortfolioAchievement extends Model
         'evidence_file_path',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'event_date' => 'date:Y-m-d',
+        ];
+    }
+
     public function athlete()
     {
         return $this->belongsTo(Athlete::class);

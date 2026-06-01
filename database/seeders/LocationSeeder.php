@@ -14,16 +14,16 @@ class LocationSeeder extends Seeder
     {
         $locations = [
             [
-                'name' => 'Муравьева, 4',
-                'color' => 'Зал красный',
+                'address' => 'Муравьева, 4',
+                'name' => 'Зал красный',
             ],
             [
-                'name' => 'Муравьева, 4',
-                'color' => 'Зал синий',
+                'address' => 'Муравьева, 4',
+                'name' => 'Зал синий',
             ],
             [
-                'name' => 'Байкальская, 172',
-                'color' => 'Зал зеленый',
+                'address' => 'Байкальская, 172',
+                'name' => 'Зал зеленый',
             ],
         ];
         \App\Models\Location::insert($locations);

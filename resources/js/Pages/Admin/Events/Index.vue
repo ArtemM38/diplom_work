@@ -1,6 +1,8 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import DateInput from '@/Components/DateInput.vue';
+import { formatDisplayDate } from '@/utils/formatDate';
 import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
 import InputError from '@/Components/InputError.vue';
 import { fieldClass } from '@/utils/formErrors';
@@ -141,9 +143,15 @@ const eventsList = () => props.events?.data ?? [];
                         <input v-model="form.event_place" class="w-full border-gray-300 rounded-lg" />
                     </div>
                     <div>
-                        <label class="text-xs text-slate-500">Дата *</label>
-                        <input v-model="form.event_date" type="date" required :class="fieldClass(form.errors, 'event_date', 'w-full rounded-lg')" />
-                        <InputError :message="form.errors.event_date" />
+                        <DateInput
+                            v-model="form.event_date"
+                            label="Дата мероприятия *"
+                            required
+                            :errors="form.errors"
+                            error-key="event_date"
+                            :error="form.errors.event_date"
+                            input-class="w-full rounded-lg"
+                        />
                     </div>
                     <div class="md:col-span-3">
                         <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="form.processing">Создать</button>
@@ -155,7 +163,7 @@ const eventsList = () => props.events?.data ?? [];
                 <h3 class="font-bold mb-4">Ведущие мероприятий</h3>
                 <form @submit.prevent="saveHost" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
                     <input v-model="hostForm.full_name" placeholder="ФИО" required class="border-gray-300 rounded-lg md:col-span-2" />
-                    <input v-model="hostForm.birth_date" type="date" placeholder="Дата рождения" class="border-gray-300 rounded-lg" />
+                    <DateInput v-model="hostForm.birth_date" label="Дата рождения ведущего" input-class="w-full border-gray-300 rounded-lg" />
                     <input v-model="hostForm.rank" placeholder="Спорт. разряд" class="border-gray-300 rounded-lg" />
                     <input v-model="hostForm.city" placeholder="Город" class="border-gray-300 rounded-lg" />
                     <input v-model="hostForm.extra_info" placeholder="Доп. информация" class="border-gray-300 rounded-lg md:col-span-2" />
@@ -194,7 +202,7 @@ const eventsList = () => props.events?.data ?? [];
                             <td class="px-4 py-3 font-medium">{{ ev.name }}</td>
                             <td class="px-4 py-3">{{ ev.event_type?.name }}</td>
                             <td class="px-4 py-3">{{ ev.event_level?.name || '—' }}</td>
-                            <td class="px-4 py-3">{{ ev.event_date || ev.event_period || '—' }}</td>
+                            <td class="px-4 py-3">{{ ev.event_date_display || formatDisplayDate(ev.event_date) || ev.event_period || '—' }}</td>
                             <td class="px-4 py-3">{{ ev.participants_count }}</td>
                             <td class="px-4 py-3">
                                 <span class="text-xs px-2 py-0.5 rounded-full" :class="ev.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'">

@@ -14,6 +14,15 @@ const props = defineProps({
     coaches: Array
 });
 
+const locationLabel = (location) => {
+    if (!location) {
+        return '—';
+    }
+    const name = location.name || 'Без названия';
+    const address = location.address?.trim();
+    return address ? `${name} — ${address}` : name;
+};
+
 // Состояние календаря
 const currentMonth = ref(dayjs());
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'));
@@ -188,8 +197,14 @@ const schedulesForDay = computed(() =>
                         <!-- Индикаторы занятий в этот день -->
                         <div class="mt-1 space-y-1 overflow-hidden">
                             <div v-for="s in schedules.filter(s => s.lesson_date === date).slice(0, 2)" :key="s.id"
-                                class="text-[9px] bg-white border border-indigo-100 text-indigo-700 px-1 rounded truncate">
-                                {{ s.start_time.substring(0, 5) }} - {{ s.end_time.substring(0, 5) }} {{ s.group.name }}
+                                class="text-[9px] bg-white border border-indigo-100 text-indigo-700 px-1 rounded leading-tight">
+                                <div class="truncate font-semibold">{{ s.start_time.substring(0, 5) }}-{{ s.end_time.substring(0, 5) }} · {{ s.group.name }}</div>
+                                <div v-if="s.location?.name || s.location_name" class="truncate text-indigo-600">
+                                    {{ s.location?.name || s.location_name }}
+                                </div>
+                                <div v-if="s.location?.address || s.location_address" class="truncate text-slate-500">
+                                    {{ s.location?.address || s.location_address }}
+                                </div>
                             </div>
                             <div v-if="schedules.filter(s => s.lesson_date === date).length > 2"
                                 class="text-[9px] text-gray-400 text-center">
@@ -241,7 +256,7 @@ const schedulesForDay = computed(() =>
                             <label class="text-xs text-gray-500">Зал</label>
                             <select v-model="form.location_id" :class="['w-full rounded-lg', form.errors.location_id ? 'border-red-500' : 'border-gray-300']">
                                 <option value="">—</option>
-                                <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                                <option v-for="l in locations" :key="l.id" :value="l.id">{{ locationLabel(l) }}</option>
                             </select>
                             <p v-if="form.errors.location_id" class="text-red-600 text-xs mt-1">{{ form.errors.location_id }}</p>
                         </div>
@@ -278,11 +293,14 @@ const schedulesForDay = computed(() =>
                                     {{ s.start_time.substring(0, 5) }} - {{ s.end_time.substring(0, 5) }}
                                 </span>
                                 <span v-if="s.is_cancelled" class="text-red-700 font-semibold text-[10px] mt-0.5">Отменена</span>
-                                <span class="text-slate-600">
-                                    <span class="font-semibold text-slate-900">{{ s.location?.name }}</span>
-                                    | {{ s.group.name }}
+                                <span class="text-slate-600 font-medium">{{ s.group.name }}</span>
+                                <span v-if="s.location?.name || s.location_name" class="block text-slate-700 mt-0.5">
+                                    Зал: {{ s.location?.name || s.location_name }}
                                 </span>
-                                <span class="text-[10px] text-slate-400 mt-0.5">{{ coachLine(s) }}</span>
+                                <span v-if="s.location?.address || s.location_address" class="block text-slate-500 text-[10px] mt-0.5 break-words">
+                                    {{ s.location?.address || s.location_address }}
+                                </span>
+                                <span class="text-[10px] text-slate-400 mt-0.5 block">{{ coachLine(s) }}</span>
                             </div>
 
                             <div class="flex items-center gap-2 ml-2">
@@ -352,7 +370,7 @@ const schedulesForDay = computed(() =>
                     <div>
                         <label class="text-xs text-slate-500 font-medium">Зал</label>
                         <select v-model="editForm.location_id" class="w-full mt-1 border-gray-300 rounded-xl">
-                            <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                            <option v-for="l in locations" :key="l.id" :value="l.id">{{ locationLabel(l) }}</option>
                         </select>
                     </div>
                     <div>

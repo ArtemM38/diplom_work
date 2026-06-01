@@ -18,7 +18,7 @@ class EventHost extends Model
     protected function casts(): array
     {
         return [
-            'birth_date' => 'date',
+            'birth_date' => 'date:Y-m-d',
         ];
     }
 

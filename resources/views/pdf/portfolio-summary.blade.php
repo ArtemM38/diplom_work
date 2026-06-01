@@ -14,8 +14,8 @@
 </head>
 <body>
     <h1>{{ $title }}</h1>
-    <div class="meta">
-        Сформировано: {{ $generatedAt->format('d.m.Y H:i') }}
+    <div class="meta export-meta">
+        @include('pdf.partials.export-meta')
     </div>
 
     <table>

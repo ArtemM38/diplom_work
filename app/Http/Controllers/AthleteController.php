@@ -6,9 +6,9 @@ use App\Models\Athlete;
 use App\Models\Guardian;
 use App\Models\Rank;
 use App\Models\RefereeCategory;
-use App\Support\FullNameParser;
 use App\Support\AthleteProfileRules;
 use App\Support\FormValidator;
+use App\Support\FullNameParser;
 use App\Support\RussianNameCases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -324,9 +324,71 @@ class AthleteController extends Controller
     {
         $user = Auth::user();
 
+        if ($user->guardian) {
+            return redirect()->route('dashboard');
+        }
+
         return Inertia::render('Guardian/Create', [
             'prefilledFullName' => $user?->name ?? '',
+            'hasGuardianProfile' => (bool) $user->guardian,
         ]);
+    }
+
+    public function searchAthletesForGuardian(Request $request)
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        $athletes = Athlete::query()
+            ->whereNotNull('user_id')
+            ->with('user:id,name,email')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('last_name_nom', 'like', "%{$search}%")
+                        ->orWhere('first_name_nom', 'like', "%{$search}%")
+                        ->orWhere('middle_name_nom', 'like', "%{$search}%")
+                        ->orWhereHas('user', fn ($uq) => $uq
+                            ->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%"));
+                });
+            })
+            ->orderBy('last_name_nom')
+            ->orderBy('first_name_nom')
+            ->limit(25)
+            ->get()
+            ->map(fn (Athlete $athlete) => [
+                'id' => $athlete->id,
+                'full_name' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} {$athlete->middle_name_nom}"),
+                'birth_date' => $athlete->birth_date,
+                'email' => $athlete->user?->email,
+            ]);
+
+        return response()->json($athletes);
+    }
+
+    public function attachAthleteToGuardian(Request $request)
+    {
+        $user = Auth::user();
+        abort_unless($user?->hasRole('guardian') && $user->guardian, 403);
+
+        $validated = FormValidator::validate($request, [
+            'athlete_id' => 'required|integer|exists:athletes,id',
+        ], [
+            'athlete_id.required' => 'Выберите спортсмена из списка.',
+        ]);
+
+        $athlete = Athlete::query()
+            ->whereNotNull('user_id')
+            ->find($validated['athlete_id']);
+
+        if (! $athlete) {
+            return back()->withErrors([
+                'athlete_id' => 'Можно привязать только спортсмена с зарегистрированным аккаунтом.',
+            ]);
+        }
+
+        $user->guardian->athletes()->syncWithoutDetaching([$athlete->id]);
+
+        return redirect()->route('dashboard')->with('success', 'Спортсмен успешно привязан.');
     }
 
     /**
@@ -334,29 +396,69 @@ class AthleteController extends Controller
      */
     public function storeGuardian(Request $request)
     {
-        if (Auth::user()?->guardian) {
-            return redirect()->route('athlete.create');
+        $user = Auth::user();
+
+        if ($user->guardian && $user->guardian->athletes()->exists()) {
+            return redirect()->route('dashboard');
         }
+
+        $linkLater = $request->boolean('link_later');
 
         $validated = FormValidator::validate($request, [
             'full_name' => 'required|string|max:255',
             'phone' => 'required|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
             'relation' => 'required|string|max:255',
+            'athlete_id' => $linkLater ? 'nullable|integer|exists:athletes,id' : 'required|integer|exists:athletes,id',
+            'link_later' => 'sometimes|boolean',
         ], [
             'phone.regex' => 'Телефон укажите в формате +7 (999) 999-99-99.',
+            'athlete_id.required' => 'Выберите спортсмена из списка зарегистрированных аккаунтов.',
         ]);
 
-        Guardian::create([
-            'user_id' => Auth::id(),
-            'full_name' => $validated['full_name'],
-            'phone' => $validated['phone'],
-            'relation' => $validated['relation'],
-        ]);
+        $athlete = null;
+        if (! empty($validated['athlete_id'])) {
+            $athlete = Athlete::query()
+                ->whereNotNull('user_id')
+                ->find($validated['athlete_id']);
 
-        Auth::user()->update(['name' => $validated['full_name']]);
+            if (! $athlete) {
+                return back()->withErrors([
+                    'athlete_id' => 'Можно привязать только спортсмена с зарегистрированным аккаунтом.',
+                ]);
+            }
+        }
 
-        // После создания профиля родителя — сразу на создание анкеты ребенка
-        return redirect()->route('athlete.create')->with('info', 'Теперь заполните данные вашего ребенка');
+        $guardian = $user->guardian;
+
+        if ($guardian) {
+            $guardian->update([
+                'full_name' => $validated['full_name'],
+                'phone' => $validated['phone'],
+                'relation' => $validated['relation'],
+            ]);
+        } else {
+            $guardian = Guardian::create([
+                'user_id' => $user->id,
+                'full_name' => $validated['full_name'],
+                'phone' => $validated['phone'],
+                'relation' => $validated['relation'],
+            ]);
+        }
+
+        if ($athlete) {
+            $guardian->athletes()->syncWithoutDetaching([$athlete->id]);
+        }
+
+        $user->update(['name' => $validated['full_name']]);
+
+        if ($linkLater || ! $athlete) {
+            return redirect()->route('dashboard')->with(
+                'info',
+                'Профиль родителя сохранён. Когда ребёнок зарегистрируется, привяжите его в личном кабинете.'
+            );
+        }
+
+        return redirect()->route('dashboard')->with('success', 'Профиль родителя создан, спортсмен привязан.');
     }
 
     /**

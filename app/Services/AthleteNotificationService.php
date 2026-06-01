@@ -10,6 +10,7 @@ use App\Models\Schedule;
 use App\Models\User;
 use App\Models\UserNotification;
 use App\Support\AthleteDocumentStatus;
+use App\Support\DateFormatter;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Mail;
 
@@ -115,10 +116,7 @@ class AthleteNotificationService
             ->get();
 
         foreach ($schedules as $schedule) {
-            $lessonAt = Carbon::parse(
-                $schedule->lesson_date . ' ' . $schedule->start_time,
-                config('app.timezone')
-            );
+            $lessonAt = DateFormatter::toDateTime($schedule->lesson_date, $schedule->start_time);
 
             $minutesUntil = $now->diffInMinutes($lessonAt, false);
             if ($minutesUntil < self::TRAINING_REMINDER_MINUTES - self::TRAINING_WINDOW_MINUTES

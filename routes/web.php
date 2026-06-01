@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Models\Athlete;
 use App\Models\Schedule;
+use App\Support\DateFormatter;
 
 // 1. Главная страница (Логин)
 Route::get('/', function () {
@@ -48,6 +49,7 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     // Анкета родителя
     Route::get('/guardian/setup', [AthleteController::class, 'createGuardian'])->name('guardian.create');
     Route::post('/guardian/setup', [AthleteController::class, 'storeGuardian'])->name('guardian.store');
+    Route::get('/guardian/athletes/search', [AthleteController::class, 'searchAthletesForGuardian'])->name('guardian.athletes.search');
     Route::get('/address/suggest', [AddressSuggestionController::class, 'suggest'])->name('address.suggest');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
@@ -97,7 +99,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
                 ->get()
                 ->map(fn ($s) => [
                     'id' => $s->id,
-                    'lesson_date' => $s->lesson_date,
+                    'lesson_date' => DateFormatter::toDateString($s->lesson_date),
                     'start_time' => $s->start_time,
                     'end_time' => $s->end_time,
                     'group' => $s->group?->name,
@@ -131,6 +133,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::get('/athlete/attendance', [AthleteAttendanceController::class, 'index'])->name('athlete.attendance');
     Route::get('/guardian/schedule', [ScheduleController::class, 'guardianCalendar'])->name('guardian.schedule');
     Route::get('/guardian/attendance', [GuardianChildAttendanceController::class, 'index'])->name('guardian.attendance');
+    Route::post('/guardian/athletes/attach', [AthleteController::class, 'attachAthleteToGuardian'])->name('guardian.athletes.attach');
     Route::get('/athlete/documents/template/{template}/download', [AthleteDocumentsController::class, 'download'])->name('athlete.documents.download');
 
     // АДМИН-ПАНЕЛЬ
@@ -147,6 +150,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::post('/admin/groups', [GroupController::class, 'store'])->name('admin.groups.store');
         Route::patch('/admin/groups/{group}', [GroupController::class, 'update'])->name('admin.groups.update');
         Route::delete('/admin/groups/{group}', [GroupController::class, 'destroy'])->name('admin.groups.destroy');
+        Route::post('/admin/groups/{group}/restore', [GroupController::class, 'restore'])->name('admin.groups.restore');
         Route::get('/admin/groups/{group}', [GroupController::class, 'show'])->name('admin.groups.show');
         Route::post('/admin/groups/{group}/attach', [GroupController::class, 'attachAthlete'])->name('admin.groups.attach');
         Route::delete('/admin/groups/{group}/detach/{athlete}', [GroupController::class, 'detachAthlete'])->name('admin.groups.detach');

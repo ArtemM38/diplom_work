@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { Head, router, Link } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
@@ -112,8 +113,8 @@ const hasActiveFilters = computed(() =>
                         <option value="asc">Возраст: от младших</option>
                         <option value="desc">Возраст: от старших</option>
                     </select>
-                    <input v-model="startedFrom" type="date" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500" />
-                    <input v-model="startedTo" type="date" class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500" />
+                    <DateInput v-model="startedFrom" label="Дата регистрации с" input-class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500" />
+                    <DateInput v-model="startedTo" label="Дата регистрации по" input-class="w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500" />
                     <div class="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
                         <button type="button" @click="applyPeriodPreset(7)" class="flex-1 sm:flex-none px-3 py-2 text-xs rounded-lg border">7 дней</button>
                         <button type="button" @click="applyPeriodPreset(30)" class="flex-1 sm:flex-none px-3 py-2 text-xs rounded-lg border">30 дней</button>

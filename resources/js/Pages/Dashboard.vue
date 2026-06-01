@@ -1,5 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
+import GuardianLinkAthlete from '@/Components/GuardianLinkAthlete.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 
@@ -66,10 +68,7 @@ watch([from, to, groupId], () => {
                     </div>
                 </div>
 
-                <div v-if="!guardianAthletes?.length" class="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
-                    <p class="text-amber-900 font-medium">Данные ребёнка ещё не заполнены</p>
-                    <Link :href="route('athlete.create')" class="inline-block mt-3 text-indigo-600 font-medium hover:underline">Заполнить анкету ребёнка</Link>
-                </div>
+                <GuardianLinkAthlete v-if="!guardianAthletes?.length" />
 
                 <div v-for="child in guardianAthletes" :key="child.id" class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100">
                     <div class="p-6 flex flex-col md:flex-row md:items-center gap-6">
@@ -189,8 +188,8 @@ watch([from, to, groupId], () => {
                 <div class="bg-white p-6 shadow-sm sm:rounded-2xl border border-slate-100">
                     <h4 class="font-bold mb-4 border-b pb-2">Моё расписание</h4>
                     <div class="grid md:grid-cols-3 gap-3 mb-4">
-                        <input v-model="from" type="date" class="border-gray-300 rounded-lg" />
-                        <input v-model="to" type="date" class="border-gray-300 rounded-lg" />
+                        <DateInput v-model="from" label="Расписание с даты" input-class="w-full border-gray-300 rounded-lg" />
+                        <DateInput v-model="to" label="Расписание по дату" input-class="w-full border-gray-300 rounded-lg" />
                         <select v-model="groupId" class="border-gray-300 rounded-lg">
                             <option value="">Все группы</option>
                             <option v-for="g in athleteGroups" :key="g.id" :value="g.id">{{ g.name }}</option>
@@ -198,9 +197,11 @@ watch([from, to, groupId], () => {
                     </div>
                     <div v-if="!athleteSchedule?.length" class="text-sm text-gray-400">Тренировок по фильтру не найдено</div>
                     <div v-else class="space-y-2">
-                        <div v-for="item in athleteSchedule" :key="item.id" class="border rounded-lg p-3 text-sm">
-                            <div class="font-semibold">{{ item.lesson_date }} {{ item.start_time?.substring(0, 5) }}-{{ item.end_time?.substring(0, 5) }}</div>
-                            <div class="text-gray-600">{{ item.group }} | {{ item.location }} | Тренер: {{ item.coach }}</div>
+                        <div v-for="item in athleteSchedule" :key="item.id" class="border rounded-lg p-3 text-sm space-y-1">
+                            <div class="font-semibold">{{ item.lesson_date }} {{ item.start_time?.substring(0, 5) }}-{{ item.end_time?.substring(0, 5) }} · {{ item.group }}</div>
+                            <div v-if="item.location" class="text-gray-700">Зал: {{ item.location }}</div>
+                            <div v-if="item.location_address" class="text-gray-500 text-xs break-words">{{ item.location_address }}</div>
+                            <div class="text-gray-500 text-xs">Тренер: {{ item.coach || '—' }}</div>
                         </div>
                     </div>
                 </div>

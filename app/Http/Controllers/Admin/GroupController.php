@@ -13,6 +13,11 @@ use Inertia\Inertia;
 
 class GroupController extends Controller
 {
+    private function ensureGroupEditable(Group $group): void
+    {
+        abort_if($group->isArchived(), 403, 'Группа в архиве: редактирование недоступно.');
+    }
+
     public function index()
     {
         $search = request('search');
@@ -60,6 +65,12 @@ class GroupController extends Controller
 
     public function show(Group $group)
     {
+        if ($group->isArchived()) {
+            return redirect()
+                ->route('admin.groups', ['show_archived' => '1'])
+                ->with('info', 'Архивная группа: восстановите её из списка архива, чтобы снова управлять составом.');
+        }
+
         $athleteSearch = trim((string) request('athlete_search'));
         $allAthletes = Athlete::select('id', 'last_name_nom', 'first_name_nom')
             ->when($athleteSearch !== '', function ($query) use ($athleteSearch) {
@@ -83,6 +94,7 @@ class GroupController extends Controller
 
     public function attachAthlete(Request $request, Group $group)
     {
+        $this->ensureGroupEditable($group);
         abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
         FormValidator::validate($request, [
             'athlete_id' => 'required|exists:athletes,id',
@@ -102,6 +114,7 @@ class GroupController extends Controller
 
     public function detachAthlete(Group $group, $athleteId)
     {
+        $this->ensureGroupEditable($group);
         abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
         $group->athletes()->detach($athleteId);
 
@@ -110,6 +123,8 @@ class GroupController extends Controller
 
     public function update(Request $request, Group $group)
     {
+        $this->ensureGroupEditable($group);
+
         if ($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach'])) {
             $validated = FormValidator::validate($request, [
                 'tariff_amount' => 'required|numeric|min:0',
@@ -131,9 +146,34 @@ class GroupController extends Controller
         return redirect()->back()->with('success', 'Группа обновлена');
     }
 
+    public function restore(int $group)
+    {
+        abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
+
+        $group = Group::withTrashed()->findOrFail($group);
+
+        if (! $group->isArchived()) {
+            return redirect()->back()->with('info', 'Группа не находится в архиве.');
+        }
+
+        if ($group->trashed()) {
+            $group->restore();
+        }
+
+        $group->update([
+            'status' => 'active',
+            'archived_at' => null,
+        ]);
+
+        return redirect()
+            ->route('admin.groups')
+            ->with('success', 'Группа восстановлена из архива.');
+    }
+
     public function destroy(Group $group)
     {
         abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
+        $this->ensureGroupEditable($group);
 
         if ($group->hasTrainingHistory()) {
             $group->update([

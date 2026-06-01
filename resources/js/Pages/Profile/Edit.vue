@@ -22,12 +22,13 @@ const props = defineProps({
 
 const avatarForm = useForm({ avatar: null });
 const avatarPreview = ref(null);
-const avatarInput = ref(null);
+const selectedAvatarName = ref('');
 
 const onAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     avatarForm.avatar = file;
+    selectedAvatarName.value = file.name;
     avatarPreview.value = URL.createObjectURL(file);
 };
 
@@ -37,7 +38,7 @@ const uploadAvatar = () => {
         onSuccess: () => {
             avatarForm.reset();
             avatarPreview.value = null;
-            if (avatarInput.value) avatarInput.value.value = '';
+            selectedAvatarName.value = '';
         },
     });
 };
@@ -143,25 +144,23 @@ const selectedChildId = ref(props.profileData?.children?.[0]?.id ?? null);
                                     {{ profileData.user.role_label }}
                                 </span>
                             </div>
-                            <form @submit.prevent="uploadAvatar" class="flex flex-col gap-2 sm:items-end sm:pb-1">
-                                <input
-                                    ref="avatarInput"
-                                    type="file"
-                                    accept="image/*"
-                                    class="hidden"
-                                    @change="onAvatarChange"
-                                />
-                                <button
-                                    type="button"
-                                    @click="avatarInput?.click()"
-                                    class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition"
-                                >
+                            <form @submit.prevent="uploadAvatar" class="flex flex-col gap-2 sm:items-end sm:pb-1 w-full sm:w-auto">
+                                <label class="inline-flex cursor-pointer items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition w-full sm:w-auto">
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp,image/*"
+                                        class="sr-only"
+                                        @change="onAvatarChange"
+                                    />
                                     Выбрать фото
-                                </button>
+                                </label>
+                                <p v-if="selectedAvatarName" class="text-xs text-slate-500 break-all text-center sm:text-right">
+                                    {{ selectedAvatarName }}
+                                </p>
                                 <button
                                     v-if="avatarForm.avatar"
                                     type="submit"
-                                    class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition"
+                                    class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 transition w-full sm:w-auto"
                                     :disabled="avatarForm.processing"
                                 >
                                     {{ avatarForm.processing ? 'Загрузка…' : 'Сохранить аватар' }}

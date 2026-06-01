@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             PortfolioLookupSeeder::class,
             LocationSeeder::class,
             AdminSeeder::class,
+            DemoDataSeeder::class,
         ]);
     }
 }

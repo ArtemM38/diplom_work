@@ -26,11 +26,6 @@ class EnsureProfileIsCompleted
                 }
             }
 
-            if ($user->hasRole('guardian') && $user->guardian && $user->guardian->athletes()->count() === 0) {
-                if (! $request->is('athlete/setup*') && ! $request->routeIs('logout')) {
-                    return redirect()->route('athlete.create');
-                }
-            }
         }
         return $next($request);
     }

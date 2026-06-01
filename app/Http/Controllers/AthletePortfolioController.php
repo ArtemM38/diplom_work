@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EventParticipant;
 use App\Models\PortfolioAchievement;
+use App\Support\DateFormatter;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -38,7 +39,8 @@ class AthletePortfolioController extends Controller
         $achievements = $fromEvents->map(fn (EventParticipant $p) => [
             'id' => 'ep-' . $p->id,
             'event_name' => $p->event?->name,
-            'event_date' => $p->event?->event_date,
+            'event_date' => DateFormatter::toDateString($p->event?->event_date),
+            'event_date_display' => DateFormatter::toDisplayDate($p->event?->event_date),
             'event_place' => $p->event?->event_place,
             'result_place' => $p->result_place,
             'event_type' => $p->event?->eventType?->name,
@@ -50,7 +52,8 @@ class AthletePortfolioController extends Controller
         ])->concat($legacy->map(fn ($a) => [
             'id' => 'pa-' . $a->id,
             'event_name' => $a->event_name,
-            'event_date' => $a->event_date,
+            'event_date' => DateFormatter::toDateString($a->event_date),
+            'event_date_display' => DateFormatter::toDisplayDate($a->event_date),
             'event_place' => $a->event_place,
             'result_place' => $a->result_place,
             'event_type' => $a->eventType?->name,

@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
 import Pagination from '@/Components/Pagination.vue';
 import FormErrorsAlert from '@/Components/FormErrorsAlert.vue';
 import InputError from '@/Components/InputError.vue';
@@ -259,8 +260,8 @@ const saveDiscount = () => {
                                 <option value="desc">Сначала новые</option>
                                 <option value="asc">Сначала старые</option>
                             </select>
-                            <input v-model="dateFrom" type="date" class="w-full border-gray-300 rounded-lg text-sm" />
-                            <input v-model="dateTo" type="date" class="w-full border-gray-300 rounded-lg text-sm" />
+                            <DateInput v-model="dateFrom" label="Дата операции с" input-class="w-full border-gray-300 rounded-lg text-sm" />
+                            <DateInput v-model="dateTo" label="Дата операции по" input-class="w-full border-gray-300 rounded-lg text-sm" />
                         </div>
                         <div v-if="!historyList.length" class="text-sm text-gray-400 py-4 text-center">Записей нет</div>
                         <div v-else class="space-y-2">

@@ -14,6 +14,7 @@ use App\Support\AthleteDocumentStatus;
 use App\Support\FormValidator;
 use App\Support\AthleteRankSync;
 use App\Support\PortfolioAchievementSync;
+use App\Support\ReportMeta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -292,6 +293,9 @@ class EventController extends Controller
         return response()->streamDownload(function () use ($rows, $event) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Дата формирования', ReportMeta::generatedAtFormatted()], ';');
+            fputcsv($out, ['Сформировал', ReportMeta::generatedByName()], ';');
+            fputcsv($out, [], ';');
             fputcsv($out, [
                 'Мероприятие', 'Тип', 'Уровень', 'Дата', 'Место', 'Ведущий', 'Стоимость',
                 'Спортсмен', 'Результат', 'Место', 'Разряд', 'ID сертификата', 'Мед. справка',
@@ -329,11 +333,10 @@ class EventController extends Controller
         $event->load(['eventType', 'eventLevel', 'eventHost']);
         $rows = $event->participants()->with(['athlete', 'resultRank'])->get();
 
-        $pdf = Pdf::loadView('pdf.event-report', [
+        $pdf = Pdf::loadView('pdf.event-report', array_merge([
             'event' => $event,
             'rows' => $rows,
-            'generatedAt' => now(),
-        ])->setPaper('a4', 'landscape');
+        ], ReportMeta::forExport()))->setPaper('a4', 'landscape');
 
         return $pdf->download('event-' . $event->id . '-' . now()->format('Ymd-His') . '.pdf');
     }

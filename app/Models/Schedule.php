@@ -26,6 +26,7 @@ class Schedule extends Model
     protected function casts(): array
     {
         return [
+            'lesson_date' => 'date:Y-m-d',
             'cancelled_at' => 'datetime',
         ];
     }

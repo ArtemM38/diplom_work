@@ -1,5 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
+import { formatDisplayDate } from '@/utils/formatDate';
 import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
@@ -62,14 +64,8 @@ const resetFilters = () => {
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <p class="text-sm font-medium text-slate-700 mb-3">Фильтры</p>
                 <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                    <div>
-                        <label class="text-xs text-slate-500">Дата с</label>
-                        <input v-model="dateFrom" type="date" class="w-full mt-1 border-gray-300 rounded-lg text-sm" />
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-500">Дата по</label>
-                        <input v-model="dateTo" type="date" class="w-full mt-1 border-gray-300 rounded-lg text-sm" />
-                    </div>
+                    <DateInput v-model="dateFrom" label="Дата мероприятия с" input-class="w-full border-gray-300 rounded-lg text-sm" />
+                    <DateInput v-model="dateTo" label="Дата мероприятия по" input-class="w-full border-gray-300 rounded-lg text-sm" />
                     <div>
                         <label class="text-xs text-slate-500">Место</label>
                         <select v-model="resultPlace" class="w-full mt-1 border-gray-300 rounded-lg text-sm">
@@ -99,7 +95,7 @@ const resetFilters = () => {
                     <tbody>
                         <tr v-for="item in achievements" :key="item.id" class="border-t border-slate-100">
                             <td class="p-3 font-medium text-slate-800">{{ item.event_name }}</td>
-                            <td class="p-3 text-slate-600">{{ item.event_date || '—' }}</td>
+                            <td class="p-3 text-slate-600">{{ item.event_date_display || formatDisplayDate(item.event_date) }}</td>
                             <td class="p-3 text-slate-600">{{ item.event_type || '—' }} · {{ item.event_level || '—' }}</td>
                             <td class="p-3">
                                 <span v-if="item.result_place" class="text-indigo-700 font-semibold">{{ item.result_place }} место</span>

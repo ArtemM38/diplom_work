@@ -1,5 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DateInput from '@/Components/DateInput.vue';
+import { formatDisplayDate } from '@/utils/formatDate';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
@@ -195,7 +197,7 @@ const participantIndex = computed(() => {
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Дата</label>
-                        <input v-model="eventForm.event_date" type="date" class="w-full border-gray-300 rounded-lg" />
+                        <DateInput v-model="eventForm.event_date" label="Дата мероприятия" input-class="w-full border-gray-300 rounded-lg" />
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Статус</label>
@@ -213,7 +215,7 @@ const participantIndex = computed(() => {
                     <div><dt class="text-slate-500">Тип</dt><dd class="font-medium">{{ event.event_type?.name }}</dd></div>
                     <div><dt class="text-slate-500">Уровень</dt><dd class="font-medium">{{ event.event_level?.name || '—' }}</dd></div>
                     <div><dt class="text-slate-500">Стоимость</dt><dd class="font-medium">{{ event.cost }} ₽</dd></div>
-                    <div><dt class="text-slate-500">Дата</dt><dd class="font-medium">{{ event.event_date || event.event_period || '—' }}</dd></div>
+                    <div><dt class="text-slate-500">Дата</dt><dd class="font-medium">{{ event.event_date_display || formatDisplayDate(event.event_date) || event.event_period || '—' }}</dd></div>
                     <div><dt class="text-slate-500">Место</dt><dd class="font-medium">{{ event.event_place || '—' }}</dd></div>
                     <div><dt class="text-slate-500">Ведущий</dt><dd class="font-medium">{{ event.event_host?.full_name || '—' }}</dd></div>
                 </dl>

@@ -70,12 +70,21 @@ const startTariffEdit = (group) => {
     draft.tariff_amount = group.tariff_amount;
 };
 
+const isArchived = (group) => group.status === 'archived' || group.deleted_at;
+
 const removeGroup = (group) => {
-    const msg = group.status === 'archived' || group.deleted_at
-        ? 'Группа уже в архиве.'
-        : 'Удалить группу? Если были тренировки или списания, группа будет перенесена в архив.';
+    if (isArchived(group)) {
+        return;
+    }
+    const msg = 'Удалить группу? Если были тренировки или списания, группа будет перенесена в архив.';
     if (confirm(msg)) {
         router.delete(route('admin.groups.destroy', group.id));
+    }
+};
+
+const restoreGroup = (group) => {
+    if (confirm(`Восстановить группу «${group.name}» из архива?`)) {
+        router.post(route('admin.groups.restore', group.id));
     }
 };
 
@@ -134,8 +143,8 @@ watch(showArchived, () => {
                     Показать архив
                 </label>
                 <div v-for="group in groupsList" :key="group.id"
-                    class="bg-white p-6 rounded-xl shadow-sm flex justify-between items-center gap-4">
-                    <div class="flex-1">
+                    class="bg-white p-4 sm:p-6 rounded-xl shadow-sm flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                    <div class="flex-1 min-w-0">
                         <template v-if="editingId === group.id && !tariffOnlyMode">
                             <input v-model="draft.name" class="text-lg font-bold text-slate-800 border-gray-200 rounded w-full" />
                             <p class="text-sm text-gray-500 mt-2">
@@ -162,23 +171,35 @@ watch(showArchived, () => {
                             Архив
                         </span>
                     </div>
-                    <div class="flex gap-2">
-                        <template v-if="editingId === group.id">
-                            <button @click="updateGroup(group)" class="bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg">Сохранить</button>
-                            <button @click="cancelEdit" class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg">Отмена</button>
+                    <div class="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto shrink-0">
+                        <template v-if="isArchived(group)">
+                            <button
+                                v-if="!tariffOnlyMode"
+                                type="button"
+                                @click="restoreGroup(group)"
+                                class="bg-emerald-100 text-emerald-800 px-3 py-2 rounded-lg text-sm w-full sm:w-auto font-medium"
+                            >
+                                Восстановить
+                            </button>
                         </template>
-                        <button
-                            v-else
-                            @click="tariffOnlyMode ? startTariffEdit(group) : startEdit(group)"
-                            class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg"
-                        >
-                            {{ tariffOnlyMode ? 'Изменить стоимость' : 'Редактировать' }}
-                        </button>
-                        <button v-if="!tariffOnlyMode && group.status !== 'archived' && !group.deleted_at" @click="removeGroup(group)" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg">Удалить</button>
-                        <Link v-if="!tariffOnlyMode" :href="route('admin.groups.show', group.id)"
-                            class="bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition">
-                            Управлять составом →
-                        </Link>
+                        <template v-else>
+                            <template v-if="editingId === group.id">
+                                <button @click="updateGroup(group)" class="bg-emerald-100 text-emerald-700 px-3 py-2 rounded-lg text-sm w-full sm:w-auto">Сохранить</button>
+                                <button @click="cancelEdit" class="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm w-full sm:w-auto">Отмена</button>
+                            </template>
+                            <button
+                                v-else
+                                @click="tariffOnlyMode ? startTariffEdit(group) : startEdit(group)"
+                                class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded-lg text-sm w-full sm:w-auto"
+                            >
+                                {{ tariffOnlyMode ? 'Изменить стоимость' : 'Редактировать' }}
+                            </button>
+                            <button v-if="!tariffOnlyMode" @click="removeGroup(group)" class="bg-red-100 text-red-700 px-3 py-2 rounded-lg text-sm w-full sm:w-auto">Удалить</button>
+                            <Link v-if="!tariffOnlyMode" :href="route('admin.groups.show', group.id)"
+                                class="bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-lg transition text-sm text-center w-full sm:w-auto">
+                                Управлять составом →
+                            </Link>
+                        </template>
                     </div>
                 </div>
                 <Pagination :links="groups.links" :meta="groups" />

@@ -190,15 +190,15 @@ const attendanceLabel = (status) => {
                                 {{ attendanceLabel(s.attendance_status).text }}
                             </span>
                         </div>
-                        <div class="text-slate-600 mt-1">
-                            <span class="font-semibold text-slate-900">{{ s.group?.name }}</span>
-                            <span v-if="s.location?.name"> | {{ s.location.name }}</span>
+                        <div class="text-slate-600 mt-1 font-medium">{{ s.group?.name }}</div>
+                        <div v-if="s.location?.name || s.location_name" class="text-slate-700 mt-1 text-xs">
+                            Зал: {{ s.location?.name || s.location_name }}
                         </div>
                         <div
                             v-if="s.location_address || s.location?.address"
-                            class="text-slate-500 mt-1 text-xs break-words"
+                            class="text-slate-500 mt-0.5 text-xs break-words"
                         >
-                            Адрес зала: {{ s.location_address || s.location?.address }}
+                            {{ s.location_address || s.location?.address }}
                         </div>
                         <div class="text-slate-500 mt-1 text-xs">
                             Тренер: {{ s.coach?.name || '—' }}

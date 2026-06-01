@@ -14,7 +14,7 @@ const props = defineProps({
 
 const avatarForm = useForm({ avatar: null });
 const avatarPreview = ref(null);
-const avatarInput = ref(null);
+const selectedAvatarName = ref('');
 
 const inventoryLabels = {
     weapon_case: 'Чехол для оружия',
@@ -72,6 +72,7 @@ const onAvatarChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     avatarForm.avatar = file;
+    selectedAvatarName.value = file.name;
     avatarPreview.value = URL.createObjectURL(file);
 };
 
@@ -81,7 +82,7 @@ const uploadAvatar = () => {
         onSuccess: () => {
             avatarForm.reset();
             avatarPreview.value = null;
-            if (avatarInput.value) avatarInput.value.value = '';
+            selectedAvatarName.value = '';
         },
     });
 };
@@ -127,25 +128,21 @@ const uploadAvatar = () => {
                     >
                         Редактировать анкету
                     </Link>
-                    <form @submit.prevent="uploadAvatar" class="flex flex-col gap-2">
-                        <input
-                            ref="avatarInput"
-                            type="file"
-                            accept="image/*"
-                            class="hidden"
-                            @change="onAvatarChange"
-                        />
-                        <button
-                            type="button"
-                            @click="avatarInput?.click()"
-                            class="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-white/30 bg-white/10 text-sm font-semibold hover:bg-white/20 transition"
-                        >
+                    <form @submit.prevent="uploadAvatar" class="flex flex-col gap-2 w-full">
+                        <label class="inline-flex cursor-pointer items-center justify-center px-4 py-2 rounded-xl border border-white/30 bg-white/10 text-sm font-semibold hover:bg-white/20 transition w-full">
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/*"
+                                class="sr-only"
+                                @change="onAvatarChange"
+                            />
                             Выбрать фото
-                        </button>
+                        </label>
+                        <p v-if="selectedAvatarName" class="text-xs text-indigo-200 break-all">{{ selectedAvatarName }}</p>
                         <button
                             v-if="avatarForm.avatar"
                             type="submit"
-                            class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-indigo-500 text-sm font-semibold hover:bg-indigo-400 disabled:opacity-50 transition"
+                            class="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-indigo-500 text-sm font-semibold hover:bg-indigo-400 disabled:opacity-50 transition w-full"
                             :disabled="avatarForm.processing"
                         >
                             {{ avatarForm.processing ? 'Загрузка…' : 'Сохранить аватар' }}

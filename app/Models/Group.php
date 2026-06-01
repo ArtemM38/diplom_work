@@ -48,4 +48,9 @@ class Group extends Model
     {
         return $query->whereNull('deleted_at')->where('status', '!=', 'archived');
     }
+
+    public function isArchived(): bool
+    {
+        return $this->status === 'archived' || $this->trashed();
+    }
 }

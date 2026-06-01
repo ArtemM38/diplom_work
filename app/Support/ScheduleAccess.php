@@ -9,7 +9,7 @@ class ScheduleAccess
 {
     public static function lessonStart(Schedule $schedule): Carbon
     {
-        return Carbon::parse($schedule->lesson_date . ' ' . $schedule->start_time);
+        return DateFormatter::toDateTime($schedule->lesson_date, $schedule->start_time);
     }
 
     public static function isCancelled(Schedule $schedule): bool
@@ -20,7 +20,7 @@ class ScheduleAccess
     /** Создание/перенос — только на будущее время. */
     public static function isInPast(string $lessonDate, string $startTime): bool
     {
-        return now()->gt(Carbon::parse($lessonDate . ' ' . $startTime));
+        return now()->gt(DateFormatter::toDateTime($lessonDate, $startTime));
     }
 
     /** Отмена разрешена для любой неотменённой тренировки. */

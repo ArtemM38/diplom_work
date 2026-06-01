@@ -300,12 +300,17 @@ onUnmounted(() => {
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 min-w-0">
                         <div class="md:col-span-1">
                             <InputLabel value="Фото спортсмена" />
-                            <input
-                                type="file"
-                                accept="image/*"
-                                @input="form.photo = $event.target.files[0]"
-                                :class="fieldClass(form.errors, 'photo', 'mt-1 block w-full text-sm rounded-md border')"
-                            />
+                            <label
+                                :class="fieldClass(form.errors, 'photo', 'mt-1 flex cursor-pointer items-center justify-center w-full min-h-[2.75rem] text-sm rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-slate-700 hover:bg-slate-100')"
+                            >
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/*"
+                                    class="sr-only"
+                                    @change="form.photo = $event.target.files?.[0] ?? null"
+                                />
+                                <span>{{ form.photo?.name || 'Нажмите, чтобы выбрать фото' }}</span>
+                            </label>
                             <InputError class="mt-1" :message="form.errors.photo" />
                         </div>
 

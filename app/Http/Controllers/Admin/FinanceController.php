@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Athlete;
 use App\Models\AthleteFinance;
 use App\Models\AthleteBalanceHistory;
+use App\Services\AthleteNotificationService;
 use App\Support\AthletePricing;
 use App\Support\FormValidator;
 use Illuminate\Http\Request;
@@ -151,7 +152,7 @@ class FinanceController extends Controller
 
         $finance->update(['balance' => $newBalance]);
 
-        $athlete->balanceHistory()->create([
+        $history = $athlete->balanceHistory()->create([
             'change_amount' => $change,
             'balance_before' => $oldBalance,
             'balance_after' => $newBalance,
@@ -159,6 +160,13 @@ class FinanceController extends Controller
             'status' => 'manual',
             'changed_by' => $request->user()?->id,
         ]);
+
+        app(AthleteNotificationService::class)->notifyBalanceBecameNegative(
+            $athlete,
+            $oldBalance,
+            $newBalance,
+            $history->id
+        );
 
         return back()->with('success', 'Финансы спортсмена обновлены');
     }

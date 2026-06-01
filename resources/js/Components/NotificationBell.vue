@@ -10,7 +10,9 @@ const notifications = ref([]);
 const unreadCount = ref(page.props.unreadNotificationsCount ?? 0);
 
 const userRoles = computed(() => page.props.auth?.user?.roles ?? []);
-const showBell = computed(() => userRoles.value.includes('athlete'));
+const showBell = computed(() =>
+    userRoles.value.includes('athlete') || userRoles.value.includes('guardian'),
+);
 
 const fetchNotifications = async () => {
     if (!showBell.value) return;
@@ -49,8 +51,21 @@ const markAllRead = async () => {
 const iconClass = (type) => {
     if (type === 'document_expired') return 'text-red-600 bg-red-50';
     if (type === 'document_expiring') return 'text-amber-700 bg-amber-50';
-    if (type === 'training_reminder') return 'text-indigo-700 bg-indigo-50';
+    if (type === 'training_reminder' || type === 'training_scheduled') return 'text-indigo-700 bg-indigo-50';
+    if (type === 'training_cancelled') return 'text-orange-700 bg-orange-50';
+    if (type === 'password_changed') return 'text-violet-700 bg-violet-50';
+    if (type === 'balance_negative') return 'text-rose-700 bg-rose-50';
+    if (type === 'event_registration') return 'text-emerald-700 bg-emerald-50';
     return 'text-slate-600 bg-slate-50';
+};
+
+const iconEmoji = (type) => {
+    if (type === 'training_reminder' || type === 'training_scheduled') return '🥋';
+    if (type === 'training_cancelled') return '✕';
+    if (type === 'password_changed') return '🔐';
+    if (type === 'balance_negative') return '₽';
+    if (type === 'event_registration') return '🏆';
+    return '📄';
 };
 
 watch(() => page.props.unreadNotificationsCount, (v) => {
@@ -111,7 +126,7 @@ onMounted(() => {
                 >
                     <div class="flex gap-2">
                         <span class="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-xs" :class="iconClass(item.type)">
-                            {{ item.type === 'training_reminder' ? '🥋' : '📄' }}
+                            {{ iconEmoji(item.type) }}
                         </span>
                         <div class="min-w-0 flex-1">
                             <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>

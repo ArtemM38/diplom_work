@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Support\GuardianChildAccess;
 use App\Support\ScheduleAccess;
 use App\Support\DateFormatter;
+use App\Services\AthleteNotificationService;
 use App\Support\ScheduleConflictChecker;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -171,12 +172,14 @@ class ScheduleController extends Controller
             return back()->withErrors(['conflict' => ScheduleConflictChecker::message($conflicts)])->withInput();
         }
 
-        Schedule::create([
+        $schedule = Schedule::create([
             ...$validated,
             'day_of_week' => $dayOfWeek,
             'initial_coach_id' => $validated['coach_id'],
             'lesson_type' => $request->input('lesson_type', 'group'),
         ]);
+
+        app(AthleteNotificationService::class)->notifyScheduleCreated($schedule);
 
         return back()->with('success', 'Занятие создано');
     }
@@ -276,6 +279,8 @@ class ScheduleController extends Controller
             'cancellation_reason' => $validated['cancellation_reason'] ?? null,
             'cancelled_by_user_id' => $request->user()?->id,
         ]);
+
+        app(AthleteNotificationService::class)->notifyScheduleCancelled($schedule->fresh());
 
         return redirect()->back()->with('success', 'Тренировка отменена');
     }

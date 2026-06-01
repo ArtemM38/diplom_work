@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\AthleteNotificationService;
 use App\Support\FormValidator;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
@@ -51,6 +52,8 @@ class NewPasswordController extends Controller
                     'password' => Hash::make($request->password),
                     'remember_token' => Str::random(60),
                 ])->save();
+
+                app(AthleteNotificationService::class)->notifyPasswordChanged($user);
 
                 event(new PasswordReset($user));
             }

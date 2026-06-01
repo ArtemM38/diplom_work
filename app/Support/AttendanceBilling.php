@@ -2,10 +2,12 @@
 
 namespace App\Support;
 
+use App\Models\Athlete;
 use App\Models\AthleteBalanceHistory;
 use App\Models\AthleteFinance;
 use App\Models\Attendance;
 use App\Models\Schedule;
+use App\Services\AthleteNotificationService;
 
 class AttendanceBilling
 {
@@ -54,7 +56,7 @@ class AttendanceBilling
             );
         }
 
-        AthleteBalanceHistory::create([
+        $history = AthleteBalanceHistory::create([
             'athlete_id' => $athleteId,
             'schedule_id' => $schedule->id,
             'attendance_id' => $attendance->id,
@@ -65,6 +67,16 @@ class AttendanceBilling
             'status' => $status,
             'changed_by' => $changedBy,
         ]);
+
+        $athlete = Athlete::find($athleteId);
+        if ($athlete) {
+            app(AthleteNotificationService::class)->notifyBalanceBecameNegative(
+                $athlete,
+                $before,
+                $after,
+                $history->id
+            );
+        }
     }
 
     private static function refund(

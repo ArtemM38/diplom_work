@@ -13,6 +13,7 @@ use App\Models\Rank;
 use App\Support\AthleteDocumentStatus;
 use App\Support\FormValidator;
 use App\Support\AthleteRankSync;
+use App\Services\AthleteNotificationService;
 use App\Support\PortfolioAchievementSync;
 use App\Support\ReportMeta;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -154,10 +155,16 @@ class EventController extends Controller
             'athlete_id' => 'required|exists:athletes,id',
         ]);
 
+        $athlete = Athlete::findOrFail($validated['athlete_id']);
+
         $participant = EventParticipant::firstOrCreate([
             'event_id' => $event->id,
-            'athlete_id' => $validated['athlete_id'],
+            'athlete_id' => $athlete->id,
         ]);
+
+        if ($participant->wasRecentlyCreated) {
+            app(AthleteNotificationService::class)->notifyEventRegistration($event, $athlete);
+        }
 
         PortfolioAchievementSync::fromParticipant($participant);
 

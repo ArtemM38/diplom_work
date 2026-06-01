@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\AthleteNotificationService;
 use App\Models\Schedule;
 use App\Models\User;
 use App\Support\FormValidator;
@@ -143,12 +144,18 @@ class UserManagementController extends Controller
         $coach->is_active = $validated['is_active'];
         $coach->syncRoles($validated['roles']);
 
+        $passwordChanged = false;
         if (! empty($validated['password'])) {
             $coach->password = $validated['password'];
+            $passwordChanged = true;
         }
 
         $coach->save();
         $this->syncProfileName($coach, $validated['name']);
+
+        if ($passwordChanged) {
+            app(AthleteNotificationService::class)->notifyPasswordChanged($coach);
+        }
 
         return redirect()->back()->with('success', 'Данные аккаунта обновлены');
     }

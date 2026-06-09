@@ -22,6 +22,10 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    canAssignGuardian: {
+        type: Boolean,
+        default: false,
+    },
     editingAthlete: {
         type: Object,
         default: null,
@@ -270,6 +274,15 @@ onMounted(() => {
     form.guardian_id = props.editingAthlete.guardians?.[0]?.id ?? null;
     form.relation = props.editingAthlete.guardians?.[0]?.relation ?? '';
     form.occupation_type = props.editingAthlete.occupation_type || (props.editingAthlete.school_name ? 'study' : props.editingAthlete.work_place ? 'work' : 'study');
+
+    const identityDoc = (props.editingAthlete.documents || []).find((d) => d.type === 'identity');
+    if (identityDoc) {
+        form.doc_identity_kind = identityDoc.identity_kind ?? '';
+        form.doc_identity_series = identityDoc.series ?? '';
+        form.doc_identity_number = identityDoc.number ?? '';
+        form.doc_identity_issued_by = identityDoc.issued_by ?? '';
+        form.doc_identity_issue_date = identityDoc.issue_date ?? '';
+    }
 });
 
 onUnmounted(() => {
@@ -632,27 +645,28 @@ onUnmounted(() => {
                 <div class="bg-blue-50 p-6 shadow rounded-xl border border-blue-200">
                     <h2 class="text-xl font-bold mb-2 text-blue-900">Законный представитель</h2>
 
-                    <!-- Если залогинен сам спортсмен -->
-                    <div v-if="!props.isParentRegistering">
-                        <p class="text-sm text-blue-700 mb-4 italic">Если ваш родитель уже зарегистрирован, выберите его
-                            ниже:</p>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <select v-model="form.guardian_id" class="border-gray-300 rounded-md w-full">
-                                <option :value="null">-- Выберите из списка (если есть) --</option>
-                                <option v-for="g in props.existingGuardians" :key="g.id" :value="g.id">
-                                    {{ g.full_name }} ({{ g.phone }})
-                                </option>
-                            </select>
-                            <TextInput v-model="form.relation" placeholder="Кем вам приходится? (Мать/Отец)" />
-                        </div>
+                    <div v-if="props.canAssignGuardian" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <select v-model="form.guardian_id" class="border-gray-300 rounded-md w-full">
+                            <option :value="null">-- Выберите представителя --</option>
+                            <option v-for="g in props.existingGuardians" :key="g.id" :value="g.id">
+                                {{ g.full_name }} ({{ g.phone }})
+                            </option>
+                        </select>
+                        <TextInput v-model="form.relation" placeholder="Степень родства (Мать/Отец)" />
                     </div>
 
-                    <!-- Если залогинен родитель -->
-                    <div v-else class="rounded-lg bg-white/80 px-4 py-3 text-blue-900">
+                    <div v-else-if="props.isParentRegistering" class="rounded-lg bg-white/80 px-4 py-3 text-blue-900">
                         <p class="font-medium">Вы регистрируете ребёнка как законный представитель.</p>
                         <p v-if="guardianRelation" class="text-sm mt-1 text-blue-700">
                             Степень родства: <span class="font-semibold">{{ guardianRelation }}</span>
                         </p>
+                        <p class="text-sm mt-2 text-blue-700">
+                            Привязку к вашему профилю выполнит администратор после проверки анкеты.
+                        </p>
+                    </div>
+
+                    <div v-else class="rounded-lg bg-white/80 px-4 py-3 text-blue-900 text-sm">
+                        Привязку законного представителя выполняет администратор клуба.
                     </div>
                 </div>
                 <!-- Кнопка сохранения -->

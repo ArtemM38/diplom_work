@@ -43,7 +43,8 @@ const safeRoute = (name, fallback = '#') => {
 const navigation = computed(() => [
     { name: 'Реестр спортсменов', href: safeRoute('admin.athletes'), roles: ['admin', 'coach'] },
     { name: 'Портфолио', href: safeRoute('admin.portfolio'), roles: ['admin', 'coach', 'accountant'] },
-    { name: 'Отчёты', href: safeRoute('admin.reports'), roles: ['admin', 'accountant'] },
+    { name: 'Спортивные Отчёты', href: safeRoute('admin.reports'), roles: ['admin', 'accountant'] },
+    { name: 'Фин. отчёт', href: safeRoute('admin.reports.profit'), roles: ['admin', 'accountant'] },
     { name: 'Мероприятия', href: safeRoute('admin.events'), roles: ['admin', 'coach', 'accountant'] },
     { name: 'Группы', href: safeRoute('admin.groups'), roles: ['admin', 'coach', 'accountant'] },
     { name: 'Расписание', href: safeRoute('admin.schedule'), roles: ['admin', 'coach'] },

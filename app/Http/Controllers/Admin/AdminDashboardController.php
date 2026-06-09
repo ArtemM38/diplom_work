@@ -108,6 +108,9 @@ class AdminDashboardController extends Controller
             'canEditAthlete' => $canEditAthlete,
             'canEditGuardians' => $canEditGuardians,
             'canManageInventory' => $canEditAthlete,
+            'availableGuardians' => $canEditGuardians
+                ? Guardian::orderBy('full_name')->get(['id', 'full_name', 'phone', 'relation'])
+                : [],
         ]);
     }
 
@@ -152,6 +155,19 @@ class AdminDashboardController extends Controller
         $athlete->guardians()->syncWithoutDetaching([$guardian->id]);
 
         return back()->with('success', 'Законный представитель добавлен');
+    }
+
+    public function attachGuardian(Request $request, Athlete $athlete)
+    {
+        abort_unless($request->user()?->hasRole('admin'), 403);
+
+        $validated = $request->validate([
+            'guardian_id' => 'required|exists:guardians,id',
+        ]);
+
+        $athlete->guardians()->syncWithoutDetaching([(int) $validated['guardian_id']]);
+
+        return back()->with('success', 'Представитель привязан к спортсмену');
     }
 
     public function updateGuardian(Request $request, Athlete $athlete, Guardian $guardian)

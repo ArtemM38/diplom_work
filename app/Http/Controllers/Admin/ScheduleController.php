@@ -184,6 +184,95 @@ class ScheduleController extends Controller
         return back()->with('success', 'Занятие создано');
     }
 
+    public function duplicateDay(Request $request)
+    {
+        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+
+        $validated = $request->validate(
+            [
+                'source_date' => 'required|date',
+                'target_dates' => 'required|array|min:1',
+                'target_dates.*' => 'required|date|distinct|different:source_date',
+            ],
+            [],
+            [
+                'source_date' => 'исходная дата',
+                'target_dates' => 'даты копирования',
+            ],
+        );
+
+        $sourceSchedules = Schedule::query()
+            ->whereDate('lesson_date', $validated['source_date'])
+            ->whereNull('cancelled_at')
+            ->orderBy('start_time')
+            ->get();
+
+        if ($sourceSchedules->isEmpty()) {
+            return back()->withErrors([
+                'source_date' => 'На выбранный день нет тренировок для копирования.',
+            ]);
+        }
+
+        $created = 0;
+        $skipped = 0;
+        $notificationService = app(AthleteNotificationService::class);
+
+        foreach ($validated['target_dates'] as $targetDate) {
+            foreach ($sourceSchedules as $source) {
+                $startTime = $this->timeToHi($source->start_time);
+                $endTime = $this->timeToHi($source->end_time);
+
+                if (ScheduleAccess::isInPast($targetDate, $startTime)) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $conflictRequest = Request::create('/', 'POST', [
+                    'lesson_date' => $targetDate,
+                    'location_id' => $source->location_id,
+                    'coach_id' => $source->coach_id,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                ]);
+
+                if (ScheduleConflictChecker::conflicts($conflictRequest) !== []) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $schedule = Schedule::create([
+                    'group_id' => $source->group_id,
+                    'location_id' => $source->location_id,
+                    'coach_id' => $source->coach_id,
+                    'initial_coach_id' => $source->coach_id,
+                    'lesson_date' => $targetDate,
+                    'day_of_week' => Carbon::parse($targetDate)->dayOfWeekIso,
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'lesson_type' => $source->lesson_type ?? 'group',
+                ]);
+
+                $notificationService->notifyScheduleCreated($schedule);
+                $created++;
+            }
+        }
+
+        if ($created === 0) {
+            return back()->withErrors([
+                'target_dates' => 'Не удалось скопировать тренировки: конфликты расписания или даты в прошлом.',
+            ]);
+        }
+
+        $message = "Скопировано тренировок: {$created}";
+        if ($skipped > 0) {
+            $message .= ". Пропущено: {$skipped}";
+        }
+
+        return back()->with('success', $message);
+    }
+
     public function update(Request $request, Schedule $schedule)
     {
         abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
@@ -298,5 +387,14 @@ class ScheduleController extends Controller
             ->withRole('coach')
             ->where('is_active', true)
             ->exists();
+    }
+
+    private function timeToHi(?string $time): string
+    {
+        if (! $time) {
+            return '00:00';
+        }
+
+        return Carbon::parse($time)->format('H:i');
     }
 }

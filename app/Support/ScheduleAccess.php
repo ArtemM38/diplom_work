@@ -49,13 +49,13 @@ class ScheduleAccess
         return self::canCancel($schedule);
     }
 
-    /** Отметки в журнале — за 10 минут до начала и позже. */
+    /** Отметки в журнале — в любое время (кроме отменённых тренировок). */
     public static function canMarkAttendance(Schedule $schedule): bool
     {
         if (self::isCancelled($schedule) || ! $schedule->lesson_date || ! $schedule->start_time) {
             return false;
         }
 
-        return now()->gte(self::lessonStart($schedule)->subMinutes(10));
+        return true;
     }
 }

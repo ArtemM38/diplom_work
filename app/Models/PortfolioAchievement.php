@@ -28,6 +28,7 @@ class PortfolioAchievement extends Model
     {
         return [
             'event_date' => 'date:Y-m-d',
+            'event_period' => 'date:Y-m-d',
         ];
     }
 

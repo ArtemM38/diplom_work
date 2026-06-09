@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateInput from '@/Components/DateInput.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps({
@@ -163,6 +163,19 @@ const resetFilters = () => {
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+                    <h3 class="font-bold text-slate-800 mb-2">Финансовый отчёт</h3>
+                    <p class="text-sm text-slate-500 mb-4">
+                        Общая прибыль за период, фильтры по группам, тренерам и спортсменам. Экспорт в CSV и PDF.
+                    </p>
+                    <Link
+                        :href="route('admin.reports.profit')"
+                        class="inline-flex px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+                    >
+                        Открыть финансовый отчёт
+                    </Link>
+                </div>
+
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
                     <h3 class="font-bold text-slate-800 mb-2">Спортсмены</h3>
                     <p class="text-sm text-slate-500 mb-4">

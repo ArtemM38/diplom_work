@@ -27,7 +27,7 @@ class PortfolioAchievementSync
                 'event_type_id' => $event->event_type_id,
                 'event_place' => $event->event_place,
                 'event_date' => $event->event_date,
-                'event_period' => $event->event_period,
+                'event_period' => $event->event_date_to ?? $event->event_date,
                 'event_level_id' => $event->event_level_id,
                 'event_host_id' => $event->event_host_id,
                 'result_label' => $participant->result_label,

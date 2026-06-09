@@ -23,7 +23,6 @@ return new class extends Migration
             $table->string('event_place')->nullable();
             $table->foreignId('event_host_id')->nullable()->constrained()->nullOnDelete();
             $table->date('event_date')->nullable();
-            $table->string('event_period')->nullable();
             $table->string('status', 20)->default('planned');
             $table->timestamps();
         });

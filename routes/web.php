@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified', 'active.user'])->group(function () {
     Route::post('/guardian/setup', [AthleteController::class, 'storeGuardian'])->name('guardian.store');
     Route::get('/guardian/athletes/search', [AthleteController::class, 'searchAthletesForGuardian'])->name('guardian.athletes.search');
     Route::get('/address/suggest', [AddressSuggestionController::class, 'suggest'])->name('address.suggest');
+    Route::get('/address/suggest-city', [AddressSuggestionController::class, 'suggestCity'])->name('address.suggest-city');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
@@ -141,6 +142,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::get('/admin/athletes', [AdminDashboardController::class, 'index'])->name('admin.athletes');
         Route::get('/admin/athletes/{athlete}', [AdminDashboardController::class, 'show'])->name('admin.athletes.show');
         Route::post('/admin/athletes/{athlete}/guardians', [AdminDashboardController::class, 'storeGuardian'])->name('admin.athletes.guardians.store');
+        Route::post('/admin/athletes/{athlete}/guardians/attach', [AdminDashboardController::class, 'attachGuardian'])->name('admin.athletes.guardians.attach');
         Route::patch('/admin/athletes/{athlete}/guardians/{guardian}', [AdminDashboardController::class, 'updateGuardian'])->name('admin.athletes.guardians.update');
         Route::patch('/admin/athletes/{athlete}/inventory', [AdminDashboardController::class, 'updateInventory'])->name('admin.athletes.inventory.update');
         Route::get('/admin/medical-certificates', [MedicalCertificatesController::class, 'index'])->name('admin.medical-certificates');
@@ -157,6 +159,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
 
         Route::get('/admin/schedule', [ScheduleController::class, 'index'])->name('admin.schedule');
         Route::post('/admin/schedule', [ScheduleController::class, 'store'])->name('admin.schedule.store');
+        Route::post('/admin/schedule/duplicate-day', [ScheduleController::class, 'duplicateDay'])->name('admin.schedule.duplicate-day');
         Route::patch('/admin/schedule/{schedule}', [ScheduleController::class, 'update'])->name('admin.schedule.update');
         Route::post('/admin/schedule/{schedule}/cancel', [ScheduleController::class, 'cancel'])->name('admin.schedule.cancel');
         Route::get('/admin/locations', [LocationController::class, 'index'])->name('admin.locations');
@@ -180,6 +183,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::get('/admin/portfolio/export/athlete-pdf', [PortfolioController::class, 'exportAthletePdf'])->name('admin.portfolio.export.athlete.pdf');
 
         Route::get('/admin/reports', [ReportController::class, 'index'])->name('admin.reports');
+        Route::get('/admin/reports/profit', [ReportController::class, 'profit'])->name('admin.reports.profit');
+        Route::get('/admin/reports/profit/export', [ReportController::class, 'exportProfit'])->name('admin.reports.profit.export');
         Route::get('/admin/reports/athletes/export', [ReportController::class, 'exportAthletes'])->name('admin.reports.athletes');
         Route::get('/admin/reports/events/export', [ReportController::class, 'exportEvents'])->name('admin.reports.events');
 

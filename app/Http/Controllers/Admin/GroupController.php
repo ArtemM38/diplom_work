@@ -7,7 +7,9 @@ use App\Models\Group;
 use App\Models\Athlete;
 use App\Models\AthleteFinance;
 use App\Support\AthletePricing;
+use App\Enums\GroupType;
 use App\Support\FormValidator;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -54,7 +56,7 @@ class GroupController extends Controller
         abort_unless($request->user() && (! $request->user()->hasRole('accountant') || $request->user()->hasAnyRole(['admin', 'coach'])), 403);
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'type' => 'required|string|max:100',
+            'type' => ['required', Rule::in(GroupType::values())],
             'tariff_amount' => 'required|numeric|min:0',
         ]);
 
@@ -136,7 +138,7 @@ class GroupController extends Controller
 
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'type' => 'required|string|max:100',
+            'type' => ['required', Rule::in(GroupType::values())],
             'tariff_amount' => 'required|numeric|min:0',
             'status' => 'required|in:active,inactive,archived',
         ]);

@@ -21,7 +21,7 @@ class AttendanceController extends Controller
     public function show(Schedule $schedule)
     {
         if (! ScheduleAccess::canMarkAttendance($schedule)) {
-            return redirect()->route('admin.schedule')->with('error', 'Отметку можно ставить не ранее чем за 10 минут до начала тренировки.');
+            return redirect()->route('admin.schedule')->with('error', 'Нельзя ставить отметки для отменённой тренировки.');
         }
 
         $schedule->load(['group.athletes', 'attendances']);
@@ -41,7 +41,7 @@ class AttendanceController extends Controller
         abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
 
         if (! ScheduleAccess::canMarkAttendance($schedule)) {
-            return redirect()->route('admin.schedule')->with('error', 'Отметку можно сохранять не ранее чем за 10 минут до начала тренировки.');
+            return redirect()->route('admin.schedule')->with('error', 'Нельзя сохранять отметки для отменённой тренировки.');
         }
 
         $validated = $request->validate(

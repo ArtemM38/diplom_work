@@ -29,14 +29,27 @@ class AthleteController extends Controller
         $prefilledName = $user->hasRole('athlete') ? FullNameParser::parse($user->name) : null;
         $guardian = $user->guardian;
 
-        return Inertia::render('Athlete/Create', [
-            'ranks' => Rank::all(),
-            'referee_categories' => RefereeCategory::all(),
-            'existingGuardians' => Guardian::all(),
+        return Inertia::render('Athlete/Create', array_merge($this->createFormProps($user), [
             'isParentRegistering' => $user->hasRole('guardian'),
             'prefilledName' => $prefilledName,
             'guardianRelation' => $guardian?->relation ?? '',
-        ]);
+        ]));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function createFormProps(?\App\Models\User $user = null): array
+    {
+        $user ??= Auth::user();
+        $canAssignGuardian = $user?->hasRole('admin') ?? false;
+
+        return [
+            'ranks' => Rank::all(),
+            'referee_categories' => RefereeCategory::all(),
+            'existingGuardians' => $canAssignGuardian ? Guardian::orderBy('full_name')->get() : [],
+            'canAssignGuardian' => $canAssignGuardian,
+        ];
     }
 
     public function store(Request $request)
@@ -91,13 +104,8 @@ class AthleteController extends Controller
 
             $athlete = Athlete::create($athleteData);
 
-            if ($request->guardian_id) {
-                $athlete->guardians()->syncWithoutDetaching([$request->guardian_id]);
-            } elseif ($user->hasRole('guardian')) {
-                $guardian = $user->guardian;
-                if ($guardian) {
-                    $athlete->guardians()->syncWithoutDetaching([$guardian->id]);
-                }
+            if ($user->hasRole('admin') && $request->guardian_id) {
+                $athlete->guardians()->syncWithoutDetaching([(int) $request->guardian_id]);
             }
 
             if (!empty($validated['ranks'])) {
@@ -169,10 +177,7 @@ class AthleteController extends Controller
 
         abort_unless($canEdit, 403);
 
-        return Inertia::render('Athlete/Create', [
-            'ranks' => Rank::all(),
-            'referee_categories' => RefereeCategory::all(),
-            'existingGuardians' => Guardian::all(),
+        return Inertia::render('Athlete/Create', array_merge($this->createFormProps($user), [
             'isParentRegistering' => $user?->hasRole('guardian'),
             'editingAthlete' => $athlete->load(['rankHistories', 'refereeHistories', 'inventory', 'documents']),
             'submitRoute' => route('athlete.update', $athlete),
@@ -180,7 +185,7 @@ class AthleteController extends Controller
             'cancelRoute' => $user?->hasRole('admin')
                 ? route('admin.athletes.show', $athlete)
                 : route('profile.edit'),
-        ]);
+        ]));
     }
 
     public function update(Request $request, Athlete $athlete)
@@ -238,8 +243,8 @@ class AthleteController extends Controller
 
             $athlete->update($athleteData);
 
-            if ($request->guardian_id) {
-                $athlete->guardians()->syncWithoutDetaching([$request->guardian_id]);
+            if ($user->hasRole('admin') && $request->guardian_id) {
+                $athlete->guardians()->syncWithoutDetaching([(int) $request->guardian_id]);
             }
 
             $athlete->rankHistories()->delete();
@@ -336,6 +341,8 @@ class AthleteController extends Controller
 
     public function searchAthletesForGuardian(Request $request)
     {
+        abort_unless($request->user()?->hasRole('admin'), 403);
+
         $search = trim((string) $request->query('q', ''));
 
         $athletes = Athlete::query()
@@ -367,28 +374,9 @@ class AthleteController extends Controller
 
     public function attachAthleteToGuardian(Request $request)
     {
-        $user = Auth::user();
-        abort_unless($user?->hasRole('guardian') && $user->guardian, 403);
+        abort_unless($request->user()?->hasRole('admin'), 403);
 
-        $validated = FormValidator::validate($request, [
-            'athlete_id' => 'required|integer|exists:athletes,id',
-        ], [
-            'athlete_id.required' => 'Выберите спортсмена из списка.',
-        ]);
-
-        $athlete = Athlete::query()
-            ->whereNotNull('user_id')
-            ->find($validated['athlete_id']);
-
-        if (! $athlete) {
-            return back()->withErrors([
-                'athlete_id' => 'Можно привязать только спортсмена с зарегистрированным аккаунтом.',
-            ]);
-        }
-
-        $user->guardian->athletes()->syncWithoutDetaching([$athlete->id]);
-
-        return redirect()->route('dashboard')->with('success', 'Спортсмен успешно привязан.');
+        return back()->with('info', 'Привязку спортсмена к представителю выполняет администратор в карточке спортсмена.');
     }
 
     /**
@@ -398,35 +386,17 @@ class AthleteController extends Controller
     {
         $user = Auth::user();
 
-        if ($user->guardian && $user->guardian->athletes()->exists()) {
+        if ($user->guardian) {
             return redirect()->route('dashboard');
         }
-
-        $linkLater = $request->boolean('link_later');
 
         $validated = FormValidator::validate($request, [
             'full_name' => 'required|string|max:255',
             'phone' => 'required|regex:/^\+7 \(\d{3}\) \d{3}-\d{2}-\d{2}$/',
             'relation' => 'required|string|max:255',
-            'athlete_id' => $linkLater ? 'nullable|integer|exists:athletes,id' : 'required|integer|exists:athletes,id',
-            'link_later' => 'sometimes|boolean',
         ], [
             'phone.regex' => 'Телефон укажите в формате +7 (999) 999-99-99.',
-            'athlete_id.required' => 'Выберите спортсмена из списка зарегистрированных аккаунтов.',
         ]);
-
-        $athlete = null;
-        if (! empty($validated['athlete_id'])) {
-            $athlete = Athlete::query()
-                ->whereNotNull('user_id')
-                ->find($validated['athlete_id']);
-
-            if (! $athlete) {
-                return back()->withErrors([
-                    'athlete_id' => 'Можно привязать только спортсмена с зарегистрированным аккаунтом.',
-                ]);
-            }
-        }
 
         $guardian = $user->guardian;
 
@@ -445,20 +415,12 @@ class AthleteController extends Controller
             ]);
         }
 
-        if ($athlete) {
-            $guardian->athletes()->syncWithoutDetaching([$athlete->id]);
-        }
-
         $user->update(['name' => $validated['full_name']]);
 
-        if ($linkLater || ! $athlete) {
-            return redirect()->route('dashboard')->with(
-                'info',
-                'Профиль родителя сохранён. Когда ребёнок зарегистрируется, привяжите его в личном кабинете.'
-            );
-        }
-
-        return redirect()->route('dashboard')->with('success', 'Профиль родителя создан, спортсмен привязан.');
+        return redirect()->route('dashboard')->with(
+            'success',
+            'Профиль родителя сохранён. Привязку к спортсмену выполнит администратор.'
+        );
     }
 
     /**

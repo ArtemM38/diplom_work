@@ -10,6 +10,7 @@ class AthleteBalanceHistory extends Model
         'athlete_id',
         'schedule_id',
         'attendance_id',
+        'event_participant_id',
         'change_amount',
         'balance_before',
         'balance_after',

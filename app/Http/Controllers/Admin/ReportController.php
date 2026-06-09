@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\EventParticipant;
 use App\Models\Group;
 use App\Models\Rank;
+use App\Support\ProfitReport;
 use App\Support\ReportMeta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -50,6 +51,62 @@ class ReportController extends Controller
             'athletes' => $athletes,
             'filters' => $filters,
         ]);
+    }
+
+    public function profit(Request $request)
+    {
+        $filters = $this->readProfitFilters($request);
+        $report = ProfitReport::build($filters);
+        $options = ProfitReport::filterOptions();
+
+        return Inertia::render('Admin/Reports/Profit', [
+            'filters' => $filters,
+            'report' => $report,
+            'groups' => $options['groups'],
+            'coaches' => $options['coaches'],
+            'athletes' => $options['athletes'],
+        ]);
+    }
+
+    public function exportProfit(Request $request)
+    {
+        $validated = $request->validate([
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+            'group_id' => 'nullable|exists:groups,id',
+            'coach_id' => 'nullable|exists:users,id',
+            'athlete_id' => 'nullable|exists:athletes,id',
+        ]);
+
+        $report = ProfitReport::build($validated);
+        $rows = $report['rows'];
+
+        if ($request->string('format')->toString() === 'pdf') {
+            $pdf = Pdf::loadView('pdf.profit-report', array_merge([
+                'rows' => $rows,
+                'filters' => $validated,
+                'total_profit' => $report['total_profit'],
+                'by_source' => $report['by_source'],
+                'operations_count' => $report['operations_count'],
+            ], ReportMeta::forExport()))->setPaper('a4', 'landscape');
+
+            return $pdf->download('profit-report-' . now()->format('Ymd-His') . '.pdf');
+        }
+
+        return $this->streamCsv(
+            ['Дата', 'Спортсмен', 'Сумма (₽)', 'Источник', 'Группа', 'Тренер', 'Основание'],
+            $rows,
+            fn ($row) => [
+                $row['date'],
+                $row['athlete_name'],
+                (string) $row['amount'],
+                $row['source_label'],
+                $row['group'] ?? '',
+                $row['coach'] ?? '',
+                $row['reason'] ?? '',
+            ],
+            'profit-report'
+        );
     }
 
     public function exportAthletes(Request $request)
@@ -201,6 +258,20 @@ class ReportController extends Controller
         }
 
         return $rows;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readProfitFilters(Request $request): array
+    {
+        return [
+            'date_from' => $request->string('date_from')->toString() ?: now()->startOfMonth()->toDateString(),
+            'date_to' => $request->string('date_to')->toString() ?: now()->toDateString(),
+            'group_id' => $request->input('group_id'),
+            'coach_id' => $request->input('coach_id'),
+            'athlete_id' => $request->input('athlete_id'),
+        ];
     }
 
     /**

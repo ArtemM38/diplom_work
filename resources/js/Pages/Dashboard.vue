@@ -1,7 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateInput from '@/Components/DateInput.vue';
-import GuardianLinkAthlete from '@/Components/GuardianLinkAthlete.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 
@@ -68,7 +67,12 @@ watch([from, to, groupId], () => {
                     </div>
                 </div>
 
-                <GuardianLinkAthlete v-if="!guardianAthletes?.length" />
+                <div v-if="!guardianAthletes?.length" class="bg-amber-50 border border-amber-100 rounded-2xl p-6 text-sm text-amber-900">
+                    <p class="font-semibold">Спортсмен ещё не привязан</p>
+                    <p class="mt-1 text-amber-800">
+                        Обратитесь к администратору клуба — он привяжет ваш профиль к карточке ребёнка после регистрации спортсмена.
+                    </p>
+                </div>
 
                 <div v-for="child in guardianAthletes" :key="child.id" class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100">
                     <div class="p-6 flex flex-col md:flex-row md:items-center gap-6">

@@ -89,8 +89,6 @@ const submit = () => {
     });
 };
 
-const canMarkAttendance = (schedule) => schedule.can_mark_attendance === true;
-
 const canCancelSchedule = (schedule) => schedule.can_cancel === true && !schedule.is_cancelled;
 
 const startEdit = (schedule) => {
@@ -156,6 +154,78 @@ const schedulesForDay = computed(() =>
         .slice()
         .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
 );
+
+const copyableSchedulesCount = computed(() =>
+    schedulesForDay.value.filter((s) => !s.is_cancelled).length
+);
+
+const showCopyDayModal = ref(false);
+const copyCalendarMonth = ref(dayjs());
+const copyTargetDates = ref([]);
+
+const copyDayForm = useForm({
+    source_date: '',
+    target_dates: [],
+});
+
+const copyCalendarDays = computed(() => {
+    const startOfMonth = copyCalendarMonth.value.startOf('month');
+    const endOfMonth = copyCalendarMonth.value.endOf('month');
+    const days = [];
+    const offset = startOfMonth.day() === 0 ? 6 : startOfMonth.day() - 1;
+
+    for (let i = 0; i < offset; i++) {
+        days.push(null);
+    }
+
+    for (let i = 1; i <= endOfMonth.date(); i++) {
+        days.push(startOfMonth.date(i).format('YYYY-MM-DD'));
+    }
+
+    return days;
+});
+
+const openCopyDayModal = () => {
+    copyTargetDates.value = [];
+    copyDayForm.source_date = selectedDate.value;
+    copyDayForm.clearErrors();
+    copyCalendarMonth.value = dayjs(selectedDate.value);
+    showCopyDayModal.value = true;
+};
+
+const closeCopyDayModal = () => {
+    showCopyDayModal.value = false;
+    copyTargetDates.value = [];
+    copyDayForm.reset();
+};
+
+const toggleCopyTarget = (date) => {
+    if (!date || date === selectedDate.value) {
+        return;
+    }
+
+    const index = copyTargetDates.value.indexOf(date);
+    if (index >= 0) {
+        copyTargetDates.value.splice(index, 1);
+    } else {
+        copyTargetDates.value.push(date);
+    }
+};
+
+const isCopyTargetSelected = (date) => copyTargetDates.value.includes(date);
+
+const sortedCopyTargets = computed(() =>
+    [...copyTargetDates.value].sort((a, b) => a.localeCompare(b))
+);
+
+const submitCopyDay = () => {
+    copyDayForm.source_date = selectedDate.value;
+    copyDayForm.target_dates = [...copyTargetDates.value];
+
+    copyDayForm.post(route('admin.schedule.duplicate-day'), {
+        onSuccess: () => closeCopyDayModal(),
+    });
+};
 </script>
 
 <template>
@@ -278,9 +348,19 @@ const schedulesForDay = computed(() =>
 
                     <!-- Список занятий в выбранный день -->
                     <div class="mt-8 border-t pt-6">
-                        <h4 class="text-sm font-bold text-slate-700 mb-4">Занятия на {{
-                            dayjs(selectedDate).format('DD.MM') }}:
-                        </h4>
+                        <div class="flex items-center justify-between gap-2 mb-4">
+                            <h4 class="text-sm font-bold text-slate-700">
+                                Занятия на {{ dayjs(selectedDate).format('DD.MM') }}:
+                            </h4>
+                            <button
+                                v-if="copyableSchedulesCount > 0"
+                                type="button"
+                                class="shrink-0 px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 text-xs font-semibold hover:bg-indigo-50"
+                                @click="openCopyDayModal"
+                            >
+                                Скопировать день
+                            </button>
+                        </div>
 
                         <div v-for="s in schedulesForDay" :key="s.id"
                             :class="[
@@ -304,13 +384,10 @@ const schedulesForDay = computed(() =>
                             </div>
 
                             <div class="flex items-center gap-2 ml-2">
-                                <Link v-if="!s.is_cancelled && canMarkAttendance(s)" :href="route('admin.attendance.show', s.id)"
+                                <Link v-if="!s.is_cancelled" :href="route('admin.attendance.show', s.id)"
                                     class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-600 hover:text-white transition font-bold">
                                     Журнал
                                 </Link>
-                                <span v-else-if="!s.is_cancelled" class="text-[10px] px-2 py-1 rounded bg-gray-100 text-gray-400 font-semibold">
-                                    Журнал с −10 мин
-                                </span>
 
                                 <button v-if="!s.is_cancelled" @click="startEdit(s)" class="px-2 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-700 text-xs font-medium hover:bg-indigo-50">Изменить</button>
 
@@ -384,6 +461,80 @@ const schedulesForDay = computed(() =>
                             Сохранить
                         </button>
                         <button type="button" @click="cancelEdit" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50">
+                            Отмена
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div
+            v-if="showCopyDayModal"
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+            @click.self="closeCopyDayModal"
+        >
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-600 to-indigo-500 px-6 py-4 text-white">
+                    <h3 class="text-lg font-bold">Скопировать день</h3>
+                    <p class="text-indigo-100 text-sm mt-1">
+                        Тренировки с {{ dayjs(selectedDate).format('DD.MM.YYYY') }} ({{ copyableSchedulesCount }}) будут созданы на выбранные даты
+                    </p>
+                </div>
+
+                <form @submit.prevent="submitCopyDay" class="p-6 space-y-4">
+                    <p v-if="copyDayForm.errors.source_date" class="text-red-600 text-sm">{{ copyDayForm.errors.source_date }}</p>
+                    <p v-if="copyDayForm.errors.target_dates" class="text-red-600 text-sm">{{ copyDayForm.errors.target_dates }}</p>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-3">
+                            <p class="text-sm font-semibold text-slate-800">Выберите даты назначения</p>
+                            <div class="flex gap-1">
+                                <button type="button" class="p-1.5 border rounded-lg hover:bg-slate-50" @click="copyCalendarMonth = copyCalendarMonth.subtract(1, 'month')">‹</button>
+                                <button type="button" class="p-1.5 border rounded-lg hover:bg-slate-50" @click="copyCalendarMonth = copyCalendarMonth.add(1, 'month')">›</button>
+                            </div>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-2 capitalize">{{ copyCalendarMonth.format('MMMM YYYY') }}</p>
+
+                        <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1">
+                            <span v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']" :key="d">{{ d }}</span>
+                        </div>
+                        <div class="grid grid-cols-7 gap-1">
+                            <button
+                                v-for="(date, idx) in copyCalendarDays"
+                                :key="idx"
+                                type="button"
+                                :disabled="!date || date === selectedDate"
+                                :class="[
+                                    'min-h-9 rounded-lg text-xs font-medium transition border',
+                                    !date ? 'border-transparent cursor-default' : '',
+                                    date === selectedDate ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed' : '',
+                                    date && date !== selectedDate && isCopyTargetSelected(date) ? 'border-indigo-600 bg-indigo-600 text-white' : '',
+                                    date && date !== selectedDate && !isCopyTargetSelected(date) ? 'border-slate-200 hover:border-indigo-300 text-slate-700' : '',
+                                ]"
+                                @click="toggleCopyTarget(date)"
+                            >
+                                {{ date ? dayjs(date).date() : '' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="sortedCopyTargets.length" class="rounded-xl bg-indigo-50 border border-indigo-100 p-3">
+                        <p class="text-xs font-semibold text-indigo-900 mb-2">Выбрано дат: {{ sortedCopyTargets.length }}</p>
+                        <p class="text-xs text-indigo-800 break-words">
+                            {{ sortedCopyTargets.map((d) => dayjs(d).format('DD.MM.YYYY')).join(', ') }}
+                        </p>
+                    </div>
+                    <p v-else class="text-xs text-slate-500">Нажмите на даты в календаре, куда нужно скопировать тренировки.</p>
+
+                    <div class="flex gap-2 pt-2">
+                        <button
+                            type="submit"
+                            class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50"
+                            :disabled="copyDayForm.processing || !copyTargetDates.length"
+                        >
+                            Скопировать
+                        </button>
+                        <button type="button" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50" @click="closeCopyDayModal">
                             Отмена
                         </button>
                     </div>

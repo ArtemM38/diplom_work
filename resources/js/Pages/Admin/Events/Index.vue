@@ -80,6 +80,35 @@ const removeHost = (id) => {
 
 const statusLabel = (s) => (s === 'completed' ? 'Проведено' : 'Запланировано');
 const eventsList = () => props.events?.data ?? [];
+
+const showCitySuggestions = ref(false);
+const citySuggestions = ref([]);
+
+const fetchCitySuggestions = debounce(async (value) => {
+    if (!value || value.length < 2) {
+        citySuggestions.value = [];
+        return;
+    }
+    try {
+        const response = await fetch(`${route('address.suggest-city')}?query=${encodeURIComponent(value)}`);
+        const data = await response.json();
+        citySuggestions.value = data.suggestions || [];
+    } catch {
+        citySuggestions.value = [];
+    }
+}, 300);
+
+const onCityInput = (event) => {
+    hostForm.city = event.target.value;
+    showCitySuggestions.value = true;
+    fetchCitySuggestions(hostForm.city);
+};
+
+const pickCity = (value) => {
+    hostForm.city = value;
+    showCitySuggestions.value = false;
+    citySuggestions.value = [];
+};
 </script>
 
 <template>
@@ -165,7 +194,30 @@ const eventsList = () => props.events?.data ?? [];
                     <input v-model="hostForm.full_name" placeholder="ФИО" required class="border-gray-300 rounded-lg md:col-span-2" />
                     <DateInput v-model="hostForm.birth_date" label="Дата рождения ведущего" input-class="w-full border-gray-300 rounded-lg" />
                     <input v-model="hostForm.rank" placeholder="Спорт. разряд" class="border-gray-300 rounded-lg" />
-                    <input v-model="hostForm.city" placeholder="Город" class="border-gray-300 rounded-lg" />
+                    <div class="relative">
+                        <input
+                            :value="hostForm.city"
+                            placeholder="Город (DaData)"
+                            class="border-gray-300 rounded-lg w-full"
+                            autocomplete="off"
+                            @input="onCityInput"
+                            @focus="showCitySuggestions = true"
+                            @blur="setTimeout(() => (showCitySuggestions = false), 120)"
+                        />
+                        <ul
+                            v-if="showCitySuggestions && citySuggestions.length"
+                            class="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-auto text-sm"
+                        >
+                            <li
+                                v-for="(item, idx) in citySuggestions"
+                                :key="idx"
+                                class="px-3 py-2 hover:bg-indigo-50 cursor-pointer"
+                                @mousedown.prevent="pickCity(item.value)"
+                            >
+                                {{ item.value }}
+                            </li>
+                        </ul>
+                    </div>
                     <input v-model="hostForm.extra_info" placeholder="Доп. информация" class="border-gray-300 rounded-lg md:col-span-2" />
                     <button type="submit" class="bg-emerald-600 text-white rounded-lg px-3 text-sm font-medium">{{ hostForm.id ? 'Сохранить' : 'Добавить' }}</button>
                 </form>

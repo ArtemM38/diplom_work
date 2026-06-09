@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AvatarZoomable from '@/Components/AvatarZoomable.vue';
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -11,6 +11,7 @@ const props = defineProps({
     canEditAthlete: { type: Boolean, default: false },
     canEditGuardians: { type: Boolean, default: false },
     canManageInventory: { type: Boolean, default: false },
+    availableGuardians: { type: Array, default: () => [] },
 });
 
 const docTypeLabels = {
@@ -59,6 +60,22 @@ const saveGuardian = (guardianId) => {
         onSuccess: () => {
             editingGuardianId.value = null;
         },
+    });
+};
+
+const attachGuardianForm = useForm({
+    guardian_id: '',
+});
+
+const linkedGuardianIds = computed(() => (props.athlete.guardians || []).map((g) => g.id));
+
+const guardiansAvailableToAttach = computed(() =>
+    (props.availableGuardians || []).filter((g) => !linkedGuardianIds.value.includes(g.id)),
+);
+
+const attachGuardian = () => {
+    attachGuardianForm.post(route('admin.athletes.guardians.attach', props.athlete.id), {
+        onSuccess: () => attachGuardianForm.reset(),
     });
 };
 
@@ -167,9 +184,28 @@ const medicalStatus = computed(() => {
                 </div>
             </div>
 
-            <!-- Guardians (только просмотр и правка существующих) -->
+            <!-- Guardians -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-bold text-slate-800 mb-4">Законные представители</h2>
+
+                <form v-if="canEditGuardians" @submit.prevent="attachGuardian" class="rounded-xl border border-slate-200 p-4 space-y-3 mb-6 max-w-xl">
+                    <p class="text-sm font-semibold text-slate-800">Привязать законного представителя</p>
+                    <p class="text-xs text-slate-500">
+                        Представитель должен быть зарегистрирован в системе (роль «Родитель»).
+                    </p>
+                    <select v-model="attachGuardianForm.guardian_id" required class="w-full rounded-lg border-slate-300">
+                        <option value="">Выберите представителя</option>
+                        <option v-for="g in guardiansAvailableToAttach" :key="g.id" :value="g.id">
+                            {{ g.full_name }} · {{ g.relation }} · {{ g.phone || 'без телефона' }}
+                        </option>
+                    </select>
+                    <button type="submit" class="w-full rounded-lg bg-indigo-600 text-white py-2 text-sm font-medium" :disabled="attachGuardianForm.processing || !guardiansAvailableToAttach.length">
+                        Привязать
+                    </button>
+                    <p v-if="!guardiansAvailableToAttach.length" class="text-xs text-slate-500">
+                        Нет зарегистрированных представителей для привязки.
+                    </p>
+                </form>
 
                 <div v-if="!athlete.guardians?.length" class="text-slate-400 text-sm py-4 text-center">
                     Нет законных представителей

@@ -62,7 +62,6 @@ class ReportController extends Controller
         return Inertia::render('Admin/Reports/Profit', [
             'filters' => $filters,
             'report' => $report,
-            'groups' => $options['groups'],
             'coaches' => $options['coaches'],
             'athletes' => $options['athletes'],
         ]);
@@ -73,7 +72,6 @@ class ReportController extends Controller
         $validated = $request->validate([
             'date_from' => 'required|date',
             'date_to' => 'required|date|after_or_equal:date_from',
-            'group_id' => 'nullable|exists:groups,id',
             'coach_id' => 'nullable|exists:users,id',
             'athlete_id' => 'nullable|exists:athletes,id',
         ]);
@@ -268,7 +266,6 @@ class ReportController extends Controller
         return [
             'date_from' => $request->string('date_from')->toString() ?: now()->startOfMonth()->toDateString(),
             'date_to' => $request->string('date_to')->toString() ?: now()->toDateString(),
-            'group_id' => $request->input('group_id'),
             'coach_id' => $request->input('coach_id'),
             'athlete_id' => $request->input('athlete_id'),
         ];

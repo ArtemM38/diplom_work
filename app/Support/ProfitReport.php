@@ -3,14 +3,13 @@
 namespace App\Support;
 
 use App\Models\AthleteBalanceHistory;
-use App\Models\Group;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
 class ProfitReport
 {
     /**
-     * @param  array{date_from: string, date_to: string, group_id?: int|null, coach_id?: int|null, athlete_id?: int|null}  $filters
+     * @param  array{date_from: string, date_to: string, coach_id?: int|null, athlete_id?: int|null}  $filters
      * @return array{
      *     total_profit: int,
      *     operations_count: int,
@@ -34,14 +33,6 @@ class ProfitReport
 
         if (! empty($filters['athlete_id'])) {
             $query->where('athlete_id', (int) $filters['athlete_id']);
-        }
-
-        if (! empty($filters['group_id'])) {
-            $groupId = (int) $filters['group_id'];
-            $query->where(function ($q) use ($groupId) {
-                $q->whereHas('schedule', fn ($s) => $s->where('group_id', $groupId))
-                    ->orWhereHas('athlete.groups', fn ($g) => $g->where('groups.id', $groupId));
-            });
         }
 
         if (! empty($filters['coach_id'])) {
@@ -97,12 +88,11 @@ class ProfitReport
     }
 
     /**
-     * @return array{groups: \Illuminate\Support\Collection, coaches: \Illuminate\Support\Collection, athletes: \Illuminate\Support\Collection}
+     * @return array{coaches: \Illuminate\Support\Collection, athletes: \Illuminate\Support\Collection}
      */
     public static function filterOptions(): array
     {
         return [
-            'groups' => Group::visible()->orderBy('name')->get(['id', 'name']),
             'coaches' => User::withRole('coach')->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'athletes' => \App\Models\Athlete::query()
                 ->orderBy('last_name_nom')

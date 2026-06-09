@@ -7,14 +7,12 @@ import { ref } from 'vue';
 const props = defineProps({
     filters: Object,
     report: Object,
-    groups: Array,
     coaches: Array,
     athletes: Array,
 });
 
 const dateFrom = ref(props.filters?.date_from || '');
 const dateTo = ref(props.filters?.date_to || '');
-const groupId = ref(props.filters?.group_id || '');
 const coachId = ref(props.filters?.coach_id || '');
 const athleteId = ref(props.filters?.athlete_id || '');
 
@@ -24,7 +22,6 @@ const query = (extra = {}) => {
         date_to: dateTo.value,
         ...extra,
     };
-    if (groupId.value) params.group_id = groupId.value;
     if (coachId.value) params.coach_id = coachId.value;
     if (athleteId.value) params.athlete_id = athleteId.value;
     return params;
@@ -38,7 +35,6 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
-    groupId.value = '';
     coachId.value = '';
     athleteId.value = '';
     applyFilters();
@@ -71,13 +67,6 @@ const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} �
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     <DateInput v-model="dateFrom" label="Дата с" input-class="w-full rounded-lg" />
                     <DateInput v-model="dateTo" label="Дата по" input-class="w-full rounded-lg" />
-                    <div>
-                        <label class="text-xs text-slate-500">Группа</label>
-                        <select v-model="groupId" class="w-full border-gray-300 rounded-lg">
-                            <option value="">Все группы</option>
-                            <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-                        </select>
-                    </div>
                     <div>
                         <label class="text-xs text-slate-500">Тренер</label>
                         <select v-model="coachId" class="w-full border-gray-300 rounded-lg">

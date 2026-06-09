@@ -166,7 +166,7 @@ const resetFilters = () => {
                 <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
                     <h3 class="font-bold text-slate-800 mb-2">Финансовый отчёт</h3>
                     <p class="text-sm text-slate-500 mb-4">
-                        Общая прибыль за период, фильтры по группам, тренерам и спортсменам. Экспорт в CSV и PDF.
+                        Общая прибыль за период, фильтры по тренерам и спортсменам. Экспорт в CSV и PDF.
                     </p>
                     <Link
                         :href="route('admin.reports.profit')"

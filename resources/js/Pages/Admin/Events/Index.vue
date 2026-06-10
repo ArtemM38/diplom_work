@@ -20,8 +20,24 @@ const props = defineProps({
 });
 
 const search = ref(props.filters?.search || '');
+const dateFrom = ref(props.filters?.date_from || '');
+const dateTo = ref(props.filters?.date_to || '');
+const eventTypeId = ref(props.filters?.event_type_id || '');
+const eventLevelId = ref(props.filters?.event_level_id || '');
 const showCreate = ref(false);
 const showHosts = ref(false);
+
+const filterParams = () => ({
+    search: search.value || null,
+    date_from: dateFrom.value || null,
+    date_to: dateTo.value || null,
+    event_type_id: eventTypeId.value || null,
+    event_level_id: eventLevelId.value || null,
+});
+
+const applyFilters = () => {
+    router.get(route('admin.events'), filterParams(), { preserveState: true, replace: true });
+};
 
 const form = useForm({
     name: '',
@@ -31,6 +47,7 @@ const form = useForm({
     event_place: '',
     event_host_id: '',
     event_date: '',
+    event_date_to: '',
     status: 'planned',
 });
 
@@ -43,9 +60,7 @@ const hostForm = useForm({
     extra_info: '',
 });
 
-watch(search, debounce(() => {
-    router.get(route('admin.events'), { search: search.value || null }, { preserveState: true, replace: true });
-}, 300));
+watch(search, debounce(applyFilters, 300));
 
 const submitEvent = () => {
     form.post(route('admin.events.store'), {
@@ -117,9 +132,28 @@ const pickCity = (value) => {
         <template #header>Мероприятия</template>
 
         <div class="space-y-6">
-            <div class="flex flex-wrap gap-3 items-center justify-between">
-                <input v-model="search" type="text" placeholder="Поиск мероприятия..." class="border-gray-300 rounded-lg w-full sm:max-w-xs" />
-                <div class="flex gap-2">
+            <div class="flex flex-wrap gap-3 items-end justify-between">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-1 min-w-0">
+                    <input v-model="search" type="text" placeholder="Поиск мероприятия..." class="border-gray-300 rounded-lg w-full" />
+                    <DateInput v-model="dateFrom" label="Дата с" input-class="w-full border-gray-300 rounded-lg" />
+                    <DateInput v-model="dateTo" label="Дата по" input-class="w-full border-gray-300 rounded-lg" />
+                    <div>
+                        <label class="text-xs text-slate-500">Тип</label>
+                        <select v-model="eventTypeId" class="w-full border-gray-300 rounded-lg" @change="applyFilters">
+                            <option value="">Все</option>
+                            <option v-for="t in eventTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Уровень</label>
+                        <select v-model="eventLevelId" class="w-full border-gray-300 rounded-lg" @change="applyFilters">
+                            <option value="">Все</option>
+                            <option v-for="l in eventLevels" :key="l.id" :value="l.id">{{ l.name }}</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" @click="applyFilters" class="px-4 py-2 border rounded-lg text-sm shrink-0">Применить</button>
+                <div class="flex gap-2 shrink-0">
                     <button v-if="!readOnly" type="button" @click="showHosts = !showHosts" class="px-4 py-2 border rounded-lg text-sm">
                         {{ showHosts ? 'Скрыть ведущих' : 'Ведущие' }}
                     </button>
@@ -142,7 +176,7 @@ const pickCity = (value) => {
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Стоимость (₽) *</label>
-                        <input v-model="form.cost" type="number" min="0" step="0.01" required :class="fieldClass(form.errors, 'cost', 'w-full rounded-lg')" />
+                        <input v-model="form.cost" type="number" min="0" step="1" required :class="fieldClass(form.errors, 'cost', 'w-full rounded-lg')" />
                         <InputError :message="form.errors.cost" />
                     </div>
                     <div>
@@ -174,13 +208,24 @@ const pickCity = (value) => {
                     <div>
                         <DateInput
                             v-model="form.event_date"
-                            label="Дата мероприятия *"
+                            label="Дата начала *"
                             required
                             :errors="form.errors"
                             error-key="event_date"
                             :error="form.errors.event_date"
                             input-class="w-full rounded-lg"
                         />
+                    </div>
+                    <div>
+                        <DateInput
+                            v-model="form.event_date_to"
+                            label="Дата окончания"
+                            :errors="form.errors"
+                            error-key="event_date_to"
+                            :error="form.errors.event_date_to"
+                            input-class="w-full rounded-lg"
+                        />
+                        <p class="text-[10px] text-slate-400 mt-1">Оставьте пустым для однодневного мероприятия</p>
                     </div>
                     <div class="md:col-span-3">
                         <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="form.processing">Создать</button>
@@ -254,7 +299,7 @@ const pickCity = (value) => {
                             <td class="px-4 py-3 font-medium">{{ ev.name }}</td>
                             <td class="px-4 py-3">{{ ev.event_type?.name }}</td>
                             <td class="px-4 py-3">{{ ev.event_level?.name || '—' }}</td>
-                            <td class="px-4 py-3">{{ ev.event_date_display || formatDisplayDate(ev.event_date) || ev.event_period || '—' }}</td>
+                            <td class="px-4 py-3">{{ ev.event_date_range_display || ev.event_date_display || formatDisplayDate(ev.event_date) || '—' }}</td>
                             <td class="px-4 py-3">{{ ev.participants_count }}</td>
                             <td class="px-4 py-3">
                                 <span class="text-xs px-2 py-0.5 rounded-full" :class="ev.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'">

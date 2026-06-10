@@ -21,6 +21,7 @@ const props = defineProps({
 const athleteSearch = ref(props.filters?.athlete_search || '');
 const editingEvent = ref(false);
 const attachAthleteId = ref('');
+const selectedAthletePreview = ref(null);
 
 const eventForm = useForm({
     name: props.event.name,
@@ -30,9 +31,18 @@ const eventForm = useForm({
     event_place: props.event.event_place ?? '',
     event_host_id: props.event.event_host_id ?? '',
     event_date: props.event.event_date ?? '',
-    event_period: props.event.event_period ?? '',
+    event_date_to: props.event.event_date_to ?? '',
     status: props.event.status ?? 'planned',
 });
+
+const attendanceForm = useForm({
+    participants: (props.participants || []).map((p) => ({
+        id: p.id,
+        attendance_status: p.attendance_status ?? '',
+    })),
+});
+
+const attendanceCertificates = ref({});
 
 const resultsForm = useForm({
     status: props.event.status ?? 'planned',
@@ -56,6 +66,10 @@ watch(() => props.participants, (list) => {
         result_rank_id: p.result_rank_id ?? '',
         certificate_id: p.certificate_id ?? '',
         result_description: p.result_description ?? '',
+    }));
+    attendanceForm.participants = (list || []).map((p) => ({
+        id: p.id,
+        attendance_status: p.attendance_status ?? '',
     }));
 }, { deep: true });
 
@@ -108,6 +122,39 @@ const saveResults = () => {
 
 const onEvidenceChange = (participantId, event) => {
     evidenceFiles.value[participantId] = event.target.files?.[0] ?? null;
+};
+
+const onAttendanceCertificateChange = (participantId, event) => {
+    attendanceCertificates.value[participantId] = event.target.files?.[0] ?? null;
+};
+
+const saveAttendance = () => {
+    const formData = new FormData();
+    attendanceForm.participants.forEach((p, index) => {
+        formData.append(`participants[${index}][id]`, p.id);
+        formData.append(`participants[${index}][attendance_status]`, p.attendance_status ?? '');
+        const file = attendanceCertificates.value[p.id];
+        if (file) {
+            formData.append(`certificates[${p.id}]`, file);
+        }
+    });
+    formData.append('_method', 'patch');
+    router.post(route('admin.events.attendance.update', props.event.id), formData, {
+        forceFormData: true,
+        preserveScroll: true,
+    });
+};
+
+const selectAthleteForAttach = (athlete) => {
+    attachAthleteId.value = athlete.id;
+    selectedAthletePreview.value = athlete;
+};
+
+const attendanceStatusLabel = (status) => {
+    if (status === 'Я') return 'Был';
+    if (status === 'Н') return 'Не был';
+    if (status === 'У') return 'Уваж. причина';
+    return '—';
 };
 
 const medicalClass = (status) => {
@@ -169,7 +216,7 @@ const participantIndex = computed(() => {
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Стоимость</label>
-                        <input v-model="eventForm.cost" type="number" min="0" step="0.01" class="w-full border-gray-300 rounded-lg" />
+                        <input v-model="eventForm.cost" type="number" min="0" step="1" class="w-full border-gray-300 rounded-lg" />
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Тип</label>
@@ -196,8 +243,10 @@ const participantIndex = computed(() => {
                         <input v-model="eventForm.event_place" class="w-full border-gray-300 rounded-lg" />
                     </div>
                     <div>
-                        <label class="text-xs text-slate-500">Дата</label>
-                        <DateInput v-model="eventForm.event_date" label="Дата мероприятия" input-class="w-full border-gray-300 rounded-lg" />
+                        <DateInput v-model="eventForm.event_date" label="Дата начала" input-class="w-full border-gray-300 rounded-lg" />
+                    </div>
+                    <div>
+                        <DateInput v-model="eventForm.event_date_to" label="Дата окончания" input-class="w-full border-gray-300 rounded-lg" />
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Статус</label>
@@ -215,7 +264,7 @@ const participantIndex = computed(() => {
                     <div><dt class="text-slate-500">Тип</dt><dd class="font-medium">{{ event.event_type?.name }}</dd></div>
                     <div><dt class="text-slate-500">Уровень</dt><dd class="font-medium">{{ event.event_level?.name || '—' }}</dd></div>
                     <div><dt class="text-slate-500">Стоимость</dt><dd class="font-medium">{{ event.cost }} ₽</dd></div>
-                    <div><dt class="text-slate-500">Дата</dt><dd class="font-medium">{{ event.event_date_display || formatDisplayDate(event.event_date) || event.event_period || '—' }}</dd></div>
+                    <div><dt class="text-slate-500">Дата</dt><dd class="font-medium">{{ event.event_date_range_display || event.event_date_display || formatDisplayDate(event.event_date) || '—' }}</dd></div>
                     <div><dt class="text-slate-500">Место</dt><dd class="font-medium">{{ event.event_place || '—' }}</dd></div>
                     <div><dt class="text-slate-500">Ведущий</dt><dd class="font-medium">{{ event.event_host?.full_name || '—' }}</dd></div>
                 </dl>
@@ -229,7 +278,7 @@ const participantIndex = computed(() => {
                         v-for="a in availableAthletes"
                         :key="a.id"
                         type="button"
-                        @click="attachAthleteId = a.id"
+                        @click="selectAthleteForAttach(a)"
                         class="text-left px-3 py-2 rounded-lg border text-sm transition"
                         :class="[
                             attachAthleteId === a.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200',
@@ -240,9 +289,71 @@ const participantIndex = computed(() => {
                         <span class="block text-[10px] mt-0.5" :class="medicalClass(a.medical_status)">{{ medicalText({ medical_status: a.medical_status, medical_days_left: a.medical_days_left }) }}</span>
                     </button>
                 </div>
+                <div v-if="selectedAthletePreview" class="mb-4 p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm space-y-3">
+                    <p class="font-semibold">{{ selectedAthletePreview.full_name }}</p>
+                    <div v-if="selectedAthletePreview.inventory_items?.length">
+                        <p class="text-xs text-slate-500 mb-1">Инвентарь</p>
+                        <p>{{ selectedAthletePreview.inventory_items.join(', ') }}</p>
+                    </div>
+                    <p v-else class="text-slate-400 text-xs">Инвентарь не заполнен</p>
+                    <div v-if="selectedAthletePreview.documents?.length">
+                        <p class="text-xs text-slate-500 mb-1">Документы</p>
+                        <ul class="space-y-1">
+                            <li v-for="(doc, idx) in selectedAthletePreview.documents" :key="idx">
+                                {{ doc.label }}
+                                <span v-if="doc.expiry_date" class="text-slate-400">до {{ doc.expiry_date }}</span>
+                                <a v-if="doc.file_path" :href="`/storage/${doc.file_path}`" target="_blank" class="text-indigo-600 ml-2 text-xs">файл</a>
+                            </li>
+                        </ul>
+                    </div>
+                    <p v-else class="text-slate-400 text-xs">Документы не загружены</p>
+                </div>
                 <button type="button" :disabled="!attachAthleteId" @click="attachAthlete" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50">
                     Добавить в мероприятие
                 </button>
+            </div>
+
+            <div v-if="participants?.length" class="bg-white p-6 rounded-xl border border-slate-100">
+                <h3 class="font-bold mb-4">Посещаемость на мероприятии</h3>
+                <p class="text-xs text-slate-500 mb-4">При отметках «Был» или «Не был» (без уважительной причины) стоимость мероприятия списывается с баланса спортсмена. Для «Уваж. причина» приложите справку — списание отменяется.</p>
+                <form @submit.prevent="saveAttendance" class="space-y-3">
+                    <div
+                        v-for="(row, idx) in attendanceForm.participants"
+                        :key="`att-${row.id}`"
+                        class="p-4 rounded-xl border border-slate-200"
+                    >
+                        <div class="flex flex-wrap justify-between gap-2 mb-2">
+                            <span class="font-semibold">{{ participantIndex[row.id]?.full_name }}</span>
+                            <span v-if="participantIndex[row.id]?.attendance_status" class="text-xs text-slate-500">
+                                Текущая: {{ attendanceStatusLabel(participantIndex[row.id]?.attendance_status) }}
+                            </span>
+                        </div>
+                        <div class="grid md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="text-xs text-slate-500">Отметка</label>
+                                <select v-model="row.attendance_status" :disabled="readOnly" class="w-full border-gray-300 rounded-lg text-sm">
+                                    <option value="">—</option>
+                                    <option value="Я">Был (Я)</option>
+                                    <option value="Н">Не был (Н)</option>
+                                    <option value="У">Уваж. причина (У)</option>
+                                </select>
+                            </div>
+                            <div v-if="row.attendance_status === 'У' && !readOnly">
+                                <label class="text-xs text-slate-500">Справка</label>
+                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm w-full" @change="onAttendanceCertificateChange(row.id, $event)" />
+                                <a
+                                    v-if="participantIndex[row.id]?.excused_certificate"
+                                    :href="`/storage/${participantIndex[row.id].excused_certificate}`"
+                                    target="_blank"
+                                    class="text-xs text-indigo-600 block mt-1"
+                                >Текущая справка</a>
+                            </div>
+                        </div>
+                    </div>
+                    <button v-if="!readOnly" type="submit" class="bg-amber-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="attendanceForm.processing">
+                        Сохранить посещаемость
+                    </button>
+                </form>
             </div>
 
             <div class="bg-white p-6 rounded-xl border border-slate-100">

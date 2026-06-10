@@ -173,11 +173,11 @@ const medicalStatus = computed(() => {
                     <ul class="space-y-2 text-sm">
                         <li v-for="item in athlete.rank_histories" :key="`rank-${item.id}`" class="flex justify-between gap-2 border-b border-slate-50 pb-2">
                             <span>{{ item.rank?.name || '—' }}</span>
-                            <span class="text-slate-400">{{ item.assigned_at || '—' }}</span>
+                            <span class="text-slate-400">{{ item.assigned_at_display || item.assigned_at || '—' }}</span>
                         </li>
                         <li v-for="item in athlete.referee_histories" :key="`ref-${item.id}`" class="flex justify-between gap-2 border-b border-slate-50 pb-2">
                             <span>Судья: {{ item.referee_category?.name || '—' }}</span>
-                            <span class="text-slate-400">{{ item.assigned_at || '—' }}</span>
+                            <span class="text-slate-400">{{ item.assigned_at_display || item.assigned_at || '—' }}</span>
                         </li>
                         <li v-if="!athlete.rank_histories?.length && !athlete.referee_histories?.length" class="text-slate-400">Нет данных</li>
                     </ul>

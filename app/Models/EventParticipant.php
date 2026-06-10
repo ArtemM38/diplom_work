@@ -10,6 +10,8 @@ class EventParticipant extends Model
     protected $fillable = [
         'event_id',
         'athlete_id',
+        'attendance_status',
+        'excused_certificate',
         'result_label',
         'result_place',
         'result_rank_id',

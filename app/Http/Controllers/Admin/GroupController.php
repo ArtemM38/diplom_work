@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Group;
 use App\Models\Athlete;
 use App\Models\AthleteFinance;
+use App\Support\AdminPermissions;
 use App\Support\AthletePricing;
 use App\Enums\GroupType;
 use App\Support\FormValidator;
@@ -42,8 +43,8 @@ class GroupController extends Controller
 
         return Inertia::render('Admin/Groups/Index', [
             'groups' => $groups,
-            'canCreateGroups' => $user && (! $user->hasRole('accountant') || $user->hasAnyRole(['admin', 'coach'])),
-            'tariffOnlyMode' => $user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']),
+            'canCreateGroups' => AdminPermissions::canManageStructure($user),
+            'tariffOnlyMode' => AdminPermissions::canEditGroupTariffOnly($user),
             'filters' => [
                 'search' => $search,
                 'show_archived' => $showArchived,
@@ -53,7 +54,7 @@ class GroupController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless($request->user() && (! $request->user()->hasRole('accountant') || $request->user()->hasAnyRole(['admin', 'coach'])), 403);
+        abort_unless(AdminPermissions::canManageStructure($request->user()), 403);
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'type' => ['required', Rule::in(GroupType::values())],
@@ -97,7 +98,7 @@ class GroupController extends Controller
     public function attachAthlete(Request $request, Group $group)
     {
         $this->ensureGroupEditable($group);
-        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+        abort_unless(AdminPermissions::canManageStructure($request->user()), 403);
         FormValidator::validate($request, [
             'athlete_id' => 'required|exists:athletes,id',
         ]);
@@ -117,7 +118,7 @@ class GroupController extends Controller
     public function detachAthlete(Group $group, $athleteId)
     {
         $this->ensureGroupEditable($group);
-        abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
+        abort_unless(AdminPermissions::canManageStructure(request()->user()), 403);
         $group->athletes()->detach($athleteId);
 
         return redirect()->back()->with('success', 'Спортсмен исключен из группы');
@@ -127,7 +128,7 @@ class GroupController extends Controller
     {
         $this->ensureGroupEditable($group);
 
-        if ($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach'])) {
+        if (AdminPermissions::canEditGroupTariffOnly($request->user())) {
             $validated = FormValidator::validate($request, [
                 'tariff_amount' => 'required|numeric|min:0',
             ]);
@@ -135,6 +136,8 @@ class GroupController extends Controller
 
             return redirect()->back()->with('success', 'Стоимость тренировки обновлена');
         }
+
+        abort_unless(AdminPermissions::canManageStructure($request->user()), 403);
 
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
@@ -150,7 +153,7 @@ class GroupController extends Controller
 
     public function restore(int $group)
     {
-        abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
+        abort_unless(AdminPermissions::canManageStructure(request()->user()), 403);
 
         $group = Group::withTrashed()->findOrFail($group);
 
@@ -174,7 +177,7 @@ class GroupController extends Controller
 
     public function destroy(Group $group)
     {
-        abort_if(request()->user()?->hasRole('accountant') && ! request()->user()?->hasAnyRole(['admin', 'coach']), 403);
+        abort_unless(AdminPermissions::canManageStructure(request()->user()), 403);
         $this->ensureGroupEditable($group);
 
         if ($group->hasTrainingHistory()) {

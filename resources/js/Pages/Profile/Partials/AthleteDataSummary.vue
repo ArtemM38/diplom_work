@@ -180,7 +180,7 @@ const uploadAvatar = () => {
                         class="flex justify-between gap-2 border-b border-slate-50 pb-2"
                     >
                         <span>{{ item.rank?.name || '—' }}</span>
-                        <span class="text-slate-400 shrink-0">{{ item.assigned_at || '—' }}</span>
+                        <span class="text-slate-400 shrink-0">{{ item.assigned_at_display || item.assigned_at || '—' }}</span>
                     </li>
                     <li
                         v-for="item in refereeHistories"
@@ -188,7 +188,7 @@ const uploadAvatar = () => {
                         class="flex justify-between gap-2 border-b border-slate-50 pb-2"
                     >
                         <span>Судья: {{ item.referee_category?.name || '—' }}</span>
-                        <span class="text-slate-400 shrink-0">{{ item.assigned_at || '—' }}</span>
+                        <span class="text-slate-400 shrink-0">{{ item.assigned_at_display || item.assigned_at || '—' }}</span>
                     </li>
                     <li v-if="!rankHistories.length && !refereeHistories.length" class="text-slate-400">Нет данных</li>
                 </ul>

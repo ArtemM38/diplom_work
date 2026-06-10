@@ -10,6 +10,7 @@ use App\Models\Location;
 use App\Models\Schedule;
 use App\Models\ScheduleCoachChange;
 use App\Models\User;
+use App\Support\AdminPermissions;
 use App\Support\GuardianChildAccess;
 use App\Support\ScheduleAccess;
 use App\Support\DateFormatter;
@@ -22,17 +23,27 @@ use Inertia\Inertia;
 
 class ScheduleController extends Controller
 {
-    public function index()
+    private function ensureCanManageSchedule(Request $request): void
     {
+        abort_unless(AdminPermissions::canManageStructure($request->user()), 403);
+    }
+
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        $coachId = AdminPermissions::isCoachOnly($user) ? $user->id : null;
+
         return Inertia::render('Admin/Schedule/Index', [
             'schedules' => Schedule::with(['group', 'location', 'coach', 'initialCoach'])
+                ->when($coachId, fn ($q) => $q->where('coach_id', $coachId))
                 ->orderBy('lesson_date')
                 ->orderBy('start_time')
                 ->get()
                 ->map(fn (Schedule $s) => $this->schedulePayload($s)),
-            'groups' => Group::visible()->where('status', 'active')->get(),
+            'groups' => Group::visible()->where('status', 'active')->orderBy('name')->get(),
             'locations' => Location::all(),
-            'coaches' => User::withRole('coach')->where('is_active', true)->get(),
+            'coaches' => User::withRole('coach')->where('is_active', true)->orderBy('name')->get(),
+            'canManageSchedule' => AdminPermissions::canManageStructure($user),
         ]);
     }
 
@@ -135,7 +146,7 @@ class ScheduleController extends Controller
 
     public function store(Request $request)
     {
-        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+        $this->ensureCanManageSchedule($request);
 
         $validated = $request->validate(
             [
@@ -186,7 +197,7 @@ class ScheduleController extends Controller
 
     public function duplicateDay(Request $request)
     {
-        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+        $this->ensureCanManageSchedule($request);
 
         $validated = $request->validate(
             [
@@ -275,7 +286,7 @@ class ScheduleController extends Controller
 
     public function update(Request $request, Schedule $schedule)
     {
-        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+        $this->ensureCanManageSchedule($request);
 
         if (ScheduleAccess::isCancelled($schedule)) {
             return back()->with('error', 'Нельзя изменить отменённую тренировку.');
@@ -342,7 +353,7 @@ class ScheduleController extends Controller
 
     public function cancel(Request $request, Schedule $schedule)
     {
-        abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+        $this->ensureCanManageSchedule($request);
 
         if (! ScheduleAccess::canCancel($schedule)) {
             return redirect()->back()->with('error', 'Тренировка уже отменена.');

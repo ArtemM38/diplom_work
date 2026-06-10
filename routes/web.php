@@ -196,6 +196,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::post('/admin/events/{event}/athletes', [EventController::class, 'attachAthlete'])->name('admin.events.athletes.attach');
         Route::delete('/admin/events/{event}/athletes/{athlete}', [EventController::class, 'detachAthlete'])->name('admin.events.athletes.detach');
         Route::match(['patch', 'post'], '/admin/events/{event}/results', [EventController::class, 'updateResults'])->name('admin.events.results.update');
+        Route::match(['patch', 'post'], '/admin/events/{event}/attendance', [EventController::class, 'updateAttendance'])->name('admin.events.attendance.update');
         Route::post('/admin/events/hosts', [EventController::class, 'storeHost'])->name('admin.events.hosts.store');
         Route::patch('/admin/events/hosts/{host}', [EventController::class, 'updateHost'])->name('admin.events.hosts.update');
         Route::delete('/admin/events/hosts/{host}', [EventController::class, 'destroyHost'])->name('admin.events.hosts.destroy');

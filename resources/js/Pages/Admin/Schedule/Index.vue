@@ -11,7 +11,8 @@ const props = defineProps({
     schedules: Array,
     groups: Array,
     locations: Array,
-    coaches: Array
+    coaches: Array,
+    canManageSchedule: { type: Boolean, default: false },
 });
 
 const locationLabel = (location) => {
@@ -296,7 +297,11 @@ const submitCopyDay = () => {
                         <Link :href="route('admin.locations')" class="text-xs text-indigo-600 hover:underline">Управление залами</Link>
                     </div>
 
-                    <form @submit.prevent="submit" class="space-y-4">
+                    <p v-if="!canManageSchedule" class="text-sm text-slate-500 mb-4 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        Просмотр расписания. Создание и редактирование доступно только администратору.
+                    </p>
+
+                    <form v-if="canManageSchedule" @submit.prevent="submit" class="space-y-4">
                         <p v-if="form.errors.conflict" class="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100">{{ form.errors.conflict }}</p>
                         <p v-if="form.errors.lesson_date" class="text-red-600 text-xs">{{ form.errors.lesson_date }}</p>
 
@@ -353,7 +358,7 @@ const submitCopyDay = () => {
                                 Занятия на {{ dayjs(selectedDate).format('DD.MM') }}:
                             </h4>
                             <button
-                                v-if="copyableSchedulesCount > 0"
+                                v-if="canManageSchedule && copyableSchedulesCount > 0"
                                 type="button"
                                 class="shrink-0 px-3 py-1.5 rounded-lg border border-indigo-200 text-indigo-700 text-xs font-semibold hover:bg-indigo-50"
                                 @click="openCopyDayModal"
@@ -389,10 +394,10 @@ const submitCopyDay = () => {
                                     Журнал
                                 </Link>
 
-                                <button v-if="!s.is_cancelled" @click="startEdit(s)" class="px-2 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-700 text-xs font-medium hover:bg-indigo-50">Изменить</button>
+                                <button v-if="canManageSchedule && !s.is_cancelled" @click="startEdit(s)" class="px-2 py-1 rounded-lg bg-white border border-indigo-200 text-indigo-700 text-xs font-medium hover:bg-indigo-50">Изменить</button>
 
                                 <button
-                                    v-if="!s.is_cancelled"
+                                    v-if="canManageSchedule && !s.is_cancelled"
                                     @click="openCancelModal(s)"
                                     :disabled="!canCancelSchedule(s)"
                                     class="px-2 py-1 rounded-lg text-xs font-medium border"

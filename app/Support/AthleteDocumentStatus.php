@@ -79,7 +79,53 @@ class AthleteDocumentStatus
 
     public static function mapAthleteWithMedical(Athlete $athlete): array
     {
+        return self::mapAthleteForEvent($athlete);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function mapAthleteForEvent(Athlete $athlete): array
+    {
+        $athlete->loadMissing(['documents', 'inventory']);
         $medical = self::medicalForAthlete($athlete);
+
+        $documents = ($athlete->documents ?? collect())->map(fn ($doc) => [
+            'type' => $doc->type,
+            'label' => match ($doc->type) {
+                'medical' => 'Медицинская справка',
+                'insurance' => 'Страховой полис',
+                'identity' => 'Удостоверение личности',
+                default => $doc->type,
+            },
+            'issue_date' => $doc->issue_date,
+            'expiry_date' => $doc->expiry_date,
+            'file_path' => $doc->file_path,
+        ])->values()->all();
+
+        $inventory = $athlete->inventory;
+        $inventoryItems = [];
+        if ($inventory) {
+            $labels = [
+                'weapon_case' => 'Чехол для оружия',
+                'jo' => 'Дзё',
+                'boken' => 'Бокен',
+                'tanto' => 'Танто',
+                'tshirt' => 'Футболка',
+                'olympic_jacket' => 'Олимпийка',
+                'cap' => 'Бейсболка',
+                'backpack' => 'Рюкзак',
+                'shoe_bag' => 'Мешок для сменки',
+                'budo_passport' => 'Будо-паспорт',
+                'qual_book' => 'Зачётная книжка',
+                'referee_book' => 'Книжка судьи',
+            ];
+            foreach ($labels as $key => $label) {
+                if ($inventory->{$key}) {
+                    $inventoryItems[] = $label;
+                }
+            }
+        }
 
         return [
             'id' => $athlete->id,
@@ -87,6 +133,8 @@ class AthleteDocumentStatus
             'medical_status' => $medical['status'],
             'medical_days_left' => $medical['days_left'],
             'medical_expiry_date' => $medical['expiry_date'],
+            'documents' => $documents,
+            'inventory_items' => $inventoryItems,
         ];
     }
 }

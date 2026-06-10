@@ -10,7 +10,9 @@ use App\Models\EventLevel;
 use App\Models\EventParticipant;
 use App\Models\EventType;
 use App\Models\Rank;
+use App\Support\AdminPermissions;
 use App\Support\AthleteDocumentStatus;
+use App\Support\EventParticipationBilling;
 use App\Support\FormValidator;
 use App\Support\AthleteRankSync;
 use App\Services\AthleteNotificationService;
@@ -26,25 +28,30 @@ class EventController extends Controller
 {
     private function ensureCanEdit(Request $request): void
     {
-        $user = $request->user();
-        abort_if($user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']), 403);
+        abort_unless(AdminPermissions::canManageStructure($request->user()), 403);
     }
 
     private function isReadOnly(Request $request): bool
     {
-        $user = $request->user();
-
-        return $user?->hasRole('accountant') && ! $user->hasAnyRole(['admin', 'coach']);
+        return ! AdminPermissions::canManageStructure($request->user());
     }
 
     public function index(Request $request)
     {
-        $search = $request->string('search')->toString();
+        $search = trim($request->string('search')->toString());
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+        $eventTypeId = $request->input('event_type_id');
+        $eventLevelId = $request->input('event_level_id');
 
         $events = Event::query()
             ->with(['eventType', 'eventLevel', 'eventHost'])
             ->withCount('participants')
-            ->when($search, fn ($q) => $q->where('name', 'like', '%' . $search . '%'))
+            ->when($search !== '', fn ($q) => $q->where('name', 'like', '%' . $search . '%'))
+            ->when($dateFrom, fn ($q) => $q->whereRaw('COALESCE(event_date_to, event_date) >= ?', [$dateFrom]))
+            ->when($dateTo, fn ($q) => $q->whereDate('event_date', '<=', $dateTo))
+            ->when($eventTypeId, fn ($q) => $q->where('event_type_id', $eventTypeId))
+            ->when($eventLevelId, fn ($q) => $q->where('event_level_id', $eventLevelId))
             ->orderByDesc('event_date')
             ->orderByDesc('id')
             ->paginate(15)
@@ -56,7 +63,13 @@ class EventController extends Controller
             'eventLevels' => EventLevel::orderBy('name')->get(),
             'eventHosts' => EventHost::orderBy('full_name')->get(),
             'readOnly' => $this->isReadOnly($request),
-            'filters' => ['search' => $search],
+            'filters' => [
+                'search' => $search,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'event_type_id' => $eventTypeId,
+                'event_level_id' => $eventLevelId,
+            ],
         ]);
     }
 
@@ -94,35 +107,12 @@ class EventController extends Controller
         $event->load(['eventType', 'eventLevel', 'eventHost']);
 
         $participants = $event->participants()
-            ->with(['athlete.documents', 'resultRank'])
+            ->with(['athlete.documents', 'athlete.inventory', 'resultRank'])
             ->get()
-            ->map(function (EventParticipant $participant) {
-                $athlete = $participant->athlete;
-                $medical = $athlete ? AthleteDocumentStatus::medicalForAthlete($athlete) : ['status' => 'missing', 'days_left' => null, 'expiry_date' => null];
-
-                return [
-                    'id' => $participant->id,
-                    'athlete_id' => $participant->athlete_id,
-                    'full_name' => $athlete
-                        ? trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? ''))
-                        : '—',
-                    'result_label' => $participant->result_label,
-                    'result_place' => $participant->result_place,
-                    'result_rank_id' => $participant->result_rank_id,
-                    'result_rank' => $participant->resultRank?->name,
-                    'certificate_id' => $participant->certificate_id,
-                    'result_description' => $participant->result_description,
-                    'evidence_file_path' => $participant->evidence_file_path,
-                    'results_filled_at' => $participant->results_filled_at?->toDateTimeString(),
-                    'has_results' => $participant->hasResults(),
-                    'medical_status' => $medical['status'],
-                    'medical_days_left' => $medical['days_left'],
-                    'medical_expiry_date' => $medical['expiry_date'],
-                ];
-            });
+            ->map(fn (EventParticipant $participant) => $this->mapParticipant($participant));
 
         $availableAthletes = Athlete::query()
-            ->with('documents')
+            ->with(['documents', 'inventory'])
             ->when($athleteSearch, function ($query) use ($athleteSearch) {
                 $query->where(function ($q) use ($athleteSearch) {
                     $q->where('last_name_nom', 'like', '%' . $athleteSearch . '%')
@@ -133,7 +123,7 @@ class EventController extends Controller
             ->orderBy('last_name_nom')
             ->limit(50)
             ->get()
-            ->map(fn (Athlete $a) => AthleteDocumentStatus::mapAthleteWithMedical($a));
+            ->map(fn (Athlete $a) => AthleteDocumentStatus::mapAthleteForEvent($a));
 
         return Inertia::render('Admin/Events/Show', [
             'event' => $event,
@@ -250,6 +240,54 @@ class EventController extends Controller
         return back()->with('success', 'Результаты сохранены');
     }
 
+    public function updateAttendance(Request $request, Event $event)
+    {
+        $this->ensureCanEdit($request);
+
+        $validated = $request->validate([
+            'participants' => 'required|array',
+            'participants.*.id' => 'required|exists:event_participants,id',
+            'participants.*.attendance_status' => 'nullable|in:Я,Н,У',
+            'certificates' => 'nullable|array',
+            'certificates.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        ]);
+
+        foreach ($validated['participants'] as $index => $row) {
+            $participant = EventParticipant::query()
+                ->where('event_id', $event->id)
+                ->where('id', $row['id'])
+                ->first();
+
+            if (! $participant) {
+                continue;
+            }
+
+            $status = $row['attendance_status'] ?? null;
+            $data = ['attendance_status' => $status];
+
+            $fileKey = "certificates.{$row['id']}";
+            if ($request->hasFile($fileKey)) {
+                if ($participant->excused_certificate) {
+                    Storage::disk('public')->delete($participant->excused_certificate);
+                }
+                $data['excused_certificate'] = $request->file($fileKey)->store('event-attendance-certificates', 'public');
+            } elseif ($status !== 'У') {
+                $data['excused_certificate'] = null;
+            }
+
+            if ($status === 'У' && ! ($data['excused_certificate'] ?? $participant->excused_certificate)) {
+                return back()->withErrors([
+                    "participants.{$index}.attendance_status" => 'Для уважительной неявки (У) приложите справку.',
+                ]);
+            }
+
+            $participant->update($data);
+            EventParticipationBilling::sync($participant->fresh(), $status, $request->user()?->id);
+        }
+
+        return back()->with('success', 'Посещаемость на мероприятии сохранена');
+    }
+
     public function storeHost(Request $request)
     {
         $this->ensureCanEdit($request);
@@ -350,15 +388,54 @@ class EventController extends Controller
 
     private function validateEvent(Request $request): array
     {
-        return FormValidator::validate($request, [
+        $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'cost' => 'required|numeric|min:0',
+            'cost' => 'required|integer|min:0',
             'event_type_id' => 'required|exists:event_types,id',
             'event_level_id' => 'nullable|exists:event_levels,id',
             'event_place' => 'nullable|string|max:255',
             'event_host_id' => 'nullable|exists:event_hosts,id',
             'event_date' => 'required|date',
+            'event_date_to' => 'nullable|date|after_or_equal:event_date',
             'status' => 'nullable|in:planned,completed',
+        ]);
+
+        if (empty($validated['event_date_to'])) {
+            $validated['event_date_to'] = null;
+        }
+
+        return $validated;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mapParticipant(EventParticipant $participant): array
+    {
+        $athlete = $participant->athlete;
+        $base = $athlete
+            ? AthleteDocumentStatus::mapAthleteForEvent($athlete)
+            : [
+                'full_name' => '—',
+                'medical_status' => 'missing',
+                'documents' => [],
+                'inventory_items' => [],
+            ];
+
+        return array_merge($base, [
+            'id' => $participant->id,
+            'athlete_id' => $participant->athlete_id,
+            'attendance_status' => $participant->attendance_status,
+            'excused_certificate' => $participant->excused_certificate,
+            'result_label' => $participant->result_label,
+            'result_place' => $participant->result_place,
+            'result_rank_id' => $participant->result_rank_id,
+            'result_rank' => $participant->resultRank?->name,
+            'certificate_id' => $participant->certificate_id,
+            'result_description' => $participant->result_description,
+            'evidence_file_path' => $participant->evidence_file_path,
+            'results_filled_at' => $participant->results_filled_at?->toDateTimeString(),
+            'has_results' => $participant->hasResults(),
         ]);
     }
 }

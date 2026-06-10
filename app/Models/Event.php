@@ -17,6 +17,7 @@ class Event extends Model
         'event_place',
         'event_host_id',
         'event_date',
+        'event_date_to',
         'event_period',
         'status',
     ];
@@ -24,18 +25,32 @@ class Event extends Model
     protected function casts(): array
     {
         return [
-            'cost' => 'decimal:2',
+            'cost' => 'integer',
             'event_date' => 'date:Y-m-d',
+            'event_date_to' => 'date:Y-m-d',
         ];
     }
 
     protected $appends = [
         'event_date_display',
+        'event_date_range_display',
     ];
 
     public function getEventDateDisplayAttribute(): ?string
     {
         return DateFormatter::toDisplayDate($this->event_date);
+    }
+
+    public function getEventDateRangeDisplayAttribute(): ?string
+    {
+        $from = DateFormatter::toDisplayDate($this->event_date);
+        $to = DateFormatter::toDisplayDate($this->event_date_to);
+
+        if ($from && $to && $to !== $from) {
+            return "{$from} — {$to}";
+        }
+
+        return $from;
     }
 
     public function eventType(): BelongsTo

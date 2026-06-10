@@ -8,6 +8,7 @@ use App\Models\Attendance;
 use App\Models\AthleteFinance;
 use App\Models\Group;
 use App\Models\Schedule;
+use App\Support\AdminPermissions;
 use App\Support\AttendanceBilling;
 use App\Support\AthletePricing;
 use App\Support\ScheduleAccess;
@@ -18,8 +19,23 @@ use Inertia\Inertia;
 
 class AttendanceController extends Controller
 {
-    public function show(Schedule $schedule)
+    private function coachIdForUser(?\App\Models\User $user): ?int
     {
+        return AdminPermissions::isCoachOnly($user) ? $user?->id : null;
+    }
+
+    private function ensureCoachCanAccessSchedule(?\App\Models\User $user, Schedule $schedule): void
+    {
+        $coachId = $this->coachIdForUser($user);
+        if ($coachId && (int) $schedule->coach_id !== $coachId) {
+            abort(403, 'Доступ только к тренировкам, где вы назначены тренером.');
+        }
+    }
+
+    public function show(Request $request, Schedule $schedule)
+    {
+        $this->ensureCoachCanAccessSchedule($request->user(), $schedule);
+
         if (! ScheduleAccess::canMarkAttendance($schedule)) {
             return redirect()->route('admin.schedule')->with('error', 'Нельзя ставить отметки для отменённой тренировки.');
         }
@@ -39,6 +55,7 @@ class AttendanceController extends Controller
     public function store(Request $request, Schedule $schedule)
     {
         abort_if($request->user()?->hasRole('accountant') && ! $request->user()?->hasAnyRole(['admin', 'coach']), 403);
+        $this->ensureCoachCanAccessSchedule($request->user(), $schedule);
 
         if (! ScheduleAccess::canMarkAttendance($schedule)) {
             return redirect()->route('admin.schedule')->with('error', 'Нельзя сохранять отметки для отменённой тренировки.');
@@ -126,6 +143,7 @@ class AttendanceController extends Controller
 
     public function journal(Request $request)
     {
+        $coachId = $this->coachIdForUser($request->user());
         $viewMode = $request->input('view', 'athletes');
         $search = $request->input('search');
         $athleteId = $request->integer('athlete_id');
@@ -135,6 +153,7 @@ class AttendanceController extends Controller
         $statsPeriod = $request->input('stats_period', 'month');
 
         $athletes = Athlete::query()
+            ->when($coachId, fn ($q) => $q->whereHas('groups.schedules', fn ($sq) => $sq->where('coach_id', $coachId)))
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('last_name_nom', 'like', '%' . $search . '%')
@@ -149,7 +168,11 @@ class AttendanceController extends Controller
                 'full_name' => trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? '')),
             ]);
 
-        $groups = Group::visible()->where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        $groups = Group::visible()
+            ->where('status', 'active')
+            ->when($coachId, fn ($q) => $q->whereHas('schedules', fn ($sq) => $sq->where('coach_id', $coachId)))
+            ->orderBy('name')
+            ->get(['id', 'name']);
 
         $selectedAthlete = null;
         $calendar = [];
@@ -175,7 +198,12 @@ class AttendanceController extends Controller
 
                 $periodAttendances = Attendance::with(['schedule.group'])
                     ->where('athlete_id', $athleteId)
-                    ->whereHas('schedule', fn ($q) => $q->whereBetween('lesson_date', [$periodStart->toDateString(), $periodEnd->toDateString()]))
+                    ->whereHas('schedule', function ($q) use ($periodStart, $periodEnd, $coachId) {
+                        $q->whereBetween('lesson_date', [$periodStart->toDateString(), $periodEnd->toDateString()]);
+                        if ($coachId) {
+                            $q->where('coach_id', $coachId);
+                        }
+                    })
                     ->get();
 
                 $stats = [
@@ -198,7 +226,12 @@ class AttendanceController extends Controller
 
                 $calendarAttendances = Attendance::with(['schedule.group'])
                     ->where('athlete_id', $athleteId)
-                    ->whereHas('schedule', fn ($q) => $q->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()]))
+                    ->whereHas('schedule', function ($q) use ($calStart, $calEnd, $coachId) {
+                        $q->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()]);
+                        if ($coachId) {
+                            $q->where('coach_id', $coachId);
+                        }
+                    })
                     ->get();
 
                 $calendar = $calendarAttendances
@@ -233,6 +266,7 @@ class AttendanceController extends Controller
 
             $groupSchedules = Schedule::query()
                 ->where('group_id', $groupId)
+                ->when($coachId, fn ($q) => $q->where('coach_id', $coachId))
                 ->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()])
                 ->orderBy('lesson_date')
                 ->orderBy('start_time')
@@ -253,7 +287,7 @@ class AttendanceController extends Controller
 
             if ($scheduleId) {
                 $schedule = Schedule::with(['group', 'attendances'])->find($scheduleId);
-                if ($schedule && (int) $schedule->group_id === $groupId) {
+                if ($schedule && (int) $schedule->group_id === $groupId && (! $coachId || (int) $schedule->coach_id === $coachId)) {
                     $attendanceByAthlete = $schedule->attendances->keyBy('athlete_id');
                     $memberIds = $schedule->group?->athletes()->pluck('athletes.id') ?? collect();
                     $historicalIds = $schedule->attendances->pluck('athlete_id');

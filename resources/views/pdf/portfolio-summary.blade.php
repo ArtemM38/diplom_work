@@ -10,6 +10,7 @@
         th, td { border: 1px solid #d1d5db; padding: 6px; vertical-align: top; }
         th { background: #f3f4f6; text-align: left; font-size: 11px; }
         td { font-size: 11px; }
+        .empty { color: #9ca3af; }
     </style>
 </head>
 <body>
@@ -25,7 +26,7 @@
                 <th>Мероприятие</th>
                 <th>Тип</th>
                 <th>Уровень</th>
-                <th>Дата/Период</th>
+                <th>Дата</th>
                 <th>Место проведения</th>
                 <th>Ведущий</th>
                 <th>Результат</th>
@@ -35,19 +36,19 @@
             </tr>
         </thead>
         <tbody>
-            @forelse ($rows as $item)
+            @forelse ($rows as $row)
                 <tr>
-                    <td>{{ trim(($item->athlete->last_name_nom ?? '') . ' ' . ($item->athlete->first_name_nom ?? '')) }}</td>
-                    <td>{{ $item->event_name }}</td>
-                    <td>{{ $item->eventType?->name }}</td>
-                    <td>{{ $item->eventLevel?->name }}</td>
-                    <td>{{ $item->event_date ?: $item->event_period }}</td>
-                    <td>{{ $item->event_place }}</td>
-                    <td>{{ $item->eventHost?->full_name }}</td>
-                    <td>{{ $item->result_label }}</td>
-                    <td>{{ $item->result_place }}</td>
-                    <td>{{ $item->resultRank?->name }}</td>
-                    <td>{{ $item->certificate_id }}</td>
+                    <td>{{ $row['athlete_name'] ?? $athleteName ?? '—' }}</td>
+                    <td>{{ $row['event_name'] ?? '—' }}</td>
+                    <td>{{ $row['event_type'] ?? '—' }}</td>
+                    <td>{{ $row['event_level'] ?? '—' }}</td>
+                    <td>{{ $row['event_date'] ?? $row['event_period'] ?? '—' }}</td>
+                    <td>{{ $row['event_place'] ?? '—' }}</td>
+                    <td>{{ $row['event_host'] ?? '—' }}</td>
+                    <td>{{ $row['result_label'] ?? '—' }}</td>
+                    <td>{{ $row['result_place'] ?? '—' }}</td>
+                    <td>{{ $row['result_rank'] ?? '—' }}</td>
+                    <td>{{ $row['certificate_id'] ?? '—' }}</td>
                 </tr>
             @empty
                 <tr>

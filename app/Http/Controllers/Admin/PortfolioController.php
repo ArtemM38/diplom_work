@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Athlete;
+use App\Models\Event;
 use App\Models\EventParticipant;
 use App\Models\PortfolioAchievement;
 use App\Support\AthleteDocumentStatus;
@@ -112,29 +113,37 @@ class PortfolioController extends Controller
         $rows = $this->collectAthleteRows($athleteId);
 
         $pdf = Pdf::loadView('pdf.portfolio-summary', array_merge([
-            'title' => 'Отчёт по спортсмену: ' . trim("{$athlete->last_name_nom} {$athlete->first_name_nom}"),
+            'title' => 'Отчёт по спортсмену: ' . $this->athleteFullName($athlete),
             'rows' => $rows,
-            'athlete' => $athlete,
+            'athleteName' => $this->athleteFullName($athlete),
         ], ReportMeta::forExport()))->setPaper('a4', 'landscape');
 
         return $pdf->download('portfolio-athlete-' . $athleteId . '-' . now()->format('Ymd-His') . '.pdf');
     }
 
+    /**
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
     private function collectAthleteRows(int $athleteId)
     {
+        $athlete = Athlete::find($athleteId);
+        $athleteName = $athlete ? $this->athleteFullName($athlete) : '';
+
         $fromEvents = EventParticipant::query()
-            ->with(['event.eventType', 'event.eventLevel', 'event.eventHost', 'resultRank', 'athlete'])
+            ->with(['event.eventType', 'event.eventLevel', 'event.eventHost', 'resultRank'])
             ->where('athlete_id', $athleteId)
             ->get();
 
         $legacy = PortfolioAchievement::query()
-            ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank', 'athlete'])
+            ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
             ->where('athlete_id', $athleteId)
             ->whereNull('event_id')
             ->get();
 
-        return $fromEvents->map(fn ($p) => $this->participantToExportRow($p))
-            ->concat($legacy->map(fn ($a) => $a));
+        return $fromEvents->map(fn (EventParticipant $p) => $this->exportRowFromParticipant($p, $athleteName))
+            ->concat($legacy->map(fn (PortfolioAchievement $a) => $this->exportRowFromLegacy($a, $athleteName)))
+            ->sortByDesc('event_date_sort')
+            ->values();
     }
 
     private function streamCsv($rows, Athlete $athlete, string $filename): StreamedResponse
@@ -152,18 +161,18 @@ class PortfolioController extends Controller
 
             foreach ($rows as $item) {
                 fputcsv($out, [
-                    trim("{$athlete->last_name_nom} {$athlete->first_name_nom}"),
-                    $item->event_name ?? $item->event?->name,
-                    $item->eventType?->name ?? $item->event?->eventType?->name,
-                    $item->eventLevel?->name ?? $item->event?->eventLevel?->name,
-                    $item->event_date ?? $item->event?->event_date,
-                    $item->event_period ?? $item->event?->event_period,
-                    $item->event_place ?? $item->event?->event_place,
-                    $item->eventHost?->full_name ?? $item->event?->eventHost?->full_name,
-                    $item->result_label,
-                    $item->result_place,
-                    $item->resultRank?->name,
-                    $item->certificate_id,
+                    $item['athlete_name'],
+                    $item['event_name'] ?? '',
+                    $item['event_type'] ?? '',
+                    $item['event_level'] ?? '',
+                    $item['event_date'] ?? '',
+                    $item['event_period'] ?? '',
+                    $item['event_place'] ?? '',
+                    $item['event_host'] ?? '',
+                    $item['result_label'] ?? '',
+                    $item['result_place'] ?? '',
+                    $item['result_rank'] ?? '',
+                    $item['certificate_id'] ?? '',
                 ], ';');
             }
 
@@ -223,21 +232,70 @@ class PortfolioController extends Controller
         ];
     }
 
-    private function participantToExportRow(EventParticipant $p): PortfolioAchievement
+    /**
+     * @return array<string, mixed>
+     */
+    private function exportRowFromParticipant(EventParticipant $p, string $athleteName): array
     {
         $event = $p->event;
-        $row = new PortfolioAchievement([
+
+        return [
+            'athlete_name' => $athleteName,
             'event_name' => $event?->name,
-            'event_date' => $event?->event_date,
-            'event_period' => $event?->event_period,
+            'event_type' => $event?->eventType?->name,
+            'event_level' => $event?->eventLevel?->name,
+            'event_date' => $this->formatEventDateForExport($event),
+            'event_period' => $event?->event_period ? DateFormatter::toDisplayDate($event->event_period) : null,
             'event_place' => $event?->event_place,
+            'event_host' => $event?->eventHost?->full_name,
             'result_label' => $p->result_label,
             'result_place' => $p->result_place,
+            'result_rank' => $p->resultRank?->name,
             'certificate_id' => $p->certificate_id,
-        ]);
-        $row->setRelation('event', $event);
-        $row->setRelation('resultRank', $p->resultRank);
+            'event_date_sort' => DateFormatter::toDateString($event?->event_date) ?? '',
+        ];
+    }
 
-        return $row;
+    /**
+     * @return array<string, mixed>
+     */
+    private function exportRowFromLegacy(PortfolioAchievement $a, string $athleteName): array
+    {
+        return [
+            'athlete_name' => $athleteName,
+            'event_name' => $a->event_name,
+            'event_type' => $a->eventType?->name,
+            'event_level' => $a->eventLevel?->name,
+            'event_date' => DateFormatter::toDisplayDate($a->event_date),
+            'event_period' => $a->event_period ? DateFormatter::toDisplayDate($a->event_period) : null,
+            'event_place' => $a->event_place,
+            'event_host' => $a->eventHost?->full_name,
+            'result_label' => $a->result_label,
+            'result_place' => $a->result_place,
+            'result_rank' => $a->resultRank?->name,
+            'certificate_id' => $a->certificate_id,
+            'event_date_sort' => DateFormatter::toDateString($a->event_date) ?? '',
+        ];
+    }
+
+    private function formatEventDateForExport(?Event $event): ?string
+    {
+        if (! $event) {
+            return null;
+        }
+
+        $from = DateFormatter::toDisplayDate($event->event_date);
+        $to = DateFormatter::toDisplayDate($event->event_date_to);
+
+        if ($from && $to && $to !== $from) {
+            return "{$from} — {$to}";
+        }
+
+        return $from ?: ($event->event_period ? DateFormatter::toDisplayDate($event->event_period) : null);
+    }
+
+    private function athleteFullName(Athlete $athlete): string
+    {
+        return trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? ''));
     }
 }

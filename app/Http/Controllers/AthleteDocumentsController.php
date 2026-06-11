@@ -29,7 +29,7 @@ class AthleteDocumentsController extends Controller
         $allowed = config("athlete_document_templates.templates.{$template}.formats", ['docx']);
         abort_unless(in_array($format, $allowed, true), 422, 'Недопустимый формат файла.');
 
-        return app(AthleteDocumentGenerator::class)->download($template, $athlete, $format, $extra);
+        return app(AthleteDocumentGenerator::class)->download($template, $athlete, $format, $extra, $request->user());
     }
 
     private function resolveAthlete(Request $request): Athlete
@@ -37,7 +37,7 @@ class AthleteDocumentsController extends Controller
         $user = $request->user();
 
         if ($user->hasRole('athlete') && $user->athlete) {
-            return $user->athlete->load(['guardians', 'groups', 'finance']);
+            return $user->athlete->load(['guardians.user', 'groups', 'finance', 'documents']);
         }
 
         if ($user->hasRole('guardian')) {
@@ -46,14 +46,14 @@ class AthleteDocumentsController extends Controller
                 $request->integer('athlete_id') ?: null,
             );
 
-            return Athlete::with(['guardians', 'groups', 'finance'])->findOrFail($athleteId);
+            return Athlete::with(['guardians.user', 'groups', 'finance', 'documents'])->findOrFail($athleteId);
         }
 
         if ($user->hasAnyRole(['admin', 'coach', 'accountant'])) {
             $athleteId = $request->integer('athlete_id');
             abort_unless($athleteId, 422, 'Укажите спортсмена.');
 
-            return Athlete::with(['guardians', 'groups', 'finance'])->findOrFail($athleteId);
+            return Athlete::with(['guardians.user', 'groups', 'finance', 'documents'])->findOrFail($athleteId);
         }
 
         abort(403);

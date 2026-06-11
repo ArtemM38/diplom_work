@@ -72,7 +72,8 @@ const sortedTemplates = computed(() =>
     <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h4 class="text-lg font-semibold text-slate-900">Формируемые документы</h4>
         <p class="mt-1 text-sm text-slate-500 mb-4">
-            Документы доступны в исходном виде, а также в формате PDF.
+            Поля заполняются автоматически из профиля спортсмена и законного представителя.
+            Подпись и отдельные поля можно дописать вручную после скачивания. Доступны форматы Word, Excel и PDF.
         </p>
 
         <div v-if="!sortedTemplates.length" class="text-sm text-slate-400">

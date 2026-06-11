@@ -70,10 +70,12 @@ class RussianNameCases
         $lower = mb_strtolower($value);
 
         if (preg_match('/(ова|ева|ина|ына)$/u', $lower)) {
+            $stem = mb_substr($value, 0, -1);
+
             return match ($case) {
-                'gen' => $value . 'ой',
-                'dat' => $value . 'ой',
-                'ins' => $value . 'ой',
+                'gen' => $stem . 'ой',
+                'dat' => $stem . 'ой',
+                'ins' => $stem . 'ой',
                 default => $value,
             };
         }

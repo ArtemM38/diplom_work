@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Athlete;
+use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
@@ -14,29 +15,73 @@ class AthleteDocumentGenerator
         int $template,
         Athlete $athlete,
         string $format,
-        array $extra = []
+        array $extra = [],
+        ?User $user = null,
     ): \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\Response {
         $meta = config("athlete_document_templates.templates.{$template}");
         abort_unless($meta, 404);
 
         $sourceExt = $meta['extension'] ?? 'docx';
         $sourcePath = $this->resolveTemplatePath($template, $sourceExt);
+        $filledPath = $this->fillTemplate($template, $sourcePath, $sourceExt, $athlete, $extra, $user);
 
         $basename = 'Приложение-' . $template . '-' . now()->format('Ymd-His');
 
         if ($format === 'pdf') {
-            return $this->convertSourceToPdf($sourcePath, $sourceExt, "{$basename}.pdf");
+            $response = $this->convertSourceToPdf($filledPath, $sourceExt, "{$basename}.pdf");
+            if ($filledPath !== $sourcePath) {
+                @unlink($filledPath);
+            }
+
+            return $response;
         }
 
         if ($template === 8 && $format === 'xlsx') {
-            $tempXlsx = $this->convertXlsToXlsx($sourcePath);
+            $tempXlsx = $this->convertXlsToXlsx($filledPath);
+            if ($filledPath !== $sourcePath) {
+                @unlink($filledPath);
+            }
+
             return response()->download($tempXlsx, "{$basename}.xlsx")->deleteFileAfterSend(true);
+        }
+
+        if ($filledPath !== $sourcePath) {
+            return response()->download($filledPath, "{$basename}.{$sourceExt}")->deleteFileAfterSend(true);
         }
 
         $temp = $this->tempFile($sourceExt);
         copy($sourcePath, $temp);
 
         return response()->download($temp, "{$basename}.{$sourceExt}")->deleteFileAfterSend(true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function fillTemplate(
+        int $template,
+        string $sourcePath,
+        string $sourceExt,
+        Athlete $athlete,
+        array $extra,
+        ?User $user,
+    ): string {
+        $fillConfig = config("athlete_document_templates.fill.{$template}", []);
+        if ($fillConfig === []) {
+            return $sourcePath;
+        }
+
+        $variables = AthleteDocumentVariables::build($athlete, $extra, $user);
+
+        if ($sourceExt === 'docx') {
+            return app(DocxTemplateFiller::class)->fill($sourcePath, $variables, $fillConfig);
+        }
+
+        if (in_array($sourceExt, ['xls', 'xlsx'], true)) {
+            return app(SpreadsheetTemplateFiller::class)->fill($sourcePath, $sourceExt, $variables, $fillConfig);
+        }
+
+        return $sourcePath;
     }
 
     /**

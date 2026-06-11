@@ -250,6 +250,11 @@ class AthleteNotificationService
         $this->notifyScheduleEvent($schedule, 'training_cancelled', 'Тренировка отменена', true);
     }
 
+    public function notifyScheduleUpdated(Schedule $schedule): void
+    {
+        $this->notifyScheduleEvent($schedule, 'training_updated', 'Изменена тренировка');
+    }
+
     public function notifyPasswordChanged(User $user): void
     {
         if (! $user->is_active) {

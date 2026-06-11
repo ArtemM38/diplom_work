@@ -11,6 +11,7 @@ use App\Models\Schedule;
 use App\Support\AdminPermissions;
 use App\Support\AttendanceBilling;
 use App\Support\AthletePricing;
+use App\Support\DateFormatter;
 use App\Support\ScheduleAccess;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -44,8 +45,15 @@ class AttendanceController extends Controller
 
         $existingCertificates = $schedule->attendances->pluck('excused_certificate', 'athlete_id');
 
+        $schedule->load('coach', 'initialCoach');
+
         return Inertia::render('Admin/Attendance/Mark', [
-            'schedule' => $schedule->load('coach', 'initialCoach'),
+            'schedule' => array_merge($schedule->toArray(), [
+                'lesson_date' => DateFormatter::toDisplayDate($schedule->lesson_date) ?? DateFormatter::toDateString($schedule->lesson_date),
+                'coach' => $schedule->coach,
+                'initial_coach' => $schedule->initialCoach,
+                'group' => $schedule->group,
+            ]),
             'athletes' => $schedule->group->athletes,
             'existingAttendances' => $schedule->attendances->pluck('status', 'athlete_id'),
             'existingCertificates' => $existingCertificates,
@@ -216,7 +224,7 @@ class AttendanceController extends Controller
                 $rows = $periodAttendances->map(fn (Attendance $a) => [
                     'id' => $a->id,
                     'group' => $a->schedule?->group?->name,
-                    'lesson_date' => $a->schedule?->lesson_date,
+                    'lesson_date' => DateFormatter::toDisplayDate($a->schedule?->lesson_date),
                     'status' => $a->status,
                 ])->sortByDesc('lesson_date')->values();
 
@@ -224,32 +232,35 @@ class AttendanceController extends Controller
                 $calStart = Carbon::create((int) $calYear, (int) $calMonth, 1)->startOfDay();
                 $calEnd = $calStart->copy()->endOfMonth();
 
-                $calendarAttendances = Attendance::with(['schedule.group'])
-                    ->where('athlete_id', $athleteId)
-                    ->whereHas('schedule', function ($q) use ($calStart, $calEnd, $coachId) {
-                        $q->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()]);
-                        if ($coachId) {
-                            $q->where('coach_id', $coachId);
-                        }
-                    })
+                $groupIds = $athlete->groups()->pluck('groups.id');
+
+                $schedulesInMonth = Schedule::query()
+                    ->with(['group'])
+                    ->whereIn('group_id', $groupIds)
+                    ->whereNull('cancelled_at')
+                    ->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()])
+                    ->when($coachId, fn ($q) => $q->where('coach_id', $coachId))
+                    ->orderBy('lesson_date')
+                    ->orderBy('start_time')
                     ->get();
 
-                $calendar = $calendarAttendances
-                    ->groupBy(fn (Attendance $a) => $a->schedule?->lesson_date)
-                    ->map(function ($dayItems, $date) {
+                $attendanceBySchedule = Attendance::query()
+                    ->where('athlete_id', $athleteId)
+                    ->whereIn('schedule_id', $schedulesInMonth->pluck('id'))
+                    ->pluck('status', 'schedule_id');
+
+                $calendar = $schedulesInMonth
+                    ->groupBy(fn (Schedule $s) => DateFormatter::toDateString($s->lesson_date))
+                    ->map(function ($dayItems, $date) use ($attendanceBySchedule) {
                         return [
                             'date' => $date,
-                            'entries' => $dayItems->map(function (Attendance $attendance) {
-                                $schedule = $attendance->schedule;
-
-                                return [
-                                    'schedule_id' => $schedule?->id,
-                                    'group' => $schedule?->group?->name,
-                                    'start_time' => $schedule?->start_time,
-                                    'end_time' => $schedule?->end_time,
-                                    'status' => $attendance->status,
-                                ];
-                            })->values(),
+                            'entries' => $dayItems->map(fn (Schedule $schedule) => [
+                                'schedule_id' => $schedule->id,
+                                'group' => $schedule->group?->name,
+                                'start_time' => $schedule->start_time,
+                                'end_time' => $schedule->end_time,
+                                'status' => $attendanceBySchedule->get($schedule->id),
+                            ])->values(),
                         ];
                     })
                     ->values();
@@ -273,7 +284,7 @@ class AttendanceController extends Controller
                 ->get();
 
             $groupCalendar = $groupSchedules
-                ->groupBy('lesson_date')
+                ->groupBy(fn (Schedule $s) => DateFormatter::toDateString($s->lesson_date))
                 ->map(fn ($items, $date) => [
                     'date' => $date,
                     'entries' => $items->map(fn (Schedule $s) => [
@@ -303,7 +314,7 @@ class AttendanceController extends Controller
 
                     $scheduleModal = [
                         'id' => $schedule->id,
-                        'lesson_date' => $schedule->lesson_date,
+                        'lesson_date' => DateFormatter::toDisplayDate($schedule->lesson_date) ?? DateFormatter::toDateString($schedule->lesson_date),
                         'start_time' => $schedule->start_time,
                         'end_time' => $schedule->end_time,
                         'group_name' => $schedule->group?->name,

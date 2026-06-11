@@ -55,7 +55,7 @@ const exportAthleteCsv = () => {
 
 const exportAthletePdf = () => {
     if (!selectedAthleteId.value) return;
-    window.location.href = route('admin.portfolio.export.athlete-pdf', { athlete_id: selectedAthleteId.value });
+    window.location.href = route('admin.portfolio.export.athlete.pdf', { athlete_id: selectedAthleteId.value });
 };
 
 const showAchievementDetails = (item) => {

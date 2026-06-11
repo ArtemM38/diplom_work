@@ -196,14 +196,14 @@ const participantIndex = computed(() => {
             </div>
         </template>
 
-        <div class="space-y-6 max-w-6xl mx-auto">
-            <div class="bg-white p-6 rounded-xl border border-slate-100 shadow-sm">
-                <div class="flex flex-wrap justify-between gap-3 mb-4">
+        <div class="space-y-4 sm:space-y-6 max-w-6xl mx-auto px-1 sm:px-0">
+            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100 shadow-sm">
+                <div class="flex flex-col sm:flex-row sm:justify-between gap-3 mb-4">
                     <h2 class="text-lg font-bold">Данные мероприятия</h2>
-                    <div class="flex gap-2">
-                        <button type="button" @click="exportCsv" class="px-3 py-1.5 text-sm border rounded-lg">Отчёт CSV</button>
-                        <button type="button" @click="exportPdf" class="px-3 py-1.5 text-sm border rounded-lg">Отчёт PDF</button>
-                        <button v-if="!readOnly" type="button" @click="editingEvent = !editingEvent" class="px-3 py-1.5 text-sm bg-indigo-100 text-indigo-800 rounded-lg">
+                    <div class="flex flex-col xs:flex-row flex-wrap gap-2 w-full sm:w-auto">
+                        <button type="button" @click="exportCsv" class="w-full sm:w-auto px-3 py-2 text-sm border rounded-lg">Отчёт CSV</button>
+                        <button type="button" @click="exportPdf" class="w-full sm:w-auto px-3 py-2 text-sm border rounded-lg">Отчёт PDF</button>
+                        <button v-if="!readOnly" type="button" @click="editingEvent = !editingEvent" class="w-full sm:w-auto px-3 py-2 text-sm bg-indigo-100 text-indigo-800 rounded-lg">
                             {{ editingEvent ? 'Отмена' : 'Редактировать' }}
                         </button>
                     </div>
@@ -270,7 +270,7 @@ const participantIndex = computed(() => {
                 </dl>
             </div>
 
-            <div v-if="!readOnly" class="bg-white p-6 rounded-xl border border-slate-100">
+            <div v-if="!readOnly" class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100">
                 <h3 class="font-bold mb-3">Добавить спортсмена</h3>
                 <input v-model="athleteSearch" placeholder="Поиск..." class="w-full border-gray-300 rounded-lg mb-3" />
                 <div class="flex flex-wrap gap-2 mb-3 max-h-40 overflow-y-auto">
@@ -313,7 +313,7 @@ const participantIndex = computed(() => {
                 </button>
             </div>
 
-            <div v-if="participants?.length" class="bg-white p-6 rounded-xl border border-slate-100">
+            <div v-if="participants?.length" class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100">
                 <h3 class="font-bold mb-4">Посещаемость на мероприятии</h3>
                 <p class="text-xs text-slate-500 mb-4">При отметках «Был» или «Не был» (без уважительной причины) стоимость мероприятия списывается с баланса спортсмена. Для «Уваж. причина» приложите справку — списание отменяется.</p>
                 <form @submit.prevent="saveAttendance" class="space-y-3">
@@ -356,8 +356,8 @@ const participantIndex = computed(() => {
                 </form>
             </div>
 
-            <div class="bg-white p-6 rounded-xl border border-slate-100">
-                <div class="flex justify-between items-center mb-4">
+            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                     <h3 class="font-bold">Участники и результаты ({{ participants?.length || 0 }})</h3>
                     <select v-if="!readOnly" v-model="resultsForm.status" class="border-gray-300 rounded-lg text-sm">
                         <option value="planned">Запланировано</option>

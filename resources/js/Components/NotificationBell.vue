@@ -51,7 +51,7 @@ const markAllRead = async () => {
 const iconClass = (type) => {
     if (type === 'document_expired') return 'text-red-600 bg-red-50';
     if (type === 'document_expiring') return 'text-amber-700 bg-amber-50';
-    if (type === 'training_reminder' || type === 'training_scheduled') return 'text-indigo-700 bg-indigo-50';
+    if (type === 'training_reminder' || type === 'training_scheduled' || type === 'training_updated') return 'text-indigo-700 bg-indigo-50';
     if (type === 'training_cancelled') return 'text-orange-700 bg-orange-50';
     if (type === 'password_changed') return 'text-violet-700 bg-violet-50';
     if (type === 'balance_negative') return 'text-rose-700 bg-rose-50';
@@ -60,7 +60,7 @@ const iconClass = (type) => {
 };
 
 const iconEmoji = (type) => {
-    if (type === 'training_reminder' || type === 'training_scheduled') return '🥋';
+    if (type === 'training_reminder' || type === 'training_scheduled' || type === 'training_updated') return '🥋';
     if (type === 'training_cancelled') return '✕';
     if (type === 'password_changed') return '🔐';
     if (type === 'balance_negative') return '₽';

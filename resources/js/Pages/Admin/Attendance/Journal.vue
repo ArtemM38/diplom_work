@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
+import { formatDisplayDate } from '@/utils/formatDate';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
@@ -57,9 +58,17 @@ const monthLabel = computed(() => {
 });
 
 const getBadgeClass = (status) => {
+    if (!status) return 'bg-slate-100 text-slate-600 border border-slate-200';
     if (status === 'Я') return 'bg-green-100 text-green-700';
     if (status === 'У') return 'bg-yellow-100 text-yellow-700';
     return 'bg-red-100 text-red-700';
+};
+
+const statusLabel = (status) => {
+    if (status === 'Я') return 'Я';
+    if (status === 'Н') return 'Н';
+    if (status === 'У') return 'У';
+    return 'нет отметки';
 };
 
 const reload = () => {
@@ -224,7 +233,7 @@ const shiftCalendarMonth = (delta) => {
                                         class="text-[10px] px-2 py-1 rounded"
                                         :class="getBadgeClass(entry.status)"
                                     >
-                                        {{ entry.start_time?.substring(0, 5) }} {{ entry.group }} — {{ entry.status }}
+                                        {{ entry.start_time?.substring(0, 5) }} {{ entry.group }} — {{ statusLabel(entry.status) }}
                                     </div>
                                 </div>
                             </template>
@@ -294,7 +303,7 @@ const shiftCalendarMonth = (delta) => {
                 <div class="p-5 border-b bg-slate-50">
                     <h3 class="font-bold text-lg">{{ scheduleModal.group_name }}</h3>
                     <p class="text-sm text-slate-600">
-                        {{ scheduleModal.lesson_date }} · {{ scheduleModal.start_time?.substring(0,5) }}-{{ scheduleModal.end_time?.substring(0,5) }}
+                        {{ formatDisplayDate(scheduleModal.lesson_date) }} · {{ scheduleModal.start_time?.substring(0,5) }}-{{ scheduleModal.end_time?.substring(0,5) }}
                     </p>
                 </div>
                 <div class="p-5 overflow-y-auto flex-1 space-y-2">

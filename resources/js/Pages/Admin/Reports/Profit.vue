@@ -11,6 +11,15 @@ const props = defineProps({
     athletes: Array,
 });
 
+const defaultProfitDates = () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return {
+        date_from: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`,
+        date_to: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    };
+};
+
 const dateFrom = ref(props.filters?.date_from || '');
 const dateTo = ref(props.filters?.date_to || '');
 const coachId = ref(props.filters?.coach_id || '');
@@ -35,9 +44,15 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
+    const defaults = defaultProfitDates();
+    dateFrom.value = defaults.date_from;
+    dateTo.value = defaults.date_to;
     coachId.value = '';
     athleteId.value = '';
-    applyFilters();
+    router.get(route('admin.reports.profit'), defaults, {
+        preserveState: true,
+        replace: true,
+    });
 };
 
 const download = (format) => {

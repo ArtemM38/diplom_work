@@ -131,9 +131,9 @@ const pickCity = (value) => {
     <AuthenticatedLayout>
         <template #header>Мероприятия</template>
 
-        <div class="space-y-6">
-            <div class="flex flex-wrap gap-3 items-end justify-between">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 flex-1 min-w-0">
+        <div class="space-y-4 sm:space-y-6 px-1 sm:px-0">
+            <div class="flex flex-col gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 w-full">
                     <input v-model="search" type="text" placeholder="Поиск мероприятия..." class="border-gray-300 rounded-lg w-full" />
                     <DateInput v-model="dateFrom" label="Дата с" input-class="w-full border-gray-300 rounded-lg" />
                     <DateInput v-model="dateTo" label="Дата по" input-class="w-full border-gray-300 rounded-lg" />
@@ -152,12 +152,12 @@ const pickCity = (value) => {
                         </select>
                     </div>
                 </div>
-                <button type="button" @click="applyFilters" class="px-4 py-2 border rounded-lg text-sm shrink-0">Применить</button>
-                <div class="flex gap-2 shrink-0">
-                    <button v-if="!readOnly" type="button" @click="showHosts = !showHosts" class="px-4 py-2 border rounded-lg text-sm">
+                <div class="flex flex-col sm:flex-row gap-2 w-full">
+                    <button type="button" @click="applyFilters" class="w-full sm:w-auto px-4 py-2.5 border rounded-lg text-sm">Применить фильтры</button>
+                    <button v-if="!readOnly" type="button" @click="showHosts = !showHosts" class="w-full sm:w-auto px-4 py-2.5 border rounded-lg text-sm">
                         {{ showHosts ? 'Скрыть ведущих' : 'Ведущие' }}
                     </button>
-                    <button v-if="!readOnly" type="button" @click="showCreate = !showCreate" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold">
+                    <button v-if="!readOnly" type="button" @click="showCreate = !showCreate" class="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold">
                         + Новое мероприятие
                     </button>
                 </div>
@@ -281,7 +281,32 @@ const pickCity = (value) => {
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl border border-slate-100 overflow-hidden app-table-wrap">
+            <div class="md:hidden space-y-3">
+                <div
+                    v-for="ev in eventsList()"
+                    :key="`card-${ev.id}`"
+                    class="bg-white rounded-xl border border-slate-100 p-4 shadow-sm"
+                >
+                    <div class="flex items-start justify-between gap-2 mb-2">
+                        <p class="font-semibold text-slate-900 break-anywhere">{{ ev.name }}</p>
+                        <span class="text-xs px-2 py-0.5 rounded-full shrink-0" :class="ev.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'">
+                            {{ statusLabel(ev.status) }}
+                        </span>
+                    </div>
+                    <dl class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-600 mb-3">
+                        <div><dt class="text-slate-400">Тип</dt><dd>{{ ev.event_type?.name || '—' }}</dd></div>
+                        <div><dt class="text-slate-400">Уровень</dt><dd>{{ ev.event_level?.name || '—' }}</dd></div>
+                        <div class="col-span-2"><dt class="text-slate-400">Дата</dt><dd>{{ ev.event_date_range_display || ev.event_date_display || formatDisplayDate(ev.event_date) || '—' }}</dd></div>
+                        <div><dt class="text-slate-400">Участники</dt><dd>{{ ev.participants_count }}</dd></div>
+                    </dl>
+                    <Link :href="route('admin.events.show', ev.id)" class="block text-center w-full py-2 rounded-lg bg-indigo-50 text-indigo-700 text-sm font-medium">
+                        Открыть
+                    </Link>
+                </div>
+                <Pagination class="p-2" :links="events.links" :meta="events" />
+            </div>
+
+            <div class="hidden md:block bg-white rounded-xl border border-slate-100 overflow-hidden app-table-wrap">
                 <table class="min-w-full text-sm">
                     <thead class="bg-slate-50">
                         <tr>

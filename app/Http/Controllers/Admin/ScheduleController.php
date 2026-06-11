@@ -348,6 +348,8 @@ class ScheduleController extends Controller
             ]);
         }
 
+        app(AthleteNotificationService::class)->notifyScheduleUpdated($schedule->fresh());
+
         return back()->with('success', 'Тренировка обновлена');
     }
 

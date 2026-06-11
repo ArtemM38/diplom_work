@@ -49,19 +49,26 @@ const applyFilters = () => {
     });
 };
 
+const defaultReportDates = () => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return {
+        date_from: `${now.getFullYear()}-01-01`,
+        date_to: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    };
+};
+
 const resetFilters = () => {
+    const defaults = defaultReportDates();
     fio.value = '';
     rankId.value = '';
     groupId.value = '';
     eventId.value = '';
     ageFrom.value = '';
     ageTo.value = '';
-    dateFrom.value = props.filters?.date_from || '';
-    dateTo.value = props.filters?.date_to || '';
-    router.get(route('admin.reports'), {
-        date_from: dateFrom.value,
-        date_to: dateTo.value,
-    }, {
+    dateFrom.value = defaults.date_from;
+    dateTo.value = defaults.date_to;
+    router.get(route('admin.reports'), defaults, {
         preserveState: true,
         replace: true,
     });

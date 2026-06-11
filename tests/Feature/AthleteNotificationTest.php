@@ -193,6 +193,56 @@ class AthleteNotificationTest extends TestCase
         ]);
     }
 
+    public function test_schedule_updated_notifies_athlete(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'role' => 'athlete',
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+
+        $athlete = Athlete::create([
+            'user_id' => $user->id,
+            'last_name_nom' => 'Петров',
+            'first_name_nom' => 'Пётр',
+            'birth_date' => '2010-01-01',
+            'gender' => 'male',
+        ]);
+
+        $group = Group::create([
+            'name' => 'Группа Г',
+            'status' => 'active',
+            'type' => 'Учебная',
+            'tariff_amount' => 300,
+        ]);
+        $group->athletes()->attach($athlete->id, ['training_price' => 300]);
+
+        $location = Location::create(['name' => 'Зал 4']);
+        $coach = User::factory()->create(['role' => 'coach', 'is_active' => true]);
+
+        $schedule = Schedule::create([
+            'group_id' => $group->id,
+            'location_id' => $location->id,
+            'coach_id' => $coach->id,
+            'day_of_week' => 2,
+            'lesson_date' => '2026-06-12',
+            'start_time' => '10:00:00',
+            'end_time' => '11:00:00',
+            'lesson_type' => 'group',
+        ]);
+
+        app(AthleteNotificationService::class)->notifyScheduleUpdated($schedule);
+
+        Mail::assertSent(UserNotificationMail::class, fn ($mail) => $mail->hasTo($user->email));
+
+        $this->assertDatabaseHas('user_notifications', [
+            'user_id' => $user->id,
+            'type' => 'training_updated',
+        ]);
+    }
+
     public function test_schedule_cancelled_notifies_athlete(): void
     {
         $user = User::factory()->create([

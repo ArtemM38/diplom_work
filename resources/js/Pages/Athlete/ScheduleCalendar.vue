@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import GuardianNoChildren from '@/Components/GuardianNoChildren.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 import dayjs from 'dayjs';
@@ -16,6 +17,7 @@ const props = defineProps({
     children: { type: Array, default: () => [] },
     selectedAthlete: { type: Object, default: null },
     filters: { type: Object, default: () => ({}) },
+    noChildren: { type: Boolean, default: false },
 });
 
 const pageTitle = computed(() => (props.isGuardian ? 'Расписание ребёнка' : 'Моё расписание'));
@@ -68,6 +70,9 @@ const attendanceLabel = (status) => {
     <AuthenticatedLayout>
         <template #header>{{ pageTitle }}</template>
 
+        <GuardianNoChildren v-if="noChildren" class="my-8" />
+
+        <template v-else>
         <div v-if="isGuardian && children?.length > 1" class="mb-6 bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
             <p class="text-sm text-slate-500 mb-3">Выберите ребёнка</p>
             <div class="flex flex-wrap gap-2">
@@ -214,5 +219,6 @@ const attendanceLabel = (status) => {
                 </div>
             </div>
         </div>
+        </template>
     </AuthenticatedLayout>
 </template>

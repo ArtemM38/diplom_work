@@ -17,7 +17,17 @@ class GuardianChildAttendanceController extends Controller
         abort_unless($user?->hasRole('guardian'), 403);
 
         $children = GuardianChildAccess::childrenForGuardian($user);
-        abort_if($children->isEmpty(), 404);
+        if ($children->isEmpty()) {
+            return Inertia::render('Guardian/ChildAttendance', [
+                'isGuardian' => true,
+                'children' => [],
+                'selectedAthlete' => null,
+                'calendar' => [],
+                'stats' => ['present' => 0, 'absent' => 0, 'excused' => 0, 'period' => 'month'],
+                'filters' => [],
+                'noChildren' => true,
+            ]);
+        }
 
         $athleteId = GuardianChildAccess::resolveChildId($user, $request->integer('athlete_id') ?: null);
         $calendarMonth = $request->input('calendar_month', now()->format('Y-m'));

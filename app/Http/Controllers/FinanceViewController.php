@@ -17,7 +17,20 @@ class FinanceViewController extends Controller
         abort_unless($user?->hasAnyRole(['athlete', 'guardian']), 403);
 
         $allowedAthletes = $this->allowedAthletes($user);
-        abort_if($allowedAthletes->isEmpty(), 404);
+        if ($allowedAthletes->isEmpty()) {
+            if ($user->hasRole('guardian')) {
+                return Inertia::render('Finance/Show', [
+                    'isGuardian' => true,
+                    'children' => [],
+                    'selectedAthlete' => null,
+                    'history' => ['data' => []],
+                    'filters' => [],
+                    'noChildren' => true,
+                ]);
+            }
+
+            abort(404);
+        }
 
         $athleteId = $request->integer('athlete_id') ?: $allowedAthletes->first()['id'];
         abort_unless($allowedAthletes->pluck('id')->contains($athleteId), 403);

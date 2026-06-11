@@ -37,6 +37,41 @@ class GuardianChildViewsTest extends TestCase
         return [$user, $child];
     }
 
+    public function test_guardian_without_children_sees_empty_state_not_404(): void
+    {
+        $user = User::factory()->create(['role' => 'guardian', 'is_active' => true]);
+        Guardian::create([
+            'user_id' => $user->id,
+            'full_name' => 'Родитель Без Детей',
+            'phone' => '+7 (999) 000-00-00',
+            'relation' => 'Мать',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('guardian.schedule'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Athlete/ScheduleCalendar')
+                ->where('noChildren', true)
+            );
+
+        $this->actingAs($user)
+            ->get(route('guardian.attendance'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Guardian/ChildAttendance')
+                ->where('noChildren', true)
+            );
+
+        $this->actingAs($user)
+            ->get(route('finance'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Finance/Show')
+                ->where('noChildren', true)
+            );
+    }
+
     public function test_guardian_can_view_child_schedule(): void
     {
         [$user, $child] = $this->guardianWithChild();

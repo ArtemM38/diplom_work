@@ -74,7 +74,16 @@ class ScheduleController extends Controller
         abort_unless($user?->hasRole('guardian'), 403);
 
         $children = GuardianChildAccess::childrenForGuardian($user);
-        abort_if($children->isEmpty(), 404);
+        if ($children->isEmpty()) {
+            return Inertia::render('Athlete/ScheduleCalendar', [
+                'schedules' => [],
+                'isGuardian' => true,
+                'children' => [],
+                'selectedAthlete' => null,
+                'filters' => [],
+                'noChildren' => true,
+            ]);
+        }
 
         $athleteId = GuardianChildAccess::resolveChildId($user, $request->integer('athlete_id') ?: null);
         $athlete = Athlete::findOrFail($athleteId);

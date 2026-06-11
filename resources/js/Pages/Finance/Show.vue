@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import GuardianNoChildren from '@/Components/GuardianNoChildren.vue';
 import DateInput from '@/Components/DateInput.vue';
 import Pagination from '@/Components/Pagination.vue';
 import { Head, router } from '@inertiajs/vue3';
@@ -11,6 +12,7 @@ const props = defineProps({
     selectedAthlete: Object,
     history: Object,
     filters: Object,
+    noChildren: { type: Boolean, default: false },
 });
 
 const athleteId = ref(props.filters?.athlete_id || '');
@@ -52,7 +54,9 @@ watch([operation, dateFrom, dateTo, historySort], reload);
     <AuthenticatedLayout>
         <template #header>{{ headerTitle }}</template>
 
-        <div class="max-w-4xl mx-auto space-y-6">
+        <GuardianNoChildren v-if="noChildren" class="my-8" />
+
+        <div v-else class="max-w-4xl mx-auto space-y-6">
             <div v-if="isGuardian && children?.length > 1" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <p class="text-sm text-slate-500 mb-3">Выберите ребёнка</p>
                 <div class="flex flex-wrap gap-2">

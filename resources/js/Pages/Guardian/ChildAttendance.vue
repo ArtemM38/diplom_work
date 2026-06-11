@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import GuardianNoChildren from '@/Components/GuardianNoChildren.vue';
 import { Head, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import dayjs from 'dayjs';
@@ -14,6 +15,7 @@ const props = defineProps({
     calendar: Array,
     stats: Object,
     filters: Object,
+    noChildren: { type: Boolean, default: false },
 });
 
 const pageTitle = computed(() => (props.isGuardian ? 'Табель ребёнка' : 'Мой табель'));
@@ -95,7 +97,9 @@ watch([calendarMonth, statsPeriod], reload);
     <AuthenticatedLayout>
         <template #header>{{ pageTitle }}</template>
 
-        <div class="max-w-5xl mx-auto space-y-6">
+        <GuardianNoChildren v-if="noChildren" class="my-8" />
+
+        <div v-else class="max-w-5xl mx-auto space-y-6">
             <div v-if="isGuardian && children?.length > 1" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <p class="text-sm text-slate-500 mb-3">Выберите ребёнка</p>
                 <div class="flex flex-wrap gap-2">

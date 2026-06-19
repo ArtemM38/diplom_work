@@ -40,6 +40,18 @@ const normalizeEmail = (event) => {
         </div>
 
         <div>
+            <InputLabel for="login" value="Логин" />
+            <TextInput
+                id="login"
+                type="text"
+                class="mt-1.5 block w-full rounded-xl border-slate-300 bg-slate-50"
+                :model-value="user.login"
+                disabled
+            />
+            <p class="mt-1 text-xs text-slate-500">Логин нельзя изменить. Он используется для входа в систему.</p>
+        </div>
+
+        <div>
             <InputLabel for="email" value="Электронная почта" />
             <TextInput
                 id="email"

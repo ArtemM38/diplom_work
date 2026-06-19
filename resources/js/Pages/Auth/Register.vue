@@ -9,6 +9,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     name: '',
+    login: '',
     email: '',
     password: '',
     password_confirmation: '',
@@ -19,6 +20,10 @@ const submit = () => {
     form.post(route('register'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
+};
+
+const normalizeLogin = (event) => {
+    form.login = (event.target.value || '').trim().toLowerCase();
 };
 
 const normalizeEmail = (event) => {
@@ -82,6 +87,23 @@ const normalizeEmail = (event) => {
                     :invalid="!!form.errors.name"
                 />
                 <InputError class="mt-2" :message="form.errors.name" />
+            </div>
+
+            <div>
+                <InputLabel for="login" value="Логин" />
+                <TextInput
+                    id="login"
+                    type="text"
+                    class="mt-1 block w-full"
+                    v-model="form.login"
+                    :invalid="!!form.errors.login"
+                    @input="normalizeLogin"
+                    autocomplete="username"
+                    required
+                    placeholder="ivanov.2012"
+                />
+                <p class="mt-1 text-xs text-slate-500">Латиница, цифры, точка, дефис. Используется для входа.</p>
+                <InputError class="mt-2" :message="form.errors.login" />
             </div>
 
             <div>

@@ -42,6 +42,7 @@ class FormValidator
     {
         return array_merge([
             'name' => 'имя',
+            'login' => 'логин',
             'full_name' => 'ФИО',
             'email' => 'email',
             'password' => 'пароль',

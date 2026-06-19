@@ -7,6 +7,7 @@ use App\Services\AthleteNotificationService;
 use App\Models\Schedule;
 use App\Models\User;
 use App\Support\FormValidator;
+use App\Support\LoginRules;
 use App\Support\RoleLabels;
 use App\Support\UserAvatar;
 use Illuminate\Http\Request;
@@ -29,6 +30,7 @@ class UserManagementController extends Controller
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('login', 'like', '%' . $search . '%')
                         ->orWhere('email', 'like', '%' . $search . '%')
                         ->orWhereHas('guardian', fn ($g) => $g->where('full_name', 'like', '%' . $search . '%'))
                         ->orWhereHas('athlete', function ($a) use ($search) {
@@ -47,6 +49,7 @@ class UserManagementController extends Controller
                 'profile_name' => $user->display_name,
                 'display_name' => $user->display_name,
                 'email' => $user->email,
+                'login' => $user->login,
                 'role' => $user->role,
                 'roles' => $user->getRolesList(),
                 'role_labels' => RoleLabels::labelsList($user->getRolesList()),
@@ -77,6 +80,7 @@ class UserManagementController extends Controller
                 'name' => $user->name,
                 'display_name' => $user->display_name,
                 'email' => $user->email,
+                'login' => $user->login,
                 'avatar_url' => UserAvatar::url($user),
                 'role_labels' => RoleLabels::labelsList($user->getRolesList()),
                 'roles' => $user->getRolesList(),
@@ -92,7 +96,8 @@ class UserManagementController extends Controller
     {
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email',
+            'login' => LoginRules::validation(),
+            'email' => 'required|email|max:255',
             'password' => 'required|string|min:8',
             'roles' => 'required|array|min:1',
             'roles.*' => Rule::in(['admin', 'accountant', 'coach', 'athlete', 'guardian']),
@@ -100,6 +105,8 @@ class UserManagementController extends Controller
         ], [
             'roles.min' => 'Выберите хотя бы одну роль.',
             'password.min' => 'Пароль не менее 8 символов.',
+        ], [
+            'login' => 'логин',
         ]);
 
         $roles = array_values(array_unique($validated['roles']));
@@ -112,6 +119,7 @@ class UserManagementController extends Controller
 
         $user = User::create([
             'name' => $validated['name'],
+            'login' => LoginRules::normalize($validated['login']),
             'email' => strtolower($validated['email']),
             'password' => $validated['password'],
             'is_active' => $request->boolean('is_active'),
@@ -125,7 +133,8 @@ class UserManagementController extends Controller
     {
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($coach->id)],
+            'login' => LoginRules::validation($coach->id),
+            'email' => 'required|email|max:255',
             'is_active' => 'required|boolean',
             'roles' => 'required|array|min:1',
             'roles.*' => Rule::in(['admin', 'accountant', 'coach', 'athlete', 'guardian']),
@@ -133,6 +142,8 @@ class UserManagementController extends Controller
         ], [
             'roles.min' => 'Выберите хотя бы одну роль.',
             'password.min' => 'Пароль не менее 8 символов.',
+        ], [
+            'login' => 'логин',
         ]);
 
         if ($coach->id === Auth::id() && ! $validated['is_active']) {
@@ -140,6 +151,7 @@ class UserManagementController extends Controller
         }
 
         $coach->name = $validated['name'];
+        $coach->login = LoginRules::normalize($validated['login']);
         $coach->email = strtolower($validated['email']);
         $coach->is_active = $validated['is_active'];
         $coach->syncRoles($validated['roles']);

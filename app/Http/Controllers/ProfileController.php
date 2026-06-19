@@ -37,6 +37,7 @@ class ProfileController extends Controller
             'profileData' => [
                 'user' => [
                     'name' => $user->name,
+                    'login' => $user->login,
                     'email' => $user->email,
                     'avatar_url' => $user->avatar_url,
                     'role' => $user->role,

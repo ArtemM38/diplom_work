@@ -18,7 +18,7 @@ defineProps({
 });
 
 const form = useForm({
-    email: '',
+    login: '',
     password: '',
     remember: false,
 });
@@ -51,14 +51,14 @@ const submit = () => {
         </div>
 
         <form @submit.prevent="submit">
-            <!-- Email -->
+            <!-- Логин -->
             <div>
-                <InputLabel for="email" value="Email" class="text-gray-700" />
-                <TextInput id="email" type="email"
+                <InputLabel for="login" value="Логин" class="text-gray-700" />
+                <TextInput id="login" type="text"
                     class="mt-1 block w-full bg-gray-50 border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 rounded-lg transition-colors"
-                    :class="{ 'border-red-500 bg-red-50': form.errors.email }" v-model="form.email" required autofocus
-                    placeholder="example@mail.ru" autocomplete="username" />
-                <InputError class="mt-2" :message="form.errors.email" />
+                    :class="{ 'border-red-500 bg-red-50': form.errors.login }" v-model="form.login" required autofocus
+                    placeholder="ivanov.2012" autocomplete="username" />
+                <InputError class="mt-2" :message="form.errors.login" />
             </div>
 
             <!-- Пароль -->

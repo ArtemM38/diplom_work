@@ -32,6 +32,8 @@ class DocxTemplateFiller
                 $xml = $this->applyRule($xml, $rule, $variables);
             }
 
+            $xml = $this->polishDocumentXml($xml);
+
             $zip->addFromString($part, $xml);
         }
 
@@ -791,6 +793,37 @@ class DocxTemplateFiller
         }
 
         return $before . $replacement . $after;
+    }
+
+    private function polishDocumentXml(string $xml): string
+    {
+        return preg_replace_callback(
+            '/<w:t([^>]*)>([^<]*)<\/w:t>/u',
+            function (array $match) {
+                $text = html_entity_decode($match[2], ENT_XML1, 'UTF-8');
+                if (! str_contains($text, '_') && ! preg_match('/\(\s*\)/u', $text)) {
+                    return $match[0];
+                }
+
+                if (preg_match('/^_{1,}$/u', trim($text))) {
+                    return '';
+                }
+
+                if (preg_match('/^_{1,}\)/u', $text)) {
+                    return '<w:t' . $match[1] . '>)</w:t>';
+                }
+
+                $text = preg_replace('/\s*_{1,}\s*\)/u', ')', $text) ?? $text;
+                $text = preg_replace('/\(\s*_{1,}\s*/u', '(', $text) ?? $text;
+                $text = preg_replace('/\(\s*\)/u', '', $text) ?? $text;
+                $text = preg_replace('/\s+,/u', ',', $text) ?? $text;
+                $text = preg_replace('/,\s*,/u', ',', $text) ?? $text;
+                $text = preg_replace('/\s{2,}/u', ' ', $text) ?? $text;
+
+                return '<w:t' . $match[1] . '>' . $this->escapeXml(trim($text)) . '</w:t>';
+            },
+            $xml,
+        ) ?? $xml;
     }
 
     private function stripUnderscores(string $text): string

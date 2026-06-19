@@ -22,6 +22,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'login',
         'email',
         'avatar',
         'password',
@@ -204,5 +205,10 @@ class User extends Authenticatable
     public function getAvatarUrlAttribute(): ?string
     {
         return \App\Support\UserAvatar::url($this);
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\ResetPassword($token));
     }
 }

@@ -26,6 +26,7 @@ class AccountUpdateTest extends TestCase
 
         $this->actingAs($admin)->patch(route('admin.coaches.update', $user), [
             'name' => 'New Name',
+            'login' => $user->login,
             'email' => 'new@example.com',
             'roles' => ['accountant'],
             'is_active' => false,

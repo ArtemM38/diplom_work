@@ -9,6 +9,7 @@ const props = defineProps({
     athlete: { type: Object, required: true },
     userAvatarUrl: { type: String, default: null },
     userName: { type: String, default: '' },
+    userLogin: { type: String, default: null },
     documentTemplates: { type: Array, default: () => [] },
 });
 
@@ -108,6 +109,9 @@ const uploadAvatar = () => {
                         <p v-if="athlete.birth_date" class="text-indigo-100/90 text-sm mt-1">
                             Дата рождения: {{ athlete.birth_date }}
                         </p>
+                        <p v-if="userLogin" class="text-indigo-100/90 text-sm mt-1">
+                            Логин: <span class="font-mono font-medium">{{ userLogin }}</span>
+                        </p>
                         <p v-if="athlete.phone" class="text-indigo-100/90 text-sm">
                             Телефон: {{ athlete.phone }}
                         </p>
@@ -160,7 +164,7 @@ const uploadAvatar = () => {
                 <div class="sm:col-span-2"><dt class="text-slate-500">Адрес регистрации</dt><dd class="font-medium text-slate-900">{{ athlete.registration_address || '—' }}</dd></div>
                 <template v-if="athlete.occupation_type === 'study' || athlete.school_name">
                     <div><dt class="text-slate-500">Школа / ОО</dt><dd class="font-medium text-slate-900">{{ athlete.school_name || '—' }}</dd></div>
-                    <div><dt class="text-slate-500">Класс</dt><dd class="font-medium text-slate-900">{{ athlete.school_class || '—' }}</dd></div>
+                    <div><dt class="text-slate-500">Класс/Курс</dt><dd class="font-medium text-slate-900">{{ athlete.school_class || '—' }}</dd></div>
                     <div class="sm:col-span-2"><dt class="text-slate-500">Директор (дат. падеж)</dt><dd class="font-medium text-slate-900">{{ athlete.school_director_dat || '—' }}</dd></div>
                 </template>
                 <template v-if="athlete.occupation_type === 'work' || athlete.work_place">

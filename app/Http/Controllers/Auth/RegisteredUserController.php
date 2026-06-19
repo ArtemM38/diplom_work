@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Support\FormValidator;
+use App\Support\LoginRules;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,15 +34,19 @@ class RegisteredUserController extends Controller
     {
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:' . User::class,
+            'login' => LoginRules::validation(),
+            'email' => 'required|string|lowercase|email|max:255',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|in:athlete,guardian',
         ], [
             'role.in' => 'Выберите тип аккаунта: спортсмен или родитель.',
+        ], [
+            'login' => 'логин',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
+            'login' => LoginRules::normalize($validated['login']),
             'email' => $validated['email'],
             'password' => $validated['password'],
             'role' => $validated['role'],

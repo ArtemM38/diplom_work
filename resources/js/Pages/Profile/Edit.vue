@@ -136,6 +136,10 @@ const selectedChildId = ref(props.profileData?.children?.[0]?.id ?? null);
                                 <h1 class="text-2xl font-bold text-slate-900 truncate">
                                     {{ profileData?.user?.name }}
                                 </h1>
+                                <p v-if="profileData?.user?.login" class="text-sm text-slate-600 mt-1">
+                                    <span class="text-slate-400">Логин:</span>
+                                    <span class="font-medium font-mono">{{ profileData.user.login }}</span>
+                                </p>
                                 <p class="text-slate-500 truncate">{{ profileData?.user?.email }}</p>
                                 <span
                                     v-if="profileData?.user?.role_label"
@@ -175,6 +179,7 @@ const selectedChildId = ref(props.profileData?.children?.[0]?.id ?? null);
                     :athlete="profileData.athlete"
                     :user-avatar-url="profileData?.user?.avatar_url"
                     :user-name="profileData?.user?.name"
+                    :user-login="profileData?.user?.login"
                     :document-templates="documentTemplates"
                 />
 
@@ -300,10 +305,10 @@ const selectedChildId = ref(props.profileData?.children?.[0]?.id ?? null);
                             <p class="mt-1 text-sm text-slate-500 mb-5">
                                 {{
                                     profileData?.guardian
-                                        ? 'Адрес для входа и уведомлений'
+                                        ? 'Логин для входа и почта для уведомлений'
                                         : isAthleteProfile
-                                          ? 'Почта для входа (ФИО — в анкете выше)'
-                                          : 'Имя в системе и адрес электронной почты'
+                                          ? 'Логин и почта (ФИО — в анкете выше)'
+                                          : 'Имя, логин и адрес электронной почты'
                                 }}
                             </p>
                             <UpdateProfileInformationForm

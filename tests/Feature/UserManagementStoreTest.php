@@ -22,6 +22,7 @@ class UserManagementStoreTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.coaches.store'), [
             'name' => 'Новый Тренер',
+            'login' => 'new-coach-' . uniqid(),
             'email' => $email,
             'password' => 'password123',
             'roles' => ['coach'],

@@ -36,6 +36,10 @@ const childName = (child) => `${child.last_name_nom} ${child.first_name_nom} ${c
                         />
                         <div class="flex-1 min-w-0 sm:pt-8">
                             <h1 class="text-2xl mt-4 font-bold text-slate-900">{{ profileUser.display_name }}</h1>
+                            <p v-if="profileUser.login" class="text-slate-600 mt-1 text-sm">
+                                <span class="text-slate-400">Логин:</span>
+                                <span class="font-medium font-mono">{{ profileUser.login }}</span>
+                            </p>
                             <p class="text-slate-500 mt-1">{{ profileUser.email }}</p>
                             <p class="mt-2 text-sm">
                                 <span class="text-slate-500">Роли:</span> {{ profileUser.role_labels }}

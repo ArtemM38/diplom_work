@@ -19,16 +19,17 @@ class DemoDataSeeder extends Seeder
         $password = bcrypt('qawsedrf');
 
         $coaches = [
-            ['name' => 'Смирнов Алексей Петрович', 'email' => 'coach1@test.ru'],
-            ['name' => 'Козлов Дмитрий Сергеевич', 'email' => 'coach2@test.ru'],
-            ['name' => 'Волкова Елена Николаевна', 'email' => 'coach3@test.ru'],
+            ['name' => 'Смирнов Алексей Петрович', 'login' => 'coach1', 'email' => 'coach1@test.ru'],
+            ['name' => 'Козлов Дмитрий Сергеевич', 'login' => 'coach2', 'email' => 'coach2@test.ru'],
+            ['name' => 'Волкова Елена Николаевна', 'login' => 'coach3', 'email' => 'coach3@test.ru'],
         ];
 
         foreach ($coaches as $coach) {
             $user = User::firstOrCreate(
-                ['email' => $coach['email']],
+                ['login' => $coach['login']],
                 [
                     'name' => $coach['name'],
+                    'email' => $coach['email'],
                     'password' => $password,
                     'is_active' => true,
                     'email_verified_at' => now(),
@@ -38,9 +39,10 @@ class DemoDataSeeder extends Seeder
         }
 
         $accountant = User::firstOrCreate(
-            ['email' => 'accountant@test.ru'],
+            ['login' => 'accountant'],
             [
                 'name' => 'Бухгалтерова Анна Сергеевна',
+                'email' => 'accountant@test.ru',
                 'password' => $password,
                 'is_active' => true,
                 'email_verified_at' => now(),
@@ -150,6 +152,7 @@ class DemoDataSeeder extends Seeder
 
         $athletesSeed = [
             [
+                'login' => 'athlete1',
                 'email' => 'athlete1@test.ru',
                 'name' => 'Петров Пётр Сергеевич',
                 'last_name_nom' => 'Петров',
@@ -160,6 +163,7 @@ class DemoDataSeeder extends Seeder
                 'phone' => '+7 (914) 100-01-01',
             ],
             [
+                'login' => 'athlete2',
                 'email' => 'athlete2@test.ru',
                 'name' => 'Сидорова Анна Дмитриевна',
                 'last_name_nom' => 'Сидорова',
@@ -170,6 +174,7 @@ class DemoDataSeeder extends Seeder
                 'phone' => '+7 (914) 100-02-02',
             ],
             [
+                'login' => 'athlete3',
                 'email' => 'athlete3@test.ru',
                 'name' => 'Кузнецов Артём Игоревич',
                 'last_name_nom' => 'Кузнецов',
@@ -184,9 +189,10 @@ class DemoDataSeeder extends Seeder
         $athleteModels = [];
         foreach ($athletesSeed as $row) {
             $user = User::firstOrCreate(
-                ['email' => $row['email']],
+                ['login' => $row['login']],
                 [
                     'name' => $row['name'],
+                    'email' => $row['email'],
                     'password' => $password,
                     'is_active' => true,
                     'email_verified_at' => now(),
@@ -211,6 +217,7 @@ class DemoDataSeeder extends Seeder
 
         $guardiansSeed = [
             [
+                'login' => 'guardian1',
                 'email' => 'guardian1@test.ru',
                 'name' => 'Петрова Елена Викторовна',
                 'full_name' => 'Петрова Елена Викторовна',
@@ -219,6 +226,7 @@ class DemoDataSeeder extends Seeder
                 'athlete_index' => 0,
             ],
             [
+                'login' => 'guardian2',
                 'email' => 'guardian2@test.ru',
                 'name' => 'Сидоров Дмитрий Александрович',
                 'full_name' => 'Сидоров Дмитрий Александрович',
@@ -227,6 +235,7 @@ class DemoDataSeeder extends Seeder
                 'athlete_index' => 1,
             ],
             [
+                'login' => 'guardian3',
                 'email' => 'guardian3@test.ru',
                 'name' => 'Кузнецова Ольга Петровна',
                 'full_name' => 'Кузнецова Ольга Петровна',
@@ -238,9 +247,10 @@ class DemoDataSeeder extends Seeder
 
         foreach ($guardiansSeed as $row) {
             $user = User::firstOrCreate(
-                ['email' => $row['email']],
+                ['login' => $row['login']],
                 [
                     'name' => $row['name'],
+                    'email' => $row['email'],
                     'password' => $password,
                     'is_active' => true,
                     'email_verified_at' => now(),

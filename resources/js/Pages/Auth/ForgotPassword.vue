@@ -14,7 +14,7 @@ defineProps({
 });
 
 const form = useForm({
-    email: '',
+    login: '',
 });
 
 const submit = () => {
@@ -27,7 +27,7 @@ const submit = () => {
         <Head title="Восстановление пароля" />
 
         <div class="mb-4 text-sm text-gray-600">
-            Укажите email — мы отправим ссылку для сброса пароля.
+            Укажите логин — мы отправим ссылку для сброса пароля на email, привязанный к аккаунту.
         </div>
 
         <div
@@ -41,18 +41,18 @@ const submit = () => {
             <FormErrorsAlert :errors="form.errors" class="mb-4" />
 
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="login" value="Логин" />
                 <TextInput
-                    id="email"
-                    type="email"
+                    id="login"
+                    type="text"
                     class="mt-1 block w-full"
-                    v-model="form.email"
-                    :invalid="!!form.errors.email"
+                    v-model="form.login"
+                    :invalid="!!form.errors.login"
                     required
                     autofocus
                     autocomplete="username"
                 />
-                <InputError class="mt-2" :message="form.errors.email" />
+                <InputError class="mt-2" :message="form.errors.login" />
             </div>
 
             <div class="mt-4 flex items-center justify-end">

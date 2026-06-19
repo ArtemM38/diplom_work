@@ -19,6 +19,7 @@ const staffRoles = ['admin', 'accountant', 'coach'];
 
 const createForm = useForm({
     name: '',
+    login: '',
     email: '',
     password: '',
     roles: ['coach'],
@@ -65,6 +66,7 @@ const createCoach = () => {
 const updateCoach = (user) => {
     router.patch(route('admin.coaches.update', user.id), {
         name: user.profile_name ?? user.display_name ?? user.name,
+        login: user.login,
         email: user.email,
         password: user.password || '',
         roles: user.roles?.length ? user.roles : [user.role],
@@ -108,6 +110,10 @@ watch([roleFilter, activeFilter], () => {
                         <InputError :message="createForm.errors.name" />
                     </div>
                     <div>
+                        <input v-model="createForm.login" placeholder="Логин" :class="fieldClass(createForm.errors, 'login', 'w-full rounded-xl')" required />
+                        <InputError :message="createForm.errors.login" />
+                    </div>
+                    <div>
                         <input v-model="createForm.email" type="email" placeholder="Email" :class="fieldClass(createForm.errors, 'email', 'w-full rounded-xl')" required />
                         <InputError :message="createForm.errors.email" />
                     </div>
@@ -133,7 +139,7 @@ watch([roleFilter, activeFilter], () => {
 
             <div class="md:col-span-1 xl:col-span-2 space-y-3 min-w-0">
                 <div class="grid md:grid-cols-3 gap-2">
-                    <input v-model="search" class="w-full border-slate-300 rounded-xl" placeholder="Поиск по ФИО или email..." />
+                    <input v-model="search" class="w-full border-slate-300 rounded-xl" placeholder="Поиск по ФИО, логину или email..." />
                     <select v-model="roleFilter" class="border-slate-300 rounded-xl">
                         <option value="all">Все роли</option>
                         <option v-for="role in roles" :key="role" :value="role">{{ roleLabels[role] || role }}</option>
@@ -162,15 +168,16 @@ watch([roleFilter, activeFilter], () => {
                             <Link :href="route('admin.users.show', user.id)" class="font-semibold text-indigo-700 hover:underline">
                                 {{ user.display_name }}
                             </Link>
-                            <p class="text-xs text-slate-500">{{ user.email }}</p>
+                            <p class="text-xs text-slate-500">{{ user.login }} · {{ user.email }}</p>
                             </div>
                         </div>
                         <span class="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">{{ user.role_labels }}</span>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
                         <input v-model="user.profile_name" class="border-slate-300 rounded-xl text-sm" placeholder="ФИО" />
-                        <input v-model="user.email" class="border-slate-300 rounded-xl text-sm" />
+                        <input v-model="user.login" class="border-slate-300 rounded-xl text-sm" placeholder="Логин" />
+                        <input v-model="user.email" class="border-slate-300 rounded-xl text-sm" placeholder="Email" />
                     </div>
 
                     <div class="flex flex-wrap gap-3 text-sm">

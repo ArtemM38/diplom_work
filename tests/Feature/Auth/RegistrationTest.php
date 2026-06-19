@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -20,6 +21,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
+            'login' => 'test.user',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
@@ -28,5 +30,29 @@ class RegistrationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(route('athlete.create', absolute: false));
+    }
+
+    public function test_multiple_accounts_can_share_the_same_email(): void
+    {
+        User::factory()->create([
+            'login' => 'parent.one',
+            'email' => 'family@example.com',
+        ]);
+
+        $response = $this->post('/register', [
+            'name' => 'Child User',
+            'login' => 'child.one',
+            'email' => 'family@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'athlete',
+        ]);
+
+        $response->assertRedirect(route('athlete.create', absolute: false));
+        $this->assertDatabaseCount('users', 2);
+        $this->assertDatabaseHas('users', [
+            'login' => 'child.one',
+            'email' => 'family@example.com',
+        ]);
     }
 }

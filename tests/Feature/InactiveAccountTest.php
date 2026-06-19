@@ -20,9 +20,9 @@ class InactiveAccountTest extends TestCase
         ]);
 
         $this->post(route('login'), [
-            'email' => $user->email,
+            'login' => $user->login,
             'password' => 'password',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('profile.edit'));
 
         $this->get(route('dashboard'))
             ->assertOk()

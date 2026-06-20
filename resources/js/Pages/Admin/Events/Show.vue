@@ -197,11 +197,11 @@ const participantIndex = computed(() => {
             </div>
         </template>
 
-        <div class="space-y-4 sm:space-y-6 max-w-6xl mx-auto px-1 sm:px-0">
-            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100 shadow-sm">
+        <div class="space-y-4 sm:space-y-6 max-w-6xl mx-auto min-w-0">
+            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100 shadow-sm min-w-0">
                 <div class="flex flex-col sm:flex-row sm:justify-between gap-3 mb-4">
                     <h2 class="text-lg font-bold">Данные мероприятия</h2>
-                    <div class="flex flex-col xs:flex-row flex-wrap gap-2 w-full sm:w-auto">
+                    <div class="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
                         <button type="button" @click="exportCsv" class="w-full sm:w-auto px-3 py-2 text-sm border rounded-lg">Отчёт CSV</button>
                         <button type="button" @click="exportPdf" class="w-full sm:w-auto px-3 py-2 text-sm border rounded-lg">Отчёт PDF</button>
                         <button v-if="!readOnly" type="button" @click="editingEvent = !editingEvent" class="w-full sm:w-auto px-3 py-2 text-sm bg-indigo-100 text-indigo-800 rounded-lg">
@@ -210,88 +210,88 @@ const participantIndex = computed(() => {
                     </div>
                 </div>
 
-                <form v-if="editingEvent && !readOnly" @submit.prevent="saveEvent" class="grid md:grid-cols-3 gap-4">
-                    <div class="md:col-span-2">
+                <form v-if="editingEvent && !readOnly" @submit.prevent="saveEvent" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
+                    <div class="sm:col-span-2 min-w-0">
                         <label class="text-xs text-slate-500">Наименование</label>
-                        <input v-model="eventForm.name" required class="w-full border-gray-300 rounded-lg" />
+                        <input v-model="eventForm.name" required class="w-full max-w-full min-w-0 border-gray-300 rounded-lg" />
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="text-xs text-slate-500">Стоимость</label>
-                        <input v-model="eventForm.cost" type="number" min="0" step="1" class="w-full border-gray-300 rounded-lg" />
+                        <input v-model="eventForm.cost" type="number" min="0" step="1" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg" />
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="text-xs text-slate-500">Тип</label>
-                        <select v-model="eventForm.event_type_id" class="w-full border-gray-300 rounded-lg">
+                        <select v-model="eventForm.event_type_id" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg">
                             <option v-for="t in eventTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
                         </select>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="text-xs text-slate-500">Уровень</label>
-                        <select v-model="eventForm.event_level_id" class="w-full border-gray-300 rounded-lg">
+                        <select v-model="eventForm.event_level_id" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg">
                             <option value="">—</option>
                             <option v-for="l in eventLevels" :key="l.id" :value="l.id">{{ l.name }}</option>
                         </select>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="text-xs text-slate-500">Ведущий</label>
-                        <select v-model="eventForm.event_host_id" class="w-full border-gray-300 rounded-lg">
+                        <select v-model="eventForm.event_host_id" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg">
                             <option value="">—</option>
                             <option v-for="h in eventHosts" :key="h.id" :value="h.id">{{ h.full_name }}</option>
                         </select>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="text-xs text-slate-500">Место</label>
-                        <input v-model="eventForm.event_place" class="w-full border-gray-300 rounded-lg" />
+                        <input v-model="eventForm.event_place" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg" />
                     </div>
-                    <div>
-                        <DateInput v-model="eventForm.event_date" label="Дата начала" input-class="w-full border-gray-300 rounded-lg" />
+                    <div class="min-w-0">
+                        <DateInput v-model="eventForm.event_date" label="Дата начала" input-class="w-full max-w-full min-w-0 border-gray-300 rounded-lg" />
                     </div>
-                    <div>
-                        <DateInput v-model="eventForm.event_date_to" label="Дата окончания" input-class="w-full border-gray-300 rounded-lg" />
+                    <div class="min-w-0">
+                        <DateInput v-model="eventForm.event_date_to" label="Дата окончания" input-class="w-full max-w-full min-w-0 border-gray-300 rounded-lg" />
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="text-xs text-slate-500">Статус</label>
-                        <select v-model="eventForm.status" class="w-full border-gray-300 rounded-lg">
+                        <select v-model="eventForm.status" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg">
                             <option value="planned">Запланировано</option>
                             <option value="completed">Проведено</option>
                         </select>
                     </div>
-                    <div class="md:col-span-3">
-                        <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Сохранить</button>
+                    <div class="sm:col-span-2 lg:col-span-3">
+                        <button type="submit" class="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold">Сохранить</button>
                     </div>
                 </form>
 
-                <dl v-else class="grid sm:grid-cols-2 gap-3 text-sm">
-                    <div><dt class="text-slate-500">Тип</dt><dd class="font-medium">{{ event.event_type?.name }}</dd></div>
-                    <div><dt class="text-slate-500">Уровень</dt><dd class="font-medium">{{ event.event_level?.name || '—' }}</dd></div>
-                    <div><dt class="text-slate-500">Стоимость</dt><dd class="font-medium">{{ event.cost }} ₽</dd></div>
-                    <div><dt class="text-slate-500">Дата</dt><dd class="font-medium">{{ event.event_date_range_display || event.event_date_display || formatDisplayDate(event.event_date) || '—' }}</dd></div>
-                    <div><dt class="text-slate-500">Место</dt><dd class="font-medium">{{ event.event_place || '—' }}</dd></div>
-                    <div><dt class="text-slate-500">Ведущий</dt><dd class="font-medium">{{ event.event_host?.full_name || '—' }}</dd></div>
+                <dl v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm min-w-0">
+                    <div class="min-w-0"><dt class="text-slate-500">Тип</dt><dd class="font-medium break-anywhere">{{ event.event_type?.name }}</dd></div>
+                    <div class="min-w-0"><dt class="text-slate-500">Уровень</dt><dd class="font-medium break-anywhere">{{ event.event_level?.name || '—' }}</dd></div>
+                    <div class="min-w-0"><dt class="text-slate-500">Стоимость</dt><dd class="font-medium">{{ event.cost }} ₽</dd></div>
+                    <div class="min-w-0"><dt class="text-slate-500">Дата</dt><dd class="font-medium break-anywhere">{{ event.event_date_range_display || event.event_date_display || formatDisplayDate(event.event_date) || '—' }}</dd></div>
+                    <div class="min-w-0"><dt class="text-slate-500">Место</dt><dd class="font-medium break-anywhere">{{ event.event_place || '—' }}</dd></div>
+                    <div class="min-w-0"><dt class="text-slate-500">Ведущий</dt><dd class="font-medium break-anywhere">{{ event.event_host?.full_name || '—' }}</dd></div>
                 </dl>
             </div>
 
-            <div v-if="!readOnly" class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100">
+            <div v-if="!readOnly" class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100 min-w-0">
                 <h3 class="font-bold mb-3">Добавить спортсмена</h3>
-                <input v-model="athleteSearch" placeholder="Поиск..." class="w-full border-gray-300 rounded-lg mb-3" />
-                <div class="flex flex-wrap gap-2 mb-3 max-h-40 overflow-y-auto">
+                <input v-model="athleteSearch" placeholder="Поиск..." class="w-full max-w-full min-w-0 border-gray-300 rounded-lg mb-3" />
+                <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-3 max-h-48 overflow-y-auto">
                     <button
                         v-for="a in availableAthletes"
                         :key="a.id"
                         type="button"
                         @click="selectAthleteForAttach(a)"
-                        class="text-left px-3 py-2 rounded-lg border text-sm transition"
+                        class="w-full sm:w-auto text-left px-3 py-2 rounded-lg border text-sm transition min-w-0"
                         :class="[
                             attachAthleteId === a.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200',
                             a.medical_status === 'expired' || a.medical_status === 'warning' ? 'border-amber-400' : '',
                         ]"
                     >
-                        {{ a.full_name }}
-                        <span class="block text-[10px] mt-0.5" :class="medicalClass(a.medical_status)">{{ medicalText({ medical_status: a.medical_status, medical_days_left: a.medical_days_left }) }}</span>
+                        <span class="break-anywhere">{{ a.full_name }}</span>
+                        <span class="block text-[10px] mt-0.5 break-anywhere" :class="medicalClass(a.medical_status)">{{ medicalText({ medical_status: a.medical_status, medical_days_left: a.medical_days_left }) }}</span>
                     </button>
                 </div>
-                <div v-if="selectedAthletePreview" class="mb-4 p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm space-y-3">
-                    <p class="font-semibold">{{ selectedAthletePreview.full_name }}</p>
+                <div v-if="selectedAthletePreview" class="mb-4 p-4 rounded-xl border border-slate-200 bg-slate-50 text-sm space-y-3 min-w-0 overflow-hidden">
+                    <p class="font-semibold break-anywhere">{{ selectedAthletePreview.full_name }}</p>
                     <div v-if="selectedAthletePreview.inventory_items?.length">
                         <p class="text-xs text-slate-500 mb-1">Инвентарь</p>
                         <p>{{ selectedAthletePreview.inventory_items.join(', ') }}</p>
@@ -309,39 +309,39 @@ const participantIndex = computed(() => {
                     </div>
                     <p v-else class="text-slate-400 text-xs">Документы не загружены</p>
                 </div>
-                <button type="button" :disabled="!attachAthleteId" @click="attachAthlete" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50">
+                <button type="button" :disabled="!attachAthleteId" @click="attachAthlete" class="w-full sm:w-auto bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50">
                     Добавить в мероприятие
                 </button>
             </div>
 
-            <div v-if="participants?.length" class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100">
+            <div v-if="participants?.length" class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100 min-w-0">
                 <h3 class="font-bold mb-4">Посещаемость на мероприятии</h3>
-                <p class="text-xs text-slate-500 mb-4">При отметках «Был» или «Не был» (без уважительной причины) стоимость мероприятия списывается с баланса спортсмена. Для «Уваж. причина» приложите справку — списание отменяется.</p>
+                <p class="text-xs text-slate-500 mb-4 break-anywhere">При отметках «Был» или «Не был» (без уважительной причины) стоимость мероприятия списывается с баланса спортсмена. Для «Уваж. причина» приложите справку — списание отменяется.</p>
                 <form @submit.prevent="saveAttendance" class="space-y-3">
                     <div
                         v-for="(row, idx) in attendanceForm.participants"
                         :key="`att-${row.id}`"
-                        class="p-4 rounded-xl border border-slate-200"
+                        class="p-4 rounded-xl border border-slate-200 min-w-0"
                     >
-                        <div class="flex flex-wrap justify-between gap-2 mb-2">
-                            <span class="font-semibold">{{ participantIndex[row.id]?.full_name }}</span>
-                            <span v-if="participantIndex[row.id]?.attendance_status" class="text-xs text-slate-500">
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-1 mb-2 min-w-0">
+                            <span class="font-semibold break-anywhere">{{ participantIndex[row.id]?.full_name }}</span>
+                            <span v-if="participantIndex[row.id]?.attendance_status" class="text-xs text-slate-500 shrink-0">
                                 Текущая: {{ attendanceStatusLabel(participantIndex[row.id]?.attendance_status) }}
                             </span>
                         </div>
-                        <div class="grid md:grid-cols-3 gap-3">
-                            <div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+                            <div class="min-w-0">
                                 <label class="text-xs text-slate-500">Отметка</label>
-                                <select v-model="row.attendance_status" :disabled="readOnly" class="w-full border-gray-300 rounded-lg text-sm">
+                                <select v-model="row.attendance_status" :disabled="readOnly" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg text-sm">
                                     <option value="">—</option>
                                     <option value="Я">Был (Я)</option>
                                     <option value="Н">Не был (Н)</option>
                                     <option value="У">Уваж. причина (У)</option>
                                 </select>
                             </div>
-                            <div v-if="row.attendance_status === 'У' && !readOnly">
+                            <div v-if="row.attendance_status === 'У' && !readOnly" class="min-w-0 sm:col-span-2">
                                 <label class="text-xs text-slate-500">Справка</label>
-                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm w-full" @change="onAttendanceCertificateChange(row.id, $event)" />
+                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm w-full max-w-full min-w-0" @change="onAttendanceCertificateChange(row.id, $event)" />
                                 <a
                                     v-if="participantIndex[row.id]?.excused_certificate"
                                     :href="storageUrl(participantIndex[row.id].excused_certificate)"
@@ -351,16 +351,16 @@ const participantIndex = computed(() => {
                             </div>
                         </div>
                     </div>
-                    <button v-if="!readOnly" type="submit" class="bg-amber-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="attendanceForm.processing">
+                    <button v-if="!readOnly" type="submit" class="w-full sm:w-auto bg-amber-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="attendanceForm.processing">
                         Сохранить посещаемость
                     </button>
                 </form>
             </div>
 
-            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100">
+            <div class="bg-white p-4 sm:p-6 rounded-xl border border-slate-100 min-w-0">
                 <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
                     <h3 class="font-bold">Участники и результаты ({{ participants?.length || 0 }})</h3>
-                    <select v-if="!readOnly" v-model="resultsForm.status" class="border-gray-300 rounded-lg text-sm">
+                    <select v-if="!readOnly" v-model="resultsForm.status" class="w-full sm:w-auto border-gray-300 rounded-lg text-sm min-h-[2.75rem]">
                         <option value="planned">Запланировано</option>
                         <option value="completed">Проведено</option>
                     </select>
@@ -372,45 +372,45 @@ const participantIndex = computed(() => {
                     <div
                         v-for="(row, idx) in resultsForm.participants"
                         :key="row.id"
-                        class="p-4 rounded-xl border"
+                        class="p-4 rounded-xl border min-w-0 overflow-hidden"
                         :class="(participantIndex[row.id]?.medical_status === 'expired' || participantIndex[row.id]?.medical_status === 'warning') ? 'border-amber-400 bg-amber-50/30' : 'border-slate-200'"
                     >
-                        <div class="flex flex-wrap justify-between gap-2 mb-3">
-                            <div>
-                                <span class="font-semibold">{{ participantIndex[row.id]?.full_name }}</span>
-                                <span class="ml-2 text-[10px] px-2 py-0.5 rounded border" :class="medicalClass(participantIndex[row.id]?.medical_status)">
+                        <div class="flex flex-col sm:flex-row sm:justify-between gap-2 mb-3 min-w-0">
+                            <div class="min-w-0 flex-1">
+                                <span class="font-semibold break-anywhere">{{ participantIndex[row.id]?.full_name }}</span>
+                                <span class="mt-1 sm:mt-0 sm:ml-2 inline-block text-[10px] px-2 py-0.5 rounded border break-anywhere" :class="medicalClass(participantIndex[row.id]?.medical_status)">
                                     {{ medicalText(participantIndex[row.id] || {}) }}
                                 </span>
                             </div>
-                            <button v-if="!readOnly" type="button" @click="detachAthlete(participantIndex[row.id]?.athlete_id)" class="text-red-600 text-xs">Удалить</button>
+                            <button v-if="!readOnly" type="button" @click="detachAthlete(participantIndex[row.id]?.athlete_id)" class="text-red-600 text-xs shrink-0 self-start">Удалить</button>
                         </div>
-                        <div class="grid md:grid-cols-3 gap-3">
-                            <div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-w-0">
+                            <div class="min-w-0">
                                 <label class="text-xs text-slate-500">Результат (текст)</label>
-                                <input v-model="row.result_label" :readonly="readOnly" class="w-full border-gray-300 rounded-lg text-sm" />
+                                <input v-model="row.result_label" :readonly="readOnly" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg text-sm" />
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <label class="text-xs text-slate-500">Место (1–3)</label>
-                                <input v-model="row.result_place" type="number" min="1" max="3" :readonly="readOnly" class="w-full border-gray-300 rounded-lg text-sm" />
+                                <input v-model="row.result_place" type="number" min="1" max="3" :readonly="readOnly" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg text-sm" />
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <label class="text-xs text-slate-500">Разряд</label>
-                                <select v-model="row.result_rank_id" :disabled="readOnly" class="w-full border-gray-300 rounded-lg text-sm">
+                                <select v-model="row.result_rank_id" :disabled="readOnly" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg text-sm">
                                     <option value="">—</option>
                                     <option v-for="r in ranks" :key="r.id" :value="r.id">{{ r.name }}</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="min-w-0">
                                 <label class="text-xs text-slate-500">ID сертификата</label>
-                                <input v-model="row.certificate_id" :readonly="readOnly" class="w-full border-gray-300 rounded-lg text-sm" />
+                                <input v-model="row.certificate_id" :readonly="readOnly" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg text-sm" />
                             </div>
-                            <div class="md:col-span-2">
+                            <div class="min-w-0 sm:col-span-2">
                                 <label class="text-xs text-slate-500">Описание</label>
-                                <input v-model="row.result_description" :readonly="readOnly" class="w-full border-gray-300 rounded-lg text-sm" />
+                                <input v-model="row.result_description" :readonly="readOnly" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg text-sm" />
                             </div>
-                            <div v-if="!readOnly">
+                            <div v-if="!readOnly" class="min-w-0 sm:col-span-2 lg:col-span-1">
                                 <label class="text-xs text-slate-500">Подтверждение (файл)</label>
-                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm" @change="onEvidenceChange(row.id, $event)" />
+                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm w-full max-w-full min-w-0" @change="onEvidenceChange(row.id, $event)" />
                                 <a
                                     v-if="participantIndex[row.id]?.evidence_file_path"
                                     :href="storageUrl(participantIndex[row.id].evidence_file_path)"
@@ -421,7 +421,7 @@ const participantIndex = computed(() => {
                         </div>
                     </div>
 
-                    <button v-if="!readOnly" type="submit" class="bg-emerald-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="resultsForm.processing">
+                    <button v-if="!readOnly" type="submit" class="w-full sm:w-auto bg-emerald-600 text-white px-6 py-2 rounded-lg font-semibold" :disabled="resultsForm.processing">
                         Сохранить результаты
                     </button>
                 </form>

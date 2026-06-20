@@ -156,6 +156,10 @@ const closeModal = () => {
     }, { preserveState: true, replace: true });
 };
 
+const calendarDaysWithEntries = computed(() =>
+    calendarDays.value.filter((date) => date && (calendarByDate.value.get(date)?.length ?? 0) > 0),
+);
+
 const shiftCalendarMonth = (delta) => {
     const [y, m] = calendarMonth.value.split('-').map(Number);
     const next = dayjs(`${y}-${m}-01`).add(delta, 'month');
@@ -167,18 +171,19 @@ const shiftCalendarMonth = (delta) => {
     <Head title="Табель посещаемости" />
     <AuthenticatedLayout>
         <template #header>
-            <div class="flex items-center gap-4">
-                <Link :href="route('admin.schedule')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">← Назад</Link>
-                <span>Табель посещаемости</span>
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
+                <Link :href="route('admin.schedule')" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium shrink-0">← Назад</Link>
+                <span class="break-anywhere">Табель посещаемости</span>
             </div>
         </template>
 
-        <div class="flex gap-2 mb-6">
+        <div class="min-w-0 max-w-full">
+        <div class="flex flex-col sm:flex-row gap-2 mb-4 sm:mb-6">
             <button
                 type="button"
                 @click="viewMode = 'athletes'"
                 :class="viewMode === 'athletes' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border'"
-                class="px-4 py-2 rounded-xl text-sm font-medium"
+                class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-medium"
             >
                 По спортсменам
             </button>
@@ -186,22 +191,22 @@ const shiftCalendarMonth = (delta) => {
                 type="button"
                 @click="viewMode = 'groups'"
                 :class="viewMode === 'groups' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-600 border'"
-                class="px-4 py-2 rounded-xl text-sm font-medium"
+                class="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-sm font-medium"
             >
                 По группам
             </button>
         </div>
 
-        <div v-if="viewMode === 'athletes'" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-4 bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-fit">
+        <div v-if="viewMode === 'athletes'" class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-w-0">
+            <div class="lg:col-span-4 bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-slate-100 h-fit min-w-0">
                 <h3 class="font-bold mb-3">Спортсмены</h3>
-                <input v-model="search" class="w-full border-gray-300 rounded-lg mb-3" placeholder="Поиск..." />
-                <div class="space-y-2 max-h-[480px] overflow-y-auto">
+                <input v-model="search" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg mb-3" placeholder="Поиск..." />
+                <div class="space-y-2 max-h-[320px] sm:max-h-[480px] overflow-y-auto">
                     <button
                         v-for="athlete in athletesList"
                         :key="athlete.id"
                         @click="toggleAthlete(athlete.id)"
-                        class="w-full text-left p-3 rounded-lg border transition"
+                        class="w-full text-left p-3 rounded-lg border transition break-anywhere"
                         :class="athleteId === athlete.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'"
                     >
                         {{ athlete.full_name }}
@@ -210,21 +215,22 @@ const shiftCalendarMonth = (delta) => {
                 <Pagination class="mt-3" :links="athletes.links" :meta="athletes" />
             </div>
 
-            <div class="lg:col-span-8 bg-white p-6 rounded-xl shadow-sm">
-                <div v-if="!selectedAthlete" class="text-gray-500 text-center py-12">
+            <div class="lg:col-span-8 bg-white p-4 sm:p-6 rounded-xl shadow-sm min-w-0 overflow-hidden">
+                <div v-if="!selectedAthlete" class="text-gray-500 text-center py-12 text-sm px-2">
                     Выберите спортсмена слева, чтобы увидеть календарь явок/неявок.
                 </div>
                 <template v-else>
-                    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between mb-4 min-w-0">
                         <div class="min-w-0 flex-1">
-                            <h3 class="font-bold text-lg">{{ selectedAthlete.full_name }}</h3>
-                            <div class="flex flex-wrap items-center gap-2 mt-2 text-sm text-gray-600">
-                                <span>
-                                    Явки: <b>{{ stats.present }}</b> |
-                                    Неявки: <b>{{ stats.absent }}</b> |
-                                    Уважительные: <b>{{ stats.excused }}</b>
-                                    <span class="text-slate-400 ml-1">({{ statsPeriodLabel }})</span>
-                                </span>
+                            <h3 class="font-bold text-base sm:text-lg break-anywhere">{{ selectedAthlete.full_name }}</h3>
+                            <div class="mt-2 space-y-2">
+                                <p class="text-xs sm:text-sm text-gray-600 break-anywhere">
+                                    Явки: <b>{{ stats.present }}</b> ·
+                                    Неявки: <b>{{ stats.absent }}</b> ·
+                                    Уваж.: <b>{{ stats.excused }}</b>
+                                    <span class="text-slate-400"> ({{ statsPeriodLabel }})</span>
+                                </p>
+                                <div class="flex flex-wrap gap-2">
                                 <button
                                     type="button"
                                     @click="setStatsPeriod('month')"
@@ -241,23 +247,54 @@ const shiftCalendarMonth = (delta) => {
                                 >
                                     Год
                                 </button>
+                                </div>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <button type="button" @click="shiftCalendarMonth(-1)" class="p-2 border rounded-lg">‹</button>
-                            <button type="button" @click="shiftCalendarMonth(1)" class="p-2 border rounded-lg">›</button>
+                        <div class="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                            <button type="button" @click="shiftCalendarMonth(-1)" class="p-2 border rounded-lg min-w-[2.5rem]">‹</button>
+                            <button type="button" @click="shiftCalendarMonth(1)" class="p-2 border rounded-lg min-w-[2.5rem]">›</button>
                         </div>
                     </div>
 
-                    <h4 class="font-semibold text-slate-700 mb-3 capitalize">{{ monthLabel }}</h4>
+                    <h4 class="font-semibold text-slate-700 mb-3 capitalize text-sm sm:text-base">{{ monthLabel }}</h4>
 
-                    <div class="calendar-scroll">
+                    <!-- Мобильный список -->
+                    <div class="md:hidden space-y-2 max-h-[55vh] overflow-y-auto">
+                        <div
+                            v-for="date in calendarDaysWithEntries"
+                            :key="`m-${date}`"
+                            class="rounded-xl border border-slate-200 p-3"
+                            :class="getDayCellClass(date)"
+                        >
+                            <p class="text-sm font-bold text-slate-800 mb-2 capitalize">{{ dayjs(date).format('D MMMM, dddd') }}</p>
+                            <div class="space-y-2">
+                                <div
+                                    v-for="(entry, eIdx) in (calendarByDate.get(date) || [])"
+                                    :key="eIdx"
+                                    class="text-xs px-3 py-2 rounded-lg break-anywhere leading-snug"
+                                    :class="getAthleteEntryClass(entry)"
+                                >
+                                    <div>{{ getAthleteEntryLabel(entry) }}</div>
+                                    <a
+                                        v-if="entry.status === 'У' && entry.excused_certificate_url"
+                                        :href="entry.excused_certificate_url"
+                                        target="_blank"
+                                        class="inline-block mt-1 text-indigo-600 hover:underline font-medium"
+                                    >Справка</a>
+                                </div>
+                            </div>
+                        </div>
+                        <p v-if="!calendarDaysWithEntries.length" class="text-center text-slate-400 text-sm py-6">Нет занятий в этом месяце</p>
+                    </div>
+
+                    <!-- Десктоп: календарь -->
+                    <div class="hidden md:block calendar-scroll">
                     <div class="calendar-grid">
                         <div v-for="d in ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']" :key="d" class="text-center text-xs font-bold text-slate-400 py-1">{{ d }}</div>
                         <div
                             v-for="(date, idx) in calendarDays"
                             :key="idx"
-                            :class="['min-h-24 border rounded-xl p-2', date ? getDayCellClass(date) : 'border-transparent bg-gray-50']"
+                            :class="['min-h-24 border rounded-xl p-2 min-w-0 overflow-hidden', date ? getDayCellClass(date) : 'border-transparent bg-gray-50']"
                         >
                             <template v-if="date">
                                 <div class="text-xs font-bold text-slate-700 mb-1">{{ dayjs(date).date() }}</div>
@@ -265,7 +302,7 @@ const shiftCalendarMonth = (delta) => {
                                     <div
                                         v-for="(entry, eIdx) in (calendarByDate.get(date) || [])"
                                         :key="eIdx"
-                                        class="text-[10px] px-2 py-1 rounded"
+                                        class="text-[10px] px-1.5 py-1 rounded break-anywhere leading-tight"
                                         :class="getAthleteEntryClass(entry)"
                                     >
                                         <div>{{ getAthleteEntryLabel(entry) }}</div>
@@ -282,20 +319,20 @@ const shiftCalendarMonth = (delta) => {
                         </div>
                     </div>
                     </div>
-                    <p class="text-xs text-slate-500 mt-3">Отображаются все отметки, в том числе по прошлым группам</p>
+                    <p class="text-xs text-slate-500 mt-3 break-anywhere">Отображаются все отметки, в том числе по прошлым группам</p>
                 </template>
             </div>
         </div>
 
-        <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div class="lg:col-span-3 bg-white p-5 rounded-xl border border-slate-100">
+        <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 min-w-0">
+            <div class="lg:col-span-3 bg-white p-4 sm:p-5 rounded-xl border border-slate-100 min-w-0">
                 <h3 class="font-bold mb-3">Группы</h3>
-                <div class="space-y-2">
+                <div class="space-y-2 max-h-[240px] lg:max-h-none overflow-y-auto">
                     <button
                         v-for="g in groups"
                         :key="g.id"
                         @click="groupId = g.id"
-                        class="w-full text-left p-3 rounded-lg border text-sm"
+                        class="w-full text-left p-3 rounded-lg border text-sm break-anywhere"
                         :class="groupId === g.id ? 'border-indigo-400 bg-indigo-50' : 'border-gray-200'"
                     >
                         {{ g.name }}
@@ -303,23 +340,51 @@ const shiftCalendarMonth = (delta) => {
                 </div>
             </div>
 
-            <div class="lg:col-span-9 bg-white p-5 rounded-xl border border-slate-100">
-                <div v-if="!groupId" class="text-gray-500 text-center py-12">Выберите группу</div>
+            <div class="lg:col-span-9 bg-white p-4 sm:p-5 rounded-xl border border-slate-100 min-w-0 overflow-hidden">
+                <div v-if="!groupId" class="text-gray-500 text-center py-12 text-sm">Выберите группу</div>
                 <template v-else>
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold capitalize">{{ monthLabel }}</h3>
-                        <div class="flex gap-2">
-                            <button type="button" @click="shiftCalendarMonth(-1)" class="p-2 border rounded-lg">‹</button>
-                            <button type="button" @click="shiftCalendarMonth(1)" class="p-2 border rounded-lg">›</button>
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-4">
+                        <h3 class="font-bold capitalize text-sm sm:text-base">{{ monthLabel }}</h3>
+                        <div class="flex gap-2 shrink-0">
+                            <button type="button" @click="shiftCalendarMonth(-1)" class="p-2 border rounded-lg min-w-[2.5rem]">‹</button>
+                            <button type="button" @click="shiftCalendarMonth(1)" class="p-2 border rounded-lg min-w-[2.5rem]">›</button>
                         </div>
                     </div>
-                    <div class="calendar-scroll">
+
+                    <div class="md:hidden space-y-2 max-h-[55vh] overflow-y-auto">
+                        <div
+                            v-for="date in calendarDaysWithEntries"
+                            :key="`gm-${date}`"
+                            class="rounded-xl border border-slate-200 p-3"
+                            :class="getDayCellClass(date)"
+                        >
+                            <p class="text-sm font-bold text-slate-800 mb-2 capitalize">{{ dayjs(date).format('D MMMM, dddd') }}</p>
+                            <div class="space-y-2">
+                                <button
+                                    v-for="entry in (calendarByDate.get(date) || [])"
+                                    :key="entry.schedule_id"
+                                    type="button"
+                                    @click="openSchedule(entry.schedule_id)"
+                                    class="w-full text-left text-xs px-3 py-2 rounded-lg break-anywhere"
+                                    :class="getGroupSessionClass(entry)"
+                                >
+                                    {{ entry.start_time?.substring(0,5) }} тренировка
+                                    <span v-if="entry.is_future" class="opacity-70"> · будущая</span>
+                                    <span v-else-if="entry.has_marks" class="opacity-70"> · отмечено</span>
+                                    <span v-else class="opacity-70"> · без отметок</span>
+                                </button>
+                            </div>
+                        </div>
+                        <p v-if="!calendarDaysWithEntries.length" class="text-center text-slate-400 text-sm py-6">Нет занятий в этом месяце</p>
+                    </div>
+
+                    <div class="hidden md:block calendar-scroll">
                     <div class="calendar-grid">
                         <div v-for="d in ['Пн','Вт','Ср','Чт','Пт','Сб','Вс']" :key="d" class="text-center text-xs font-bold text-slate-400">{{ d }}</div>
                         <div
                             v-for="(date, idx) in calendarDays"
                             :key="idx"
-                            :class="['min-h-24 border rounded-lg p-1.5', date ? getDayCellClass(date) : 'border-transparent bg-slate-50']"
+                            :class="['min-h-24 border rounded-lg p-1.5 min-w-0 overflow-hidden', date ? getDayCellClass(date) : 'border-transparent bg-slate-50']"
                         >
                             <template v-if="date">
                                 <div class="text-xs font-bold mb-1">{{ dayjs(date).date() }}</div>
@@ -328,7 +393,7 @@ const shiftCalendarMonth = (delta) => {
                                     :key="entry.schedule_id"
                                     type="button"
                                     @click="openSchedule(entry.schedule_id)"
-                                    class="w-full text-left text-[10px] px-1.5 py-1 mb-0.5 rounded"
+                                    class="w-full text-left text-[10px] px-1 py-1 mb-0.5 rounded break-anywhere leading-tight"
                                     :class="getGroupSessionClass(entry)"
                                 >
                                     {{ entry.start_time?.substring(0,5) }} тренировка
@@ -343,11 +408,12 @@ const shiftCalendarMonth = (delta) => {
                 </template>
             </div>
         </div>
+        </div>
 
-        <div v-if="showModal && scheduleModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" @click.self="closeModal">
-            <div class="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
-                <div class="p-5 border-b bg-slate-50">
-                    <h3 class="font-bold text-lg">{{ scheduleModal.group_name }}</h3>
+        <div v-if="showModal && scheduleModal" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50" @click.self="closeModal">
+            <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col">
+                <div class="p-4 sm:p-5 border-b bg-slate-50 min-w-0">
+                    <h3 class="font-bold text-base sm:text-lg break-anywhere">{{ scheduleModal.group_name }}</h3>
                     <p class="text-sm text-slate-600">
                         {{ formatDisplayDate(scheduleModal.lesson_date) }} · {{ scheduleModal.start_time?.substring(0,5) }}-{{ scheduleModal.end_time?.substring(0,5) }}
                     </p>
@@ -356,10 +422,10 @@ const shiftCalendarMonth = (delta) => {
                     <div
                         v-for="a in scheduleModal.athletes"
                         :key="a.id"
-                        class="flex items-center justify-between p-3 rounded-xl border border-slate-100 hover:bg-slate-50"
+                        class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 min-w-0"
                     >
-                        <div>
-                            <p class="font-medium">{{ a.full_name }}</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-medium break-anywhere">{{ a.full_name }}</p>
                             <span
                                 v-if="a.status"
                                 class="text-xs px-2 py-0.5 rounded font-semibold"
@@ -373,18 +439,18 @@ const shiftCalendarMonth = (delta) => {
                                 class="block text-xs text-indigo-600 hover:underline mt-1"
                             >Посмотреть справку</a>
                         </div>
-                        <Link :href="route('admin.athletes.show', a.id)" class="text-sm text-indigo-600 hover:underline">Карточка →</Link>
+                        <Link :href="route('admin.athletes.show', a.id)" class="text-sm text-indigo-600 hover:underline shrink-0">Карточка →</Link>
                     </div>
                 </div>
-                <div class="p-4 border-t flex justify-end gap-2">
+                <div class="p-4 border-t flex flex-col sm:flex-row justify-end gap-2">
                     <Link
                         v-if="scheduleModal.id"
                         :href="route('admin.attendance.show', scheduleModal.id)"
-                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm"
+                        class="w-full sm:w-auto text-center px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm"
                     >
                         Редактировать отметки
                     </Link>
-                    <button type="button" @click="closeModal" class="px-4 py-2 border rounded-lg text-sm">Закрыть</button>
+                    <button type="button" @click="closeModal" class="w-full sm:w-auto px-4 py-2 border rounded-lg text-sm">Закрыть</button>
                 </div>
             </div>
         </div>

@@ -166,7 +166,7 @@ const uploadAvatar = () => {
                 <template v-if="athlete.occupation_type === 'study' || athlete.school_name">
                     <div><dt class="text-slate-500">Школа / ОО</dt><dd class="font-medium text-slate-900">{{ athlete.school_name || '—' }}</dd></div>
                     <div><dt class="text-slate-500">Класс/Курс</dt><dd class="font-medium text-slate-900">{{ athlete.school_class || '—' }}</dd></div>
-                    <div class="sm:col-span-2"><dt class="text-slate-500">Директор (дат. падеж)</dt><dd class="font-medium text-slate-900">{{ athlete.school_director_dat || '—' }}</dd></div>
+                    <div class="sm:col-span-2"><dt class="text-slate-500">Директор</dt><dd class="font-medium text-slate-900">{{ athlete.school_director_dat || '—' }}</dd></div>
                 </template>
                 <template v-if="athlete.occupation_type === 'work' || athlete.work_place">
                     <div><dt class="text-slate-500">Место работы</dt><dd class="font-medium text-slate-900">{{ athlete.work_place || '—' }}</dd></div>

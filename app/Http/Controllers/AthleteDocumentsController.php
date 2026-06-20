@@ -22,7 +22,8 @@ class AthleteDocumentsController extends Controller
         abort_unless(array_key_exists($template, config('athlete_document_templates.templates', [])), 404);
 
         $athlete = $this->resolveAthlete($request);
-        $format = $request->string('format')->toString() ?: 'docx';
+        $defaultFormat = config("athlete_document_templates.templates.{$template}.extension", 'docx');
+        $format = $request->string('format')->toString() ?: $defaultFormat;
         $rules = $this->validationRules($template);
         $extra = $rules !== [] ? $request->validate($rules) : [];
 

@@ -37,13 +37,12 @@ class SpreadsheetTemplateFiller
         }
 
         $temp = tempnam(sys_get_temp_dir(), 'xlsx-fill-');
-        $target = $temp . '.' . $extension;
+        $target = $temp . '.xlsx';
         if (file_exists($temp)) {
             unlink($temp);
         }
 
-        $writerType = $extension === 'xls' ? 'Xls' : 'Xlsx';
-        IOFactory::createWriter($spreadsheet, $writerType)->save($target);
+        IOFactory::createWriter($spreadsheet, 'Xlsx')->save($target);
 
         return $target;
     }

@@ -21,14 +21,15 @@ class AthleteDocumentGenerator
         $meta = config("athlete_document_templates.templates.{$template}");
         abort_unless($meta, 404);
 
-        $sourceExt = $meta['extension'] ?? 'docx';
+        $sourceExt = $this->resolveSourceExtension($template, $meta['extension'] ?? 'docx');
         $sourcePath = $this->resolveTemplatePath($template, $sourceExt);
         $filledPath = $this->fillTemplate($template, $sourcePath, $sourceExt, $athlete, $extra, $user);
 
+        $filledExt = pathinfo($filledPath, PATHINFO_EXTENSION) ?: $sourceExt;
         $basename = 'Приложение-' . $template . '-' . now()->format('Ymd-His');
 
         if ($format === 'pdf') {
-            $response = $this->convertSourceToPdf($filledPath, $sourceExt, "{$basename}.pdf");
+            $response = $this->convertSourceToPdf($filledPath, $filledExt, "{$basename}.pdf");
             if ($filledPath !== $sourcePath) {
                 @unlink($filledPath);
             }
@@ -37,22 +38,23 @@ class AthleteDocumentGenerator
         }
 
         if ($template === 8 && $format === 'xlsx') {
-            $tempXlsx = $this->convertXlsToXlsx($filledPath);
             if ($filledPath !== $sourcePath) {
-                @unlink($filledPath);
+                return response()->download($filledPath, "{$basename}.xlsx")->deleteFileAfterSend(true);
             }
+
+            $tempXlsx = $this->convertXlsToXlsx($filledPath);
 
             return response()->download($tempXlsx, "{$basename}.xlsx")->deleteFileAfterSend(true);
         }
 
         if ($filledPath !== $sourcePath) {
-            return response()->download($filledPath, "{$basename}.{$sourceExt}")->deleteFileAfterSend(true);
+            return response()->download($filledPath, "{$basename}.{$filledExt}")->deleteFileAfterSend(true);
         }
 
-        $temp = $this->tempFile($sourceExt);
+        $temp = $this->tempFile($filledExt);
         copy($sourcePath, $temp);
 
-        return response()->download($temp, "{$basename}.{$sourceExt}")->deleteFileAfterSend(true);
+        return response()->download($temp, "{$basename}.{$filledExt}")->deleteFileAfterSend(true);
     }
 
     /**
@@ -85,6 +87,24 @@ class AthleteDocumentGenerator
     }
 
     /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function resolveSourceExtension(int $template, string $default): string
+    {
+        if ($template === 8) {
+            if (file_exists($this->templateFile(8, 'xlsx'))) {
+                return 'xlsx';
+            }
+
+            if (file_exists($this->templateFile(8, 'xls'))) {
+                return 'xls';
+            }
+        }
+
+        return $default;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public static function templateList(): array
@@ -107,6 +127,10 @@ class AthleteDocumentGenerator
     {
         if ($template === 6 && ! file_exists($this->templateFile(6, 'docx'))) {
             $this->bootstrapTemplateSix();
+        }
+
+        if ($template === 8 && $ext === 'xlsx' && ! file_exists($this->templateFile(8, 'xlsx')) && file_exists($this->templateFile(8, 'xls'))) {
+            $ext = 'xls';
         }
 
         $path = $this->templateFile($template, $ext);

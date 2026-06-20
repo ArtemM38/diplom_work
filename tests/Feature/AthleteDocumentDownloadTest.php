@@ -76,7 +76,8 @@ class AthleteDocumentDownloadTest extends TestCase
 
         $text = html_entity_decode(strip_tags(str_replace('</w:p>', "\n", $xml)), ENT_XML1, 'UTF-8');
 
-        $this->assertStringContainsString('Иванов Иван Иванович', $text);
+        $this->assertStringContainsString('Иванова Ивана Ивановича', $text);
+        $this->assertStringNotContainsString('моего ребенка Иванов Иван', $text);
         $this->assertStringContainsString('2012', $text);
         $this->assertStringContainsString('г. Иркутск, ул. Ленина, 1', $text);
         $this->assertStringContainsString('Петровой', $text);

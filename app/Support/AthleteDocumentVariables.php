@@ -6,6 +6,7 @@ use App\Models\Athlete;
 use App\Models\Guardian;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class AthleteDocumentVariables
 {
@@ -24,6 +25,9 @@ class AthleteDocumentVariables
         $today = now();
 
         $athleteFio = self::athleteFio($athlete);
+        $athleteFioGen = self::athleteFioInCase($athlete, 'gen');
+        $athleteFioDat = self::athleteFioInCase($athlete, 'dat');
+        $athleteFioIns = self::athleteFioInCase($athlete, 'ins');
         $birthYear = $birth?->format('Y') ?? '';
         $absenceLines = self::splitLines((string) ($extra['absence_reason'] ?? ''));
         $scheduleLines = self::splitLines((string) ($extra['schedule_description'] ?? ''));
@@ -42,12 +46,24 @@ class AthleteDocumentVariables
             'father_info' => self::guardianInfoLine($father),
             'mother_info' => self::guardianInfoLine($mother),
             'athlete_fio' => $athleteFio,
+            'athlete_fio_gen' => $athleteFioGen,
+            'athlete_fio_dat' => $athleteFioDat,
+            'athlete_fio_ins' => $athleteFioIns,
             'athlete_last_name' => $athlete->last_name_nom ?? '',
             'athlete_first_name' => $athlete->first_name_nom ?? '',
             'athlete_middle_name' => $athlete->middle_name_nom ?? '',
             'athlete_fio_birth_year' => $birthYear !== ''
                 ? "{$athleteFio}, {$birthYear} г.р."
                 : $athleteFio,
+            'athlete_fio_gen_birth_year' => $birthYear !== ''
+                ? "{$athleteFioGen}, {$birthYear} г.р."
+                : $athleteFioGen,
+            'athlete_fio_dat_birth_year' => $birthYear !== ''
+                ? "{$athleteFioDat}, {$birthYear} г.р."
+                : $athleteFioDat,
+            'athlete_fio_ins_birth_year' => $birthYear !== ''
+                ? "{$athleteFioIns}, {$birthYear} г.р."
+                : $athleteFioIns,
             'athlete_birth_date' => DateFormatter::toDisplayDate($athlete->birth_date) ?? '',
             'athlete_birth_formatted' => $birth
                 ? sprintf('«%s» %s %s', $birth->format('d'), self::russianMonth($birth), $birth->format('Y'))
@@ -86,6 +102,17 @@ class AthleteDocumentVariables
             'period_to_day' => $periodTo?->format('d') ?? '',
             'period_to_month' => $periodTo ? self::russianMonth($periodTo) : '',
             'period_to_year' => $periodTo?->format('Y') ?? '',
+            'period_range_text' => ($periodFrom && $periodTo)
+                ? sprintf(
+                    '«%s» %s %s по «%s» %s %s',
+                    $periodFrom->format('d'),
+                    self::russianMonth($periodFrom),
+                    $periodFrom->format('Y'),
+                    $periodTo->format('d'),
+                    self::russianMonth($periodTo),
+                    $periodTo->format('Y'),
+                )
+                : '',
             'absence_reason' => $absenceLines[0],
             'absence_reason_cont' => $absenceLines[1],
             'schedule_description' => $scheduleLines[0],
@@ -100,7 +127,48 @@ class AthleteDocumentVariables
             ),
             'training_start_date' => DateFormatter::toDisplayDate($athlete->created_at ?? now()) ?? '',
             'organization_name' => 'ИООО БИ Федерация Айкидо',
+            'athlete_photo_path' => self::athletePhotoPath($athlete),
+            'athlete_photo_storage_key' => $athlete->photo ? ltrim($athlete->photo, '/') : '',
         ];
+    }
+
+    private static function athletePhotoPath(Athlete $athlete): string
+    {
+        if (! $athlete->photo) {
+            return '';
+        }
+
+        $relative = ltrim($athlete->photo, '/');
+
+        if (Storage::disk('public')->exists($relative)) {
+            return Storage::disk('public')->path($relative);
+        }
+
+        $legacy = storage_path('app/public/' . $relative);
+
+        return is_file($legacy) ? $legacy : '';
+    }
+
+    private static function athleteFioInCase(Athlete $athlete, string $case): string
+    {
+        $stored = match ($case) {
+            'gen' => $athlete->full_name_gen,
+            'dat' => $athlete->full_name_dat,
+            'ins' => $athlete->full_name_ins,
+            default => null,
+        };
+
+        if (is_string($stored) && trim($stored) !== '') {
+            return trim($stored);
+        }
+
+        $cases = RussianNameCases::buildFullNameCases(
+            $athlete->last_name_nom ?? '',
+            $athlete->first_name_nom ?? '',
+            $athlete->middle_name_nom,
+        );
+
+        return $cases[$case] ?? self::athleteFio($athlete);
     }
 
     private static function primaryGuardian(Athlete $athlete, ?User $user): ?Guardian

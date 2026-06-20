@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Storage;
 use ZipArchive;
 
 class DocxTemplateFiller
@@ -20,7 +21,22 @@ class DocxTemplateFiller
         copy($sourcePath, $target);
 
         $zip = new ZipArchive();
-        $zip->open($target);
+        if ($zip->open($target) !== true) {
+            throw new \RuntimeException('Не удалось открыть шаблон документа для заполнения.');
+        }
+
+        $preserveUnderscores = (bool) ($config['preserve_underscore_lines'] ?? false);
+        $photoPath = trim((string) ($variables['athlete_photo_path'] ?? ''));
+        $tempPhotoPath = null;
+
+        if ($photoPath === '' && ($variables['athlete_photo_storage_key'] ?? '') !== '') {
+            $storageKey = ltrim((string) $variables['athlete_photo_storage_key'], '/');
+            if (Storage::disk('public')->exists($storageKey)) {
+                $tempPhotoPath = tempnam(sys_get_temp_dir(), 'athlete-photo-');
+                file_put_contents($tempPhotoPath, Storage::disk('public')->get($storageKey));
+                $photoPath = $tempPhotoPath;
+            }
+        }
 
         foreach (['word/document.xml', 'word/header1.xml', 'word/header2.xml', 'word/footer1.xml', 'word/footer2.xml'] as $part) {
             $xml = $zip->getFromName($part);
@@ -32,12 +48,26 @@ class DocxTemplateFiller
                 $xml = $this->applyRule($xml, $rule, $variables);
             }
 
-            $xml = $this->polishDocumentXml($xml);
+            if (($config['fit_single_page'] ?? false) && $part === 'word/document.xml') {
+                $xml = $this->fitSinglePage($xml);
+            }
+
+            if (! $preserveUnderscores) {
+                $xml = $this->polishDocumentXml($xml);
+            }
 
             $zip->addFromString($part, $xml);
         }
 
+        if ($photoPath !== '' && isset($config['photo'])) {
+            $this->applyAthletePhoto($zip, $photoPath, $config['photo']);
+        }
+
         $zip->close();
+
+        if ($tempPhotoPath !== null && is_file($tempPhotoPath)) {
+            @unlink($tempPhotoPath);
+        }
 
         return $target;
     }
@@ -50,7 +80,7 @@ class DocxTemplateFiller
     {
         $type = $rule['type'] ?? 'paragraph_before_label';
         $value = trim((string) ($variables[$rule['var'] ?? ''] ?? ''));
-        $multiValueTypes = ['slots_after_anchor', 'underscores_in_paragraph', 'period_range', 'date_russian', 'birth_date_line', 'table_cell_after_label', 'document_date_footer'];
+        $multiValueTypes = ['slots_after_anchor', 'underscores_in_paragraph', 'period_range', 'period_range_formatted', 'date_russian', 'birth_date_line', 'table_cell_after_label', 'document_date_footer', 'remove_paragraph_containing'];
 
         if ($value === '' && ! in_array($type, $multiValueTypes, true)) {
             return $xml;
@@ -76,6 +106,18 @@ class DocxTemplateFiller
             'birth_date_line' => $this->fillBirthDateLine($xml, (string) $rule['anchor'], $variables, $rule['keys'] ?? ['day' => 'athlete_birth_day', 'month' => 'athlete_birth_month', 'year' => 'athlete_birth_year']),
             'date_russian' => $this->fillRussianDateLine($xml, $variables, (string) ($rule['which'] ?? 'all')),
             'period_range' => $this->fillPeriodRange($xml, $variables),
+            'period_range_formatted' => $this->fillPeriodRangeFormatted($xml, $variables),
+            'prefix_value_line' => $this->fillPrefixValueLine(
+                $xml,
+                (string) ($rule['prefix'] ?? $rule['anchor'] ?? ''),
+                $value,
+                (bool) ($rule['keep_trailing_underscores'] ?? false),
+            ),
+            'remove_paragraph_containing' => $this->removeParagraphsContaining(
+                $xml,
+                (string) ($rule['anchor'] ?? ''),
+                (bool) ($rule['only_parenthetical'] ?? true),
+            ),
             'document_date_footer' => $this->fillDocumentDateFooter(
                 $xml,
                 $variables,
@@ -130,6 +172,118 @@ class DocxTemplateFiller
         }
 
         return $this->replaceParagraphs($xml, $paragraphs);
+    }
+
+    private function removeParagraphsContaining(string $xml, string $anchor, bool $onlyParenthetical = true): string
+    {
+        if ($anchor === '') {
+            return $xml;
+        }
+
+        $paragraphs = $this->collectParagraphs($xml);
+        $index = 0;
+
+        return preg_replace_callback('/<w:p\b.*?<\/w:p>/us', function () use ($paragraphs, $anchor, $onlyParenthetical, &$index) {
+            $paragraph = $paragraphs[$index++] ?? '';
+            if ($paragraph === '') {
+                return '';
+            }
+
+            $plain = trim($this->paragraphPlainText($paragraph));
+            if ($plain === '' || ! str_contains($plain, $anchor)) {
+                return $paragraph;
+            }
+
+            if ($onlyParenthetical) {
+                $withoutLabel = trim(preg_replace('/\([^)]*' . preg_quote($anchor, '/') . '[^)]*\)/u', '', $plain) ?? $plain);
+
+                if ($withoutLabel !== '' && ! preg_match('/^[\s_]+$/u', $withoutLabel)) {
+                    return $paragraph;
+                }
+            }
+
+            return '';
+        }, $xml) ?? $xml;
+    }
+
+    private function fitSinglePage(string $xml): string
+    {
+        $xml = $this->removeEmptyParagraphs($xml);
+
+        $xml = preg_replace(
+            '/<w:pgMar[^>]+\/>/',
+            '<w:pgMar w:top="567" w:right="850" w:bottom="567" w:left="850" w:header="397" w:footer="397" w:gutter="0"/>',
+            $xml,
+        ) ?? $xml;
+
+        return preg_replace_callback('/<w:p\b.*?<\/w:p>/us', function (array $match): string {
+            $paragraph = $match[0];
+            if (! preg_match('/<w:pPr>.*?<\/w:pPr>/us', $paragraph, $pPrMatch)) {
+                return preg_replace(
+                    '/^(<w:p[^>]*>)/',
+                    '$1<w:pPr><w:spacing w:before="0" w:after="40" w:line="240" w:lineRule="auto"/></w:pPr>',
+                    $paragraph,
+                    1,
+                ) ?? $paragraph;
+            }
+
+            $pPr = $pPrMatch[0];
+            if (preg_match('/<w:spacing[^>]+\/>/u', $pPr)) {
+                $newPPr = preg_replace(
+                    '/<w:spacing[^>]+\/>/u',
+                    '<w:spacing w:before="0" w:after="40" w:line="240" w:lineRule="auto"/>',
+                    $pPr,
+                ) ?? $pPr;
+            } else {
+                $newPPr = str_replace('</w:pPr>', '<w:spacing w:before="0" w:after="40" w:line="240" w:lineRule="auto"/></w:pPr>', $pPr);
+            }
+
+            return str_replace($pPr, $newPPr, $paragraph);
+        }, $xml) ?? $xml;
+    }
+
+    private function removeEmptyParagraphs(string $xml): string
+    {
+        $paragraphs = $this->collectParagraphs($xml);
+        $index = 0;
+
+        return preg_replace_callback('/<w:p\b.*?<\/w:p>/us', function () use ($paragraphs, &$index) {
+            $paragraph = $paragraphs[$index++] ?? '';
+            $plain = trim($this->paragraphPlainText($paragraph));
+
+            return $plain === '' ? '' : $paragraph;
+        }, $xml) ?? $xml;
+    }
+
+    private function fillPrefixValueLine(string $xml, string $prefix, string $value, bool $keepTrailingUnderscores = false): string
+    {
+        $value = trim($value);
+        if ($prefix === '' || $value === '') {
+            return $xml;
+        }
+
+        $paragraphs = $this->collectParagraphs($xml);
+
+        foreach ($paragraphs as $index => $paragraph) {
+            $plain = $this->paragraphPlainText($paragraph);
+            $prefixPos = mb_stripos($plain, $prefix);
+            if ($prefixPos === false) {
+                continue;
+            }
+
+            $linePrefix = mb_substr($plain, 0, $prefixPos + mb_strlen($prefix));
+            $afterPrefix = mb_substr($plain, $prefixPos + mb_strlen($prefix));
+            $trailingUnderscores = $keepTrailingUnderscores
+                ? (preg_replace('/[^_]/u', '', $afterPrefix) ?? '')
+                : '';
+
+            $newText = rtrim($linePrefix) . ' ' . $value . $trailingUnderscores;
+            $paragraphs[$index] = $this->setParagraphPlainText($paragraph, $newText);
+
+            return $this->replaceParagraphs($xml, $paragraphs);
+        }
+
+        return $xml;
     }
 
     /**
@@ -201,12 +355,29 @@ class DocxTemplateFiller
 
             $paragraphs[$index] = $this->replaceSlotsAfterAnchor($paragraphs[$index], $anchor, $values, $clearRemaining);
 
+            if ($clearRemaining && str_contains(mb_strtolower($anchor), 'в связи с')) {
+                $paragraphs[$index] = $this->normalizeReasonParagraphTail($paragraphs[$index]);
+            }
+
             if ($clearNextUnderscoreParagraph && isset($paragraphs[$index + 1]) && $this->paragraphHasUnderscores($paragraphs[$index + 1])) {
                 $paragraphs[$index + 1] = $this->setParagraphPlainText($paragraphs[$index + 1], '');
             }
         }
 
         return $this->replaceParagraphs($xml, $paragraphs);
+    }
+
+    private function normalizeReasonParagraphTail(string $paragraph): string
+    {
+        $plain = $this->paragraphPlainText($paragraph);
+        if (! str_contains($plain, 'в связи с')) {
+            return $paragraph;
+        }
+
+        $plain = preg_replace('/_{2,}/u', '', $plain) ?? $plain;
+        $plain = preg_replace('/\s+\./u', '.', $plain) ?? $plain;
+
+        return $this->setParagraphPlainText($paragraph, $plain);
     }
 
     private function fillLineAfterLabel(string $xml, string $label, string $value): string
@@ -258,32 +429,19 @@ class DocxTemplateFiller
                 continue;
             }
 
-            $slot = 0;
-            $paragraphs[$index] = preg_replace_callback(
-                '/<w:t([^>]*)>([^<]*)<\/w:t>/u',
-                function (array $match) use ($varKeys, $variables, &$slot) {
-                    $text = html_entity_decode($match[2], ENT_XML1, 'UTF-8');
-                    if (! preg_match('/_{1,}/u', $text)) {
-                        return $match[0];
-                    }
+            $values = array_values(array_filter(array_map(
+                fn (string $key) => trim((string) ($variables[$key] ?? '')),
+                $varKeys,
+            )));
 
-                    $key = $varKeys[$slot] ?? null;
-                    $slot++;
-                    if ($key === null) {
-                        return $match[0];
-                    }
+            if ($values === []) {
+                continue;
+            }
 
-                    $value = trim((string) ($variables[$key] ?? ''));
-                    if ($value === '') {
-                        return $match[0];
-                    }
-
-                    return '<w:t' . $match[1] . '>' . $this->escapeXml($this->substituteUnderscoreText($text, $value)) . '</w:t>';
-                },
-                $paragraph,
-            ) ?? $paragraph;
-
+            $anchorEnd = $this->anchorEndOffset($paragraph, $anchor);
+            $paragraphs[$index] = $this->fillUnderscoreSlotsInParagraph($paragraph, $values, $anchorEnd, null, true);
             $changed = true;
+
             if (! $all) {
                 break;
             }
@@ -358,7 +516,7 @@ class DocxTemplateFiller
 
         foreach ($paragraphs as $index => $paragraph) {
             $plain = $this->paragraphPlainText($paragraph);
-            if (! str_contains($plain, '«') || ! preg_match('/20_{1,}\s*г/u', $plain)) {
+            if (! str_contains($plain, '«') || ! preg_match('/(?:20|202)_{1,}\s*г/u', $plain)) {
                 continue;
             }
 
@@ -378,29 +536,10 @@ class DocxTemplateFiller
         }
 
         foreach ($targets as $index) {
-            $slot = 0;
-            $values = [$day, $month, $yearShort];
-            $paragraphs[$index] = preg_replace_callback(
-                '/<w:t([^>]*)>([^<]*)<\/w:t>/u',
-                function (array $match) use ($values, &$slot) {
-                    $text = html_entity_decode($match[2], ENT_XML1, 'UTF-8');
-                    if (! preg_match('/_{1,}/u', $text)) {
-                        return $match[0];
-                    }
-
-                    if ($slot >= count($values)) {
-                        return $match[0];
-                    }
-
-                    $value = $values[$slot];
-                    $slot++;
-
-                    return $value !== ''
-                        ? '<w:t' . $match[1] . '>' . $this->escapeXml($this->substituteUnderscoreText($text, $value)) . '</w:t>'
-                        : $match[0];
-                },
+            $paragraphs[$index] = $this->fillUnderscoreSlotsInParagraph(
                 $paragraphs[$index],
-            ) ?? $paragraphs[$index];
+                [$day, $month, $yearShort],
+            );
         }
 
         return $this->replaceParagraphs($xml, $paragraphs);
@@ -420,7 +559,7 @@ class DocxTemplateFiller
             $variables['period_to_year'] ?? '',
         ];
 
-        if (implode('', $slots) === '') {
+        if (implode('', array_map('trim', $slots)) === '') {
             return $xml;
         }
 
@@ -431,33 +570,137 @@ class DocxTemplateFiller
                 continue;
             }
 
-            $slot = 0;
-            $paragraphs[$index] = preg_replace_callback(
-                '/<w:t([^>]*)>([^<]*)<\/w:t>/u',
-                function (array $match) use ($slots, &$slot) {
-                    $text = html_entity_decode($match[2], ENT_XML1, 'UTF-8');
-                    if (! preg_match('/_{1,}/u', $text)) {
-                        return $match[0];
-                    }
+            $anchorEnd = $this->anchorEndOffset($paragraph, 'на период с');
+            $stopBefore = $this->anchorStartOffset($paragraph, 'в связи с')
+                ?? $this->anchorStartOffset($paragraph, 'так как');
 
-                    if ($slot >= count($slots)) {
-                        return $match[0];
-                    }
-
-                    $value = trim((string) $slots[$slot]);
-                    $slot++;
-
-                    return $value !== ''
-                        ? '<w:t' . $match[1] . '>' . $this->escapeXml($this->substituteUnderscoreText($text, $value)) . '</w:t>'
-                        : $match[0];
-                },
+            $paragraphs[$index] = $this->fillUnderscoreSlotsInParagraph(
                 $paragraph,
-            ) ?? $paragraph;
+                array_map('trim', $slots),
+                $anchorEnd,
+                $stopBefore,
+            );
 
             return $this->replaceParagraphs($xml, $paragraphs);
         }
 
         return $xml;
+    }
+
+    /**
+     * @param  array<string, string>  $variables
+     */
+    private function fillPeriodRangeFormatted(string $xml, array $variables): string
+    {
+        $periodText = trim((string) ($variables['period_range_text'] ?? ''));
+        if ($periodText === '') {
+            return $xml;
+        }
+
+        $paragraphs = $this->collectParagraphs($xml);
+
+        foreach ($paragraphs as $index => $paragraph) {
+            if (! $this->paragraphContains($paragraph, 'на период с')) {
+                continue;
+            }
+
+            $plain = $this->paragraphPlainText($paragraph);
+            $newPlain = preg_replace(
+                '/на период с\s*«[^»]*»[^,]*?(?:20)?[^,]*?по\s*«[^»]*»[^,]*?(?:20)?[^,]*?,/ui',
+                'на период с ' . $periodText . ',',
+                $plain,
+                1,
+            );
+
+            if (! is_string($newPlain) || $newPlain === $plain) {
+                continue;
+            }
+
+            $paragraphs[$index] = $this->setParagraphPlainText($paragraph, $newPlain);
+
+            return $this->replaceParagraphs($xml, $paragraphs);
+        }
+
+        return $xml;
+    }
+
+    /**
+     * @param  list<string>  $values
+     */
+    private function fillUnderscoreSlotsInParagraph(
+        string $paragraph,
+        array $values,
+        int $startAfterOffset = 0,
+        ?int $stopBeforeOffset = null,
+        bool $leadingSpaceAfterAnchor = false,
+    ): string {
+        $plainOffset = 0;
+        $valueIndex = 0;
+        $needsLeadingSpace = $leadingSpaceAfterAnchor;
+
+        return preg_replace_callback(
+            '/<w:t([^>]*)>([^<]*)<\/w:t>/u',
+            function (array $match) use ($values, $startAfterOffset, $stopBeforeOffset, $leadingSpaceAfterAnchor, &$plainOffset, &$valueIndex, &$needsLeadingSpace) {
+                $text = html_entity_decode($match[2], ENT_XML1, 'UTF-8');
+                $runStart = $plainOffset;
+                $runEnd = $plainOffset + mb_strlen($text);
+                $plainOffset = $runEnd;
+
+                if ($runEnd <= $startAfterOffset || ! preg_match('/_{1,}/u', $text)) {
+                    return $match[0];
+                }
+
+                if ($stopBeforeOffset !== null && $runStart >= $stopBeforeOffset) {
+                    return $match[0];
+                }
+
+                while ($valueIndex < count($values) && preg_match('/_{1,}/u', $text, $underscoreMatch, PREG_OFFSET_CAPTURE)) {
+                    $underscoreStart = $underscoreMatch[0][1];
+                    $underscoreGlobalStart = $runStart + mb_strlen(mb_substr($text, 0, $underscoreStart));
+
+                    if ($underscoreGlobalStart < $startAfterOffset) {
+                        $text = mb_substr($text, 0, $underscoreStart)
+                            . mb_substr($text, $underscoreStart + mb_strlen($underscoreMatch[0][0]));
+                        continue;
+                    }
+
+                    if ($stopBeforeOffset !== null && $underscoreGlobalStart >= $stopBeforeOffset) {
+                        break;
+                    }
+
+                    $value = trim($values[$valueIndex++]);
+                    if ($value === '') {
+                        break;
+                    }
+
+                    if ($needsLeadingSpace) {
+                        $value = $this->leadingSpacedValue($value, true);
+                        $needsLeadingSpace = false;
+                    }
+
+                    $text = $this->replaceNextUnderscoreSlot($text, $value);
+                }
+
+                return '<w:t' . $match[1] . '>' . $this->escapeXml($text) . '</w:t>';
+            },
+            $paragraph,
+        ) ?? $paragraph;
+    }
+
+    private function anchorEndOffset(string $paragraph, string $anchor): int
+    {
+        $plain = $this->paragraphPlainText($paragraph);
+        $pos = mb_stripos($plain, $anchor);
+
+        return $pos === false ? 0 : $pos + mb_strlen($anchor);
+    }
+
+    private function anchorStartOffset(string $paragraph, string $anchor): ?int
+    {
+        $plain = $this->paragraphPlainText($paragraph);
+        $pos = mb_stripos($plain, $anchor);
+
+        return $pos === false ? null : $pos;
     }
 
     /**
@@ -576,7 +819,7 @@ class DocxTemplateFiller
 
         foreach ($paragraphs as $index => $paragraph) {
             $plain = $this->paragraphPlainText($paragraph);
-            if (! preg_match('/«/u', $plain) || ! preg_match('/20_{1,}/u', $plain)) {
+            if (! preg_match('/«/u', $plain) || ! preg_match('/(?:20|202)_{1,}/u', $plain)) {
                 continue;
             }
 
@@ -608,7 +851,7 @@ class DocxTemplateFiller
 
     private function replaceParagraphDateFooter(string $paragraph, string $formatted): string
     {
-        $pattern = '/«\s*_{1,}\s*»\s*_{1,}\s*20_{1,}\s*г?\.?/u';
+        $pattern = '/«\s*_{1,}\s*»\s*_{1,}\s*(?:20|202)_{1,}\s*г?\.?/u';
         $replaced = false;
 
         $paragraph = preg_replace_callback(
@@ -659,7 +902,7 @@ class DocxTemplateFiller
                     return $match[0];
                 }
 
-                if ($text === '____' || preg_match('/^_{2,}$/u', trim($text)) || preg_match('/^»\s*$/u', $text) || preg_match('/20_{1,}/u', $text)) {
+                if ($text === '____' || preg_match('/^_{2,}$/u', trim($text)) || preg_match('/^»\s*$/u', $text) || preg_match('/(?:20|202)_{1,}/u', $text)) {
                     return '';
                 }
 
@@ -699,7 +942,7 @@ class DocxTemplateFiller
         }
 
         $value = trim($value);
-        if ($value !== '' && ! preg_match('/\s$/u', $value)) {
+        if ($value !== '' && ! preg_match('/[\s_]$/u', $value)) {
             $value .= ' ';
         }
 
@@ -893,6 +1136,16 @@ class DocxTemplateFiller
             return '20' . $value;
         }
 
+        if (preg_match('/^202_{1,}$/u', $trimmed)) {
+            if (preg_match('/^\d{4}$/u', $value)) {
+                return $value;
+            }
+
+            if (preg_match('/^\d{2}$/u', $value)) {
+                return '20' . $value;
+            }
+        }
+
         if (preg_match('/^20_{1,}$/u', $trimmed) && preg_match('/^\d{4}$/u', $value)) {
             return $value;
         }
@@ -910,5 +1163,176 @@ class DocxTemplateFiller
     private function escapeXml(string $value): string
     {
         return htmlspecialchars($value, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    private function applyAthletePhoto(ZipArchive $zip, string $photoPath, array $config): void
+    {
+        if (($config['strategy'] ?? 'replace_first_media') !== 'replace_first_media') {
+            return;
+        }
+
+        $prepared = $this->preparePhotoBinary($photoPath);
+        if ($prepared === null) {
+            return;
+        }
+
+        $mediaTarget = $this->resolvePhotoMediaTarget($zip) ?? 'word/media/image1.' . $prepared['extension'];
+
+        $targetExtension = strtolower(pathinfo($mediaTarget, PATHINFO_EXTENSION));
+        if ($targetExtension !== $prepared['extension']) {
+            $newTarget = preg_replace('/\.[^.]+$/', '.' . $prepared['extension'], $mediaTarget) ?? $mediaTarget;
+            $this->updateImageRelationship($zip, $mediaTarget, $newTarget, $prepared['extension']);
+            $mediaTarget = $newTarget;
+        }
+
+        if ($zip->locateName($mediaTarget) !== false) {
+            $zip->deleteName($mediaTarget);
+        }
+
+        $zip->addFromString($mediaTarget, $prepared['binary']);
+    }
+
+    private function resolvePhotoMediaTarget(ZipArchive $zip): ?string
+    {
+        $xml = $zip->getFromName('word/document.xml');
+        $rels = $zip->getFromName('word/_rels/document.xml.rels');
+        if ($xml === false || $rels === false) {
+            return null;
+        }
+
+        $relationId = null;
+        if (preg_match('/ФОТО[\s\S]{0,800}?<v:imagedata[^>]+r:id="([^"]+)"/u', $xml, $match)) {
+            $relationId = $match[1];
+        } elseif (preg_match('/<v:imagedata[^>]+r:id="([^"]+)"/u', $xml, $match)) {
+            $relationId = $match[1];
+        }
+
+        if ($relationId === null) {
+            return null;
+        }
+
+        if (! preg_match('/Id="' . preg_quote($relationId, '/') . '"[^>]+Target="([^"]+)"/u', $rels, $targetMatch)) {
+            return null;
+        }
+
+        return 'word/' . ltrim($targetMatch[1], '/');
+    }
+
+    /**
+     * @return ?array{binary: string, extension: string}
+     */
+    private function preparePhotoBinary(string $photoPath): ?array
+    {
+        if ($photoPath === '') {
+            return null;
+        }
+
+        if (is_file($photoPath)) {
+            $contents = file_get_contents($photoPath);
+        } else {
+            return null;
+        }
+        if ($contents === false || $contents === '') {
+            return null;
+        }
+
+        $sourceExtension = strtolower(pathinfo($photoPath, PATHINFO_EXTENSION));
+        if (! in_array($sourceExtension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true)) {
+            $sourceExtension = $this->detectImageExtension($contents) ?? 'jpeg';
+        }
+
+        if (function_exists('imagecreatefromstring') && function_exists('imagejpeg')) {
+            $image = @imagecreatefromstring($contents);
+            if ($image !== false) {
+                $width = imagesx($image);
+                $height = imagesy($image);
+                $maxWidth = 300;
+                $maxHeight = 400;
+
+                if ($width > $maxWidth || $height > $maxHeight) {
+                    $ratio = min($maxWidth / $width, $maxHeight / $height);
+                    $newWidth = max(1, (int) round($width * $ratio));
+                    $newHeight = max(1, (int) round($height * $ratio));
+                    $resized = imagecreatetruecolor($newWidth, $newHeight);
+                    imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                    imagedestroy($image);
+                    $image = $resized;
+                }
+
+                ob_start();
+                imagejpeg($image, null, 90);
+                $jpeg = ob_get_clean() ?: null;
+                imagedestroy($image);
+
+                if ($jpeg !== null) {
+                    return ['binary' => $jpeg, 'extension' => 'jpeg'];
+                }
+            }
+        }
+
+        $extension = in_array($sourceExtension, ['jpg', 'jpeg'], true) ? 'jpeg' : $sourceExtension;
+        if ($extension === 'jpg') {
+            $extension = 'jpeg';
+        }
+
+        return ['binary' => $contents, 'extension' => $extension];
+    }
+
+    private function detectImageExtension(string $binary): ?string
+    {
+        if (str_starts_with($binary, "\xFF\xD8\xFF")) {
+            return 'jpeg';
+        }
+
+        if (str_starts_with($binary, "\x89PNG\r\n\x1a\n")) {
+            return 'png';
+        }
+
+        if (str_starts_with($binary, 'GIF8')) {
+            return 'gif';
+        }
+
+        if (str_starts_with($binary, 'RIFF') && str_contains(substr($binary, 0, 16), 'WEBP')) {
+            return 'webp';
+        }
+
+        return null;
+    }
+
+    private function updateImageRelationship(ZipArchive $zip, string $oldTarget, string $newTarget, string $extension): void
+    {
+        $oldName = basename($oldTarget);
+        $newName = basename($newTarget);
+
+        $relsPath = 'word/_rels/document.xml.rels';
+        $rels = $zip->getFromName($relsPath);
+        if ($rels !== false) {
+            $rels = str_replace('media/' . $oldName, 'media/' . $newName, $rels);
+            $zip->addFromString($relsPath, $rels);
+        }
+
+        $contentTypesPath = '[Content_Types].xml';
+        $contentTypes = $zip->getFromName($contentTypesPath);
+        if ($contentTypes !== false) {
+            $mime = match ($extension) {
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'webp' => 'image/webp',
+                default => 'image/jpeg',
+            };
+
+            if (! str_contains($contentTypes, $mime)) {
+                $contentTypes = str_replace(
+                    '</Types>',
+                    '<Default Extension="' . $extension . '" ContentType="' . $mime . '"/></Types>',
+                    $contentTypes,
+                );
+            }
+
+            $zip->addFromString($contentTypesPath, $contentTypes);
+        }
     }
 }

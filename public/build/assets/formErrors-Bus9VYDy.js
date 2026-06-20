@@ -1,0 +1,1 @@
+function e(e,t){return!!e?.[t]}function t(t,n,r=``){return[r,e(t,n)?`border-red-500 focus:border-red-500 focus:ring-red-500 bg-red-50/80`:`border-gray-300 focus:border-indigo-500 focus:ring-indigo-500`].filter(Boolean).join(` `)}export{t};

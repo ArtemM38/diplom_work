@@ -1,0 +1,1 @@
+function e(e){if(!e)return`—`;let t=String(e),n=t.match(/^(\d{4})-(\d{2})-(\d{2})/);if(n)return`${n[3]}.${n[2]}.${n[1]}`;let r=new Date(t);return Number.isNaN(r.getTime())?t:r.toLocaleDateString(`ru-RU`)}export{e as t};

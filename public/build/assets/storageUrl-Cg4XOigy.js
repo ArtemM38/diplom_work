@@ -1,0 +1,1 @@
+function e(e){return e?route(`files.show`,{path:String(e).replace(/^\//,``)}):null}export{e as t};

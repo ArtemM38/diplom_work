@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Illuminate\Validation\Rules\Password;
+
 class AthleteProfileRules
 {
     /**
@@ -63,6 +65,32 @@ class AthleteProfileRules
             'doc_identity_number' => 'nullable|string|max:50|required_with:doc_identity_file,doc_identity_series,doc_identity_issued_by,doc_identity_issue_date',
             'doc_identity_issued_by' => 'nullable|string|max:255|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issue_date',
             'doc_identity_issue_date' => 'nullable|date|required_with:doc_identity_file,doc_identity_series,doc_identity_number,doc_identity_issued_by',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function adminAccountRules(): array
+    {
+        return [
+            'login' => LoginRules::validation(),
+            'email' => 'required|email|max:255|unique:users,email',
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function adminAccountMessages(): array
+    {
+        return [
+            'login.required' => 'Укажите логин для входа спортсмена.',
+            'email.required' => 'Укажите email для аккаунта спортсмена.',
+            'email.unique' => 'Этот email уже используется.',
+            'password.required' => 'Укажите пароль для аккаунта спортсмена.',
+            'password.confirmed' => 'Пароли не совпадают.',
         ];
     }
 

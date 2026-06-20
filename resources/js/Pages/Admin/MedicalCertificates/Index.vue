@@ -12,16 +12,19 @@ const props = defineProps({
 
 const search = ref(props.filters?.search || '');
 const filter = ref(props.filters?.filter || 'all');
+const docType = ref(props.filters?.type || 'all');
 
 const reload = () => {
     router.get(route('admin.medical-certificates'), {
         search: search.value || null,
         filter: filter.value !== 'all' ? filter.value : null,
+        type: docType.value !== 'all' ? docType.value : null,
     }, { preserveState: true, replace: true });
 };
 
 watch(search, debounce(reload, 300));
 watch(filter, reload);
+watch(docType, reload);
 
 const statusClass = (status) => {
     if (status === 'expired') return 'bg-red-100 text-red-800 border-red-200';
@@ -37,9 +40,9 @@ const statusLabel = (status, daysLeft) => {
 </script>
 
 <template>
-    <Head title="Медицинские справки" />
+    <Head title="Мед. справки и страховые полисы" />
     <AuthenticatedLayout>
-        <template #header>Контроль медицинских справок</template>
+        <template #header>Контроль мед. справок и страховых полисов</template>
 
         <div class="max-w-6xl mx-auto space-y-6">
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -74,7 +77,18 @@ const statusLabel = (status, daysLeft) => {
 
             <div class="bg-white p-4 rounded-xl border border-slate-100 flex flex-wrap gap-3 items-center">
                 <input v-model="search" type="text" placeholder="Поиск по фамилии..." class="border-gray-300 rounded-lg flex-1 min-w-[200px]" />
-                <button type="button" @click="filter = 'all'" class="text-sm text-indigo-600 font-medium">Показать все</button>
+                <select v-model="docType" class="border-gray-300 rounded-lg min-w-[220px]">
+                    <option value="all">Все документы</option>
+                    <option value="medical">Медицинская справка</option>
+                    <option value="insurance">Страховой полис</option>
+                </select>
+                <button
+                    type="button"
+                    @click="filter = 'all'; docType = 'all'"
+                    class="text-sm text-indigo-600 font-medium"
+                >
+                    Сбросить фильтры
+                </button>
             </div>
 
             <div class="bg-white rounded-xl border border-slate-100 overflow-hidden app-table-wrap">
@@ -82,6 +96,7 @@ const statusLabel = (status, daysLeft) => {
                     <thead class="bg-slate-50 text-slate-600">
                         <tr>
                             <th class="px-4 py-3 text-left">Спортсмен</th>
+                            <th class="px-4 py-3 text-left">Документ</th>
                             <th class="px-4 py-3 text-left">Телефон</th>
                             <th class="px-4 py-3 text-left">Выдана</th>
                             <th class="px-4 py-3 text-left">Действует до</th>
@@ -92,6 +107,7 @@ const statusLabel = (status, daysLeft) => {
                     <tbody>
                         <tr v-for="doc in documents" :key="doc.id" class="border-t border-slate-100 hover:bg-slate-50">
                             <td class="px-4 py-3 font-medium">{{ doc.full_name }}</td>
+                            <td class="px-4 py-3 text-slate-600">{{ doc.type_label }}</td>
                             <td class="px-4 py-3 text-slate-600">{{ doc.phone || '—' }}</td>
                             <td class="px-4 py-3">{{ doc.issue_date || '—' }}</td>
                             <td class="px-4 py-3">{{ doc.expiry_date }}</td>
@@ -105,7 +121,7 @@ const statusLabel = (status, daysLeft) => {
                             </td>
                         </tr>
                         <tr v-if="!documents?.length">
-                            <td colspan="6" class="px-4 py-8 text-center text-slate-400">Нет записей по выбранному фильтру</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-slate-400">Нет записей по выбранному фильтру</td>
                         </tr>
                     </tbody>
                 </table>

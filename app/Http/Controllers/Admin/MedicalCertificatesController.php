@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\DocumentType;
 use App\Http\Controllers\Controller;
 use App\Models\AthleteDocument;
 use Carbon\Carbon;
@@ -14,13 +15,18 @@ class MedicalCertificatesController extends Controller
     {
         abort_unless($request->user()?->hasRole('admin'), 403);
 
-        $filter = $request->input('filter', 'all');
+        $statusFilter = $request->input('filter', 'all');
+        $typeFilter = $request->input('type', 'all');
         $search = $request->input('search');
 
         $query = AthleteDocument::query()
             ->with(['athlete:id,last_name_nom,first_name_nom,middle_name_nom,phone'])
-            ->where('type', 'medical')
+            ->whereIn('type', [DocumentType::Medical->value, DocumentType::Insurance->value])
             ->whereNotNull('expiry_date');
+
+        if (in_array($typeFilter, [DocumentType::Medical->value, DocumentType::Insurance->value], true)) {
+            $query->where('type', $typeFilter);
+        }
 
         if ($search) {
             $query->whereHas('athlete', function ($q) use ($search) {
@@ -43,9 +49,13 @@ class MedicalCertificatesController extends Controller
 
             $athlete = $doc->athlete;
 
+            $documentType = DocumentType::tryFrom($doc->type);
+
             return [
                 'id' => $doc->id,
                 'athlete_id' => $doc->athlete_id,
+                'type' => $doc->type,
+                'type_label' => $documentType?->label() ?? $doc->type,
                 'full_name' => $athlete
                     ? trim("{$athlete->last_name_nom} {$athlete->first_name_nom} " . ($athlete->middle_name_nom ?? ''))
                     : '—',
@@ -64,11 +74,11 @@ class MedicalCertificatesController extends Controller
         ];
 
         $documents = $allDocuments;
-        if ($filter === 'expired') {
+        if ($statusFilter === 'expired') {
             $documents = $documents->where('status', 'expired')->values();
-        } elseif ($filter === 'warning') {
+        } elseif ($statusFilter === 'warning') {
             $documents = $documents->where('status', 'warning')->values();
-        } elseif ($filter === 'ok') {
+        } elseif ($statusFilter === 'ok') {
             $documents = $documents->where('status', 'ok')->values();
         }
 
@@ -77,7 +87,8 @@ class MedicalCertificatesController extends Controller
             'summary' => $summary,
             'filters' => [
                 'search' => $search,
-                'filter' => $filter,
+                'filter' => $statusFilter,
+                'type' => $typeFilter,
             ],
         ]);
     }

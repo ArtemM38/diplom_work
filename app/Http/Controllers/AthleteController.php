@@ -6,9 +6,11 @@ use App\Models\Athlete;
 use App\Models\Guardian;
 use App\Models\Rank;
 use App\Models\RefereeCategory;
+use App\Models\User;
 use App\Support\AthleteProfileRules;
 use App\Support\FormValidator;
 use App\Support\FullNameParser;
+use App\Support\LoginRules;
 use App\Support\RussianNameCases;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -88,11 +90,15 @@ class AthleteController extends Controller
     {
         $user = Auth::user();
 
-        $validated = FormValidator::validate(
-            $request,
-            AthleteProfileRules::rules(),
-            AthleteProfileRules::messages(),
-        );
+        $rules = AthleteProfileRules::rules();
+        $messages = AthleteProfileRules::messages();
+
+        if ($user->hasRole('admin')) {
+            $rules = array_merge($rules, AthleteProfileRules::adminAccountRules());
+            $messages = array_merge($messages, AthleteProfileRules::adminAccountMessages());
+        }
+
+        $validated = FormValidator::validate($request, $rules, $messages);
 
         $validated = $this->applyOccupationFields($validated);
 
@@ -123,7 +129,23 @@ class AthleteController extends Controller
             $athleteData['full_name_dat'] = $nameCases['dat'];
             $athleteData['full_name_ins'] = $nameCases['ins'];
 
-            if ($user->hasRole('athlete')) {
+            if ($user->hasRole('admin')) {
+                $fullName = trim(implode(' ', array_filter([
+                    $validated['last_name_nom'],
+                    $validated['first_name_nom'],
+                    $validated['middle_name_nom'] ?? null,
+                ])));
+
+                $athleteUser = User::create([
+                    'name' => $fullName,
+                    'login' => LoginRules::normalize($validated['login']),
+                    'email' => strtolower($validated['email']),
+                    'password' => $validated['password'],
+                    'is_active' => true,
+                ]);
+                $athleteUser->syncRoles(['athlete']);
+                $athleteData['user_id'] = $athleteUser->id;
+            } elseif ($user->hasRole('athlete')) {
                 $athleteData['user_id'] = $user->id;
             }
 
@@ -235,7 +257,7 @@ class AthleteController extends Controller
 
         $validated = $this->applyOccupationFields($validated);
 
-        DB::transaction(function () use ($request, $validated, $athlete) {
+        DB::transaction(function () use ($request, $validated, $athlete, $user) {
             $nameCases = RussianNameCases::buildFullNameCases(
                 $validated['last_name_nom'],
                 $validated['first_name_nom'],

@@ -105,6 +105,11 @@ const form = useForm({
     doc_identity_number: '',
     doc_identity_issued_by: '',
     doc_identity_issue_date: '',
+
+    login: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
 });
 
 // Функции для динамических полей
@@ -300,6 +305,14 @@ onUnmounted(() => {
 
     <div class="min-h-screen bg-gray-100 py-8 px-4 overflow-x-hidden">
         <div class="max-w-6xl mx-auto min-w-0">
+            <div v-if="isAdminCreating" class="mb-4">
+                <Link
+                    :href="targetCancelRoute"
+                    class="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                >
+                    ← Назад к реестру
+                </Link>
+            </div>
             <div class="text-center mb-6">
                 <h1 class="text-2xl font-bold text-slate-900">{{ editingAthlete ? 'Редактирование карточки спортсмена' : 'Регистрация спортсмена' }}</h1>
                 <p class="text-sm text-slate-500 mt-1">Заполните профиль спортсмена</p>
@@ -309,6 +322,35 @@ onUnmounted(() => {
         <div class="max-w-6xl mx-auto sm:px-6 lg:px-8 min-w-0">
             <form @submit.prevent="submit" class="space-y-8 min-w-0">
                 <FormErrorsAlert :errors="form.errors" />
+
+                <div v-if="isAdminCreating" class="bg-white p-6 shadow rounded-lg min-w-0 overflow-visible">
+                    <h2 class="text-xl font-bold mb-6 text-blue-900 border-b pb-2 break-words">Данные для входа</h2>
+                    <p class="text-sm text-slate-500 mb-4">
+                        Будет создан аккаунт спортсмена — он появится в разделе «Аккаунты», под этими данными можно войти в систему.
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <InputLabel value="Логин" />
+                            <TextInput v-model="form.login" class="w-full" required :invalid="!!form.errors.login" autocomplete="off" />
+                            <InputError class="mt-1" :message="form.errors.login" />
+                        </div>
+                        <div>
+                            <InputLabel value="Email" />
+                            <TextInput v-model="form.email" type="email" class="w-full" required :invalid="!!form.errors.email" autocomplete="off" />
+                            <InputError class="mt-1" :message="form.errors.email" />
+                        </div>
+                        <div>
+                            <InputLabel value="Пароль" />
+                            <TextInput v-model="form.password" type="password" class="w-full" required :invalid="!!form.errors.password" autocomplete="new-password" />
+                            <InputError class="mt-1" :message="form.errors.password" />
+                        </div>
+                        <div>
+                            <InputLabel value="Подтверждение пароля" />
+                            <TextInput v-model="form.password_confirmation" type="password" class="w-full" required :invalid="!!form.errors.password_confirmation" autocomplete="new-password" />
+                            <InputError class="mt-1" :message="form.errors.password_confirmation" />
+                        </div>
+                    </div>
+                </div>
 
                 <!-- БЛОК 1: Основная информация -->
                 <div class="bg-white p-6 shadow rounded-lg min-w-0 overflow-visible">
@@ -674,12 +716,12 @@ onUnmounted(() => {
                     </div>
                 </div>
                 <!-- Кнопка сохранения -->
-                <div class="flex justify-center">
+                <div class="flex justify-center items-center gap-4">
                 <Link
-                        v-if="editingAthlete?.id"
+                        v-if="editingAthlete?.id || isAdminCreating"
                         :href="targetCancelRoute"
-                        class="inline-flex px-4 py-2 mr-10 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
-                        Отмена / Назад
+                        class="inline-flex px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100">
+                        {{ isAdminCreating ? 'Назад' : 'Отмена / Назад' }}
                     </Link>
                     <PrimaryButton :disabled="form.processing" class="w-full md:w-1/2 py-4 justify-center text-lg">
                         {{ form.processing ? 'Сохранение...' : (editingAthlete ? 'Сохранить изменения' : 'Завершить регистрацию профиля') }}

@@ -39,7 +39,7 @@ return new class extends Migration
 
             // Место обучения (Таблица "Место обучения" по ТЗ)
             $table->string('school_name')->nullable();
-            $table->string('school_director')->nullable(); // ФИО директора в дат. падеже
+            $table->string('school_director_dat')->nullable(); // ФИО директора в дат. падеже
             $table->string('school_class')->nullable();
 
             $table->string('kindergarten_name')->nullable();

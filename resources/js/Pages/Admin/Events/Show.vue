@@ -5,6 +5,7 @@ import { formatDisplayDate } from '@/utils/formatDate';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
+import { storageUrl } from '@/utils/storageUrl';
 
 const props = defineProps({
     event: Object,
@@ -302,7 +303,7 @@ const participantIndex = computed(() => {
                             <li v-for="(doc, idx) in selectedAthletePreview.documents" :key="idx">
                                 {{ doc.label }}
                                 <span v-if="doc.expiry_date" class="text-slate-400">до {{ doc.expiry_date }}</span>
-                                <a v-if="doc.file_path" :href="`/storage/${doc.file_path}`" target="_blank" class="text-indigo-600 ml-2 text-xs">файл</a>
+                                <a v-if="doc.file_path" :href="storageUrl(doc.file_path)" target="_blank" class="text-indigo-600 ml-2 text-xs">файл</a>
                             </li>
                         </ul>
                     </div>
@@ -343,7 +344,7 @@ const participantIndex = computed(() => {
                                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm w-full" @change="onAttendanceCertificateChange(row.id, $event)" />
                                 <a
                                     v-if="participantIndex[row.id]?.excused_certificate"
-                                    :href="`/storage/${participantIndex[row.id].excused_certificate}`"
+                                    :href="storageUrl(participantIndex[row.id].excused_certificate)"
                                     target="_blank"
                                     class="text-xs text-indigo-600 block mt-1"
                                 >Текущая справка</a>
@@ -412,7 +413,7 @@ const participantIndex = computed(() => {
                                 <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm" @change="onEvidenceChange(row.id, $event)" />
                                 <a
                                     v-if="participantIndex[row.id]?.evidence_file_path"
-                                    :href="`/storage/${participantIndex[row.id].evidence_file_path}`"
+                                    :href="storageUrl(participantIndex[row.id].evidence_file_path)"
                                     target="_blank"
                                     class="text-xs text-indigo-600 block mt-1"
                                 >Текущий файл</a>

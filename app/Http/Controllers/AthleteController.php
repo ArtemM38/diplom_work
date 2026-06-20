@@ -36,6 +36,26 @@ class AthleteController extends Controller
         ]));
     }
 
+    public function adminCreate()
+    {
+        abort_unless(Auth::user()?->hasRole('admin'), 403);
+
+        return Inertia::render('Athlete/Create', array_merge($this->createFormProps(), [
+            'isAdminCreating' => true,
+            'submitRoute' => route('admin.athletes.store'),
+            'cancelRoute' => route('admin.athletes'),
+        ]));
+    }
+
+    public function adminStore(Request $request)
+    {
+        abort_unless(Auth::user()?->hasRole('admin'), 403);
+
+        $athlete = $this->persistAthlete($request);
+
+        return redirect()->route('admin.athletes.show', $athlete)->with('success', 'Спортсмен зарегистрирован');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -59,6 +79,15 @@ class AthleteController extends Controller
             return redirect()->route('dashboard')->with('info', 'Анкета спортсмена уже создана');
         }
 
+        $this->persistAthlete($request);
+
+        return redirect()->route('dashboard')->with('success', 'Регистрация успешно завершена!');
+    }
+
+    private function persistAthlete(Request $request): Athlete
+    {
+        $user = Auth::user();
+
         $validated = FormValidator::validate(
             $request,
             AthleteProfileRules::rules(),
@@ -67,7 +96,7 @@ class AthleteController extends Controller
 
         $validated = $this->applyOccupationFields($validated);
 
-        DB::transaction(function () use ($request, $validated, $user) {
+        return DB::transaction(function () use ($request, $validated, $user) {
             $nameCases = RussianNameCases::buildFullNameCases(
                 $validated['last_name_nom'],
                 $validated['first_name_nom'],
@@ -161,9 +190,9 @@ class AthleteController extends Controller
                     'file_path' => $request->file('doc_identity_file')->store('athletes/documents', 'public'),
                 ]);
             }
-        });
 
-        return redirect()->route('dashboard')->with('success', 'Регистрация успешно завершена!');
+            return $athlete;
+        });
     }
 
     public function edit(Athlete $athlete)

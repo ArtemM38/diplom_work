@@ -323,8 +323,9 @@ class AthleteNotificationService
         if ($dateLabel) {
             $parts[] = 'дата '.$dateLabel;
         }
-        if ($event->event_period) {
-            $parts[] = $event->event_period;
+        $rangeLabel = $event->event_date_range_display;
+        if ($rangeLabel && $rangeLabel !== $dateLabel) {
+            $parts[] = $rangeLabel;
         }
         if ($event->event_place) {
             $parts[] = 'место: '.$event->event_place;

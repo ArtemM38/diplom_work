@@ -68,7 +68,7 @@ class FormValidator
             'tariff_amount' => 'стоимость',
             'amount' => 'сумма',
             'reason' => 'причина',
-            'discount_percent' => 'скидка',
+            'discount' => 'скидка',
             'event_date' => 'дата мероприятия',
             'event_type_id' => 'тип мероприятия',
             'event_level_id' => 'уровень',

@@ -64,6 +64,8 @@ class ReportController extends Controller
             'report' => $report,
             'coaches' => $options['coaches'],
             'athletes' => $options['athletes'],
+            'locations' => $options['locations'],
+            'events' => $options['events'],
         ]);
     }
 
@@ -74,6 +76,8 @@ class ReportController extends Controller
             'date_to' => 'required|date|after_or_equal:date_from',
             'coach_id' => 'nullable|exists:users,id',
             'athlete_id' => 'nullable|exists:athletes,id',
+            'location_id' => 'nullable|exists:locations,id',
+            'event_id' => 'nullable|exists:events,id',
         ]);
 
         $report = ProfitReport::build($validated);
@@ -84,7 +88,11 @@ class ReportController extends Controller
                 'rows' => $rows,
                 'filters' => $validated,
                 'total_profit' => $report['total_profit'],
+                'gross_profit' => $report['gross_profit'],
+                'total_refunds' => $report['total_refunds'],
+                'total_deposits' => $report['total_deposits'],
                 'by_source' => $report['by_source'],
+                'refunds_by_source' => $report['refunds_by_source'],
                 'operations_count' => $report['operations_count'],
             ], ReportMeta::forExport()))->setPaper('a4', 'landscape');
 
@@ -92,14 +100,16 @@ class ReportController extends Controller
         }
 
         return $this->streamCsv(
-            ['Дата', 'Спортсмен', 'Сумма (₽)', 'Источник', 'Группа', 'Тренер', 'Основание'],
+            ['Дата', 'Спортсмен', 'Тип', 'Сумма (₽)', 'Источник', 'Группа', 'Зал', 'Тренер', 'Основание'],
             $rows,
             fn ($row) => [
                 $row['date'],
                 $row['athlete_name'],
-                (string) $row['amount'],
+                $row['operation_label'],
+                (string) ($row['operation_type'] === 'refund' ? -$row['amount'] : $row['amount']),
                 $row['source_label'],
                 $row['group'] ?? '',
+                $row['location'] ?? '',
                 $row['coach'] ?? '',
                 $row['reason'] ?? '',
             ],
@@ -268,6 +278,8 @@ class ReportController extends Controller
             'date_to' => $request->string('date_to')->toString() ?: now()->toDateString(),
             'coach_id' => $request->input('coach_id'),
             'athlete_id' => $request->input('athlete_id'),
+            'location_id' => $request->input('location_id'),
+            'event_id' => $request->input('event_id'),
         ];
     }
 

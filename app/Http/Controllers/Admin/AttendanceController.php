@@ -13,6 +13,7 @@ use App\Support\AttendanceBilling;
 use App\Support\AthletePricing;
 use App\Support\DateFormatter;
 use App\Support\ScheduleAccess;
+use App\Support\StorageUrl;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -44,6 +45,10 @@ class AttendanceController extends Controller
         $schedule->load(['group.athletes', 'attendances']);
 
         $existingCertificates = $schedule->attendances->pluck('excused_certificate', 'athlete_id');
+        $existingCertificateUrls = $schedule->attendances
+            ->mapWithKeys(fn (Attendance $a) => [$a->athlete_id => StorageUrl::url($a->excused_certificate)])
+            ->filter()
+            ->all();
 
         $schedule->load('coach', 'initialCoach');
 
@@ -57,6 +62,7 @@ class AttendanceController extends Controller
             'athletes' => $schedule->group->athletes,
             'existingAttendances' => $schedule->attendances->pluck('status', 'athlete_id'),
             'existingCertificates' => $existingCertificates,
+            'existingCertificateUrls' => $existingCertificateUrls,
         ]);
     }
 
@@ -71,7 +77,7 @@ class AttendanceController extends Controller
 
         $validated = $request->validate(
             [
-                'attendance' => 'required|array',
+                'attendance' => 'required|array|min:1',
                 'attendance.*' => 'required|in:Я,Н,У',
                 'certificates' => 'nullable|array',
                 'certificates.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
@@ -186,6 +192,7 @@ class AttendanceController extends Controller
         $calendar = [];
         $stats = ['present' => 0, 'absent' => 0, 'excused' => 0, 'period' => $statsPeriod];
         $rows = collect();
+        $today = now()->toDateString();
 
         if ($viewMode === 'athletes' && $athleteId) {
             $athlete = Athlete::find($athleteId);
@@ -226,6 +233,7 @@ class AttendanceController extends Controller
                     'group' => $a->schedule?->group?->name,
                     'lesson_date' => DateFormatter::toDisplayDate($a->schedule?->lesson_date),
                     'status' => $a->status,
+                    'excused_certificate_url' => StorageUrl::url($a->excused_certificate),
                 ])->sortByDesc('lesson_date')->values();
 
                 [$calYear, $calMonth] = array_pad(explode('-', $calendarMonth), 2, now()->format('Y-m'));
@@ -247,20 +255,36 @@ class AttendanceController extends Controller
                 $attendanceBySchedule = Attendance::query()
                     ->where('athlete_id', $athleteId)
                     ->whereIn('schedule_id', $schedulesInMonth->pluck('id'))
-                    ->pluck('status', 'schedule_id');
+                    ->get()
+                    ->keyBy('schedule_id');
 
                 $calendar = $schedulesInMonth
                     ->groupBy(fn (Schedule $s) => DateFormatter::toDateString($s->lesson_date))
-                    ->map(function ($dayItems, $date) use ($attendanceBySchedule) {
+                    ->map(function ($dayItems, $date) use ($attendanceBySchedule, $today) {
+                        $isPast = $date < $today;
+                        $isFuture = $date > $today;
+
                         return [
                             'date' => $date,
-                            'entries' => $dayItems->map(fn (Schedule $schedule) => [
-                                'schedule_id' => $schedule->id,
-                                'group' => $schedule->group?->name,
-                                'start_time' => $schedule->start_time,
-                                'end_time' => $schedule->end_time,
-                                'status' => $attendanceBySchedule->get($schedule->id),
-                            ])->values(),
+                            'is_past' => $isPast,
+                            'is_future' => $isFuture,
+                            'is_today' => $date === $today,
+                            'entries' => $dayItems->map(function (Schedule $schedule) use ($attendanceBySchedule, $today) {
+                                $attendance = $attendanceBySchedule->get($schedule->id);
+                                $lessonDate = DateFormatter::toDateString($schedule->lesson_date);
+
+                                return [
+                                    'schedule_id' => $schedule->id,
+                                    'group' => $schedule->group?->name,
+                                    'start_time' => $schedule->start_time,
+                                    'end_time' => $schedule->end_time,
+                                    'lesson_date' => $lessonDate,
+                                    'status' => $attendance?->status,
+                                    'excused_certificate_url' => StorageUrl::url($attendance?->excused_certificate),
+                                    'is_past' => $lessonDate < $today,
+                                    'is_future' => $lessonDate > $today,
+                                ];
+                            })->values(),
                         ];
                     })
                     ->values();
@@ -277,21 +301,36 @@ class AttendanceController extends Controller
 
             $groupSchedules = Schedule::query()
                 ->where('group_id', $groupId)
+                ->whereNull('cancelled_at')
                 ->when($coachId, fn ($q) => $q->where('coach_id', $coachId))
                 ->whereBetween('lesson_date', [$calStart->toDateString(), $calEnd->toDateString()])
                 ->orderBy('lesson_date')
                 ->orderBy('start_time')
                 ->get();
 
+            $scheduleIds = $groupSchedules->pluck('id');
+            $attendanceCounts = Attendance::query()
+                ->whereIn('schedule_id', $scheduleIds)
+                ->selectRaw('schedule_id, count(*) as cnt')
+                ->groupBy('schedule_id')
+                ->pluck('cnt', 'schedule_id');
+
             $groupCalendar = $groupSchedules
                 ->groupBy(fn (Schedule $s) => DateFormatter::toDateString($s->lesson_date))
                 ->map(fn ($items, $date) => [
                     'date' => $date,
+                    'is_past' => $date < $today,
+                    'is_future' => $date > $today,
+                    'is_today' => $date === $today,
                     'entries' => $items->map(fn (Schedule $s) => [
                         'schedule_id' => $s->id,
                         'start_time' => $s->start_time,
                         'end_time' => $s->end_time,
                         'group' => $s->group?->name,
+                        'lesson_date' => DateFormatter::toDateString($s->lesson_date),
+                        'has_marks' => ($attendanceCounts[$s->id] ?? 0) > 0,
+                        'is_past' => DateFormatter::toDateString($s->lesson_date) < $today,
+                        'is_future' => DateFormatter::toDateString($s->lesson_date) > $today,
                     ])->values(),
                 ])
                 ->values();
@@ -305,10 +344,13 @@ class AttendanceController extends Controller
                     $allIds = $memberIds->merge($historicalIds)->unique()->filter();
 
                     $modalAthletes = Athlete::whereIn('id', $allIds)->orderBy('last_name_nom')->get()->map(function (Athlete $a) use ($attendanceByAthlete) {
+                        $attendance = $attendanceByAthlete->get($a->id);
+
                         return [
                             'id' => $a->id,
                             'full_name' => trim("{$a->last_name_nom} {$a->first_name_nom} " . ($a->middle_name_nom ?? '')),
-                            'status' => $attendanceByAthlete->get($a->id)?->status ?? 'Н',
+                            'status' => $attendance?->status,
+                            'excused_certificate_url' => StorageUrl::url($attendance?->excused_certificate),
                         ];
                     })->values();
 
@@ -318,6 +360,9 @@ class AttendanceController extends Controller
                         'start_time' => $schedule->start_time,
                         'end_time' => $schedule->end_time,
                         'group_name' => $schedule->group?->name,
+                        'is_past' => DateFormatter::toDateString($schedule->lesson_date) < $today,
+                        'is_future' => DateFormatter::toDateString($schedule->lesson_date) > $today,
+                        'has_marks' => $schedule->attendances->isNotEmpty(),
                         'athletes' => $modalAthletes,
                     ];
                 }

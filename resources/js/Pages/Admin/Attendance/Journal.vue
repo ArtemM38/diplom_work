@@ -58,7 +58,7 @@ const monthLabel = computed(() => {
 });
 
 const getBadgeClass = (status) => {
-    if (!status) return 'bg-slate-100 text-slate-600 border border-slate-200';
+    if (!status) return '';
     if (status === 'Я') return 'bg-green-100 text-green-700';
     if (status === 'У') return 'bg-yellow-100 text-yellow-700';
     return 'bg-red-100 text-red-700';
@@ -68,7 +68,42 @@ const statusLabel = (status) => {
     if (status === 'Я') return 'Я';
     if (status === 'Н') return 'Н';
     if (status === 'У') return 'У';
-    return 'нет отметки';
+    return '';
+};
+
+const getDayCellClass = (date) => {
+    if (!date) return '';
+    const today = dayjs().format('YYYY-MM-DD');
+    if (date === today) return 'border-indigo-400 bg-indigo-50/40';
+    if (date < today) return 'border-slate-200 bg-slate-50/80';
+    return 'border-sky-100 bg-sky-50/30';
+};
+
+const getAthleteEntryClass = (entry) => {
+    if (!entry.status) {
+        if (entry.is_future) return 'bg-sky-50 text-sky-700 border border-sky-100';
+        return 'bg-orange-50 text-orange-700 border border-orange-100';
+    }
+    return getBadgeClass(entry.status);
+};
+
+const getAthleteEntryLabel = (entry) => {
+    const mark = statusLabel(entry.status);
+    const time = entry.start_time?.substring(0, 5);
+    const group = entry.group || '';
+    if (!mark) {
+        return entry.is_future
+            ? `${time} ${group} — запланировано`
+            : `${time} ${group} — не отмечено`;
+    }
+    return `${time} ${group} — ${mark}`;
+};
+
+const getGroupSessionClass = (entry) => {
+    if (entry.is_future) return 'bg-sky-50 text-sky-800 hover:bg-sky-100 border border-sky-100';
+    if (entry.is_past && !entry.has_marks) return 'bg-orange-50 text-orange-800 hover:bg-orange-100 border border-orange-100';
+    if (entry.has_marks) return 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-100';
+    return 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200';
 };
 
 const reload = () => {
@@ -222,7 +257,7 @@ const shiftCalendarMonth = (delta) => {
                         <div
                             v-for="(date, idx) in calendarDays"
                             :key="idx"
-                            :class="['min-h-24 border rounded-xl p-2', date ? 'border-gray-200' : 'border-transparent bg-gray-50']"
+                            :class="['min-h-24 border rounded-xl p-2', date ? getDayCellClass(date) : 'border-transparent bg-gray-50']"
                         >
                             <template v-if="date">
                                 <div class="text-xs font-bold text-slate-700 mb-1">{{ dayjs(date).date() }}</div>
@@ -231,9 +266,16 @@ const shiftCalendarMonth = (delta) => {
                                         v-for="(entry, eIdx) in (calendarByDate.get(date) || [])"
                                         :key="eIdx"
                                         class="text-[10px] px-2 py-1 rounded"
-                                        :class="getBadgeClass(entry.status)"
+                                        :class="getAthleteEntryClass(entry)"
                                     >
-                                        {{ entry.start_time?.substring(0, 5) }} {{ entry.group }} — {{ statusLabel(entry.status) }}
+                                        <div>{{ getAthleteEntryLabel(entry) }}</div>
+                                        <a
+                                            v-if="entry.status === 'У' && entry.excused_certificate_url"
+                                            :href="entry.excused_certificate_url"
+                                            target="_blank"
+                                            class="inline-block mt-0.5 text-indigo-600 hover:underline font-medium"
+                                            @click.stop
+                                        >Справка</a>
                                     </div>
                                 </div>
                             </template>
@@ -277,7 +319,7 @@ const shiftCalendarMonth = (delta) => {
                         <div
                             v-for="(date, idx) in calendarDays"
                             :key="idx"
-                            :class="['min-h-24 border rounded-lg p-1.5', date ? 'border-slate-200' : 'border-transparent bg-slate-50']"
+                            :class="['min-h-24 border rounded-lg p-1.5', date ? getDayCellClass(date) : 'border-transparent bg-slate-50']"
                         >
                             <template v-if="date">
                                 <div class="text-xs font-bold mb-1">{{ dayjs(date).date() }}</div>
@@ -286,9 +328,13 @@ const shiftCalendarMonth = (delta) => {
                                     :key="entry.schedule_id"
                                     type="button"
                                     @click="openSchedule(entry.schedule_id)"
-                                    class="w-full text-left text-[10px] px-1.5 py-1 mb-0.5 rounded bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+                                    class="w-full text-left text-[10px] px-1.5 py-1 mb-0.5 rounded"
+                                    :class="getGroupSessionClass(entry)"
                                 >
                                     {{ entry.start_time?.substring(0,5) }} тренировка
+                                    <span v-if="entry.is_future" class="opacity-70"> · будущая</span>
+                                    <span v-else-if="entry.has_marks" class="opacity-70"> · отмечено</span>
+                                    <span v-else class="opacity-70"> · без отметок</span>
                                 </button>
                             </template>
                         </div>
@@ -314,7 +360,18 @@ const shiftCalendarMonth = (delta) => {
                     >
                         <div>
                             <p class="font-medium">{{ a.full_name }}</p>
-                            <span class="text-xs px-2 py-0.5 rounded font-semibold" :class="getBadgeClass(a.status)">{{ a.status }}</span>
+                            <span
+                                v-if="a.status"
+                                class="text-xs px-2 py-0.5 rounded font-semibold"
+                                :class="getBadgeClass(a.status)"
+                            >{{ a.status }}</span>
+                            <span v-else class="text-xs text-slate-400">Отметки ещё нет</span>
+                            <a
+                                v-if="a.status === 'У' && a.excused_certificate_url"
+                                :href="a.excused_certificate_url"
+                                target="_blank"
+                                class="block text-xs text-indigo-600 hover:underline mt-1"
+                            >Посмотреть справку</a>
                         </div>
                         <Link :href="route('admin.athletes.show', a.id)" class="text-sm text-indigo-600 hover:underline">Карточка →</Link>
                     </div>

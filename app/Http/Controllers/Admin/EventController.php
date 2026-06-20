@@ -16,7 +16,6 @@ use App\Support\EventParticipationBilling;
 use App\Support\FormValidator;
 use App\Support\AthleteRankSync;
 use App\Services\AthleteNotificationService;
-use App\Support\PortfolioAchievementSync;
 use App\Support\ReportMeta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -87,7 +86,6 @@ class EventController extends Controller
         $this->ensureCanEdit($request);
         $validated = $this->validateEvent($request);
         $event->update($validated);
-        PortfolioAchievementSync::syncEventMetadata($event);
 
         return back()->with('success', 'Мероприятие обновлено');
     }
@@ -156,8 +154,6 @@ class EventController extends Controller
             app(AthleteNotificationService::class)->notifyEventRegistration($event, $athlete);
         }
 
-        PortfolioAchievementSync::fromParticipant($participant);
-
         return back()->with('success', 'Спортсмен добавлен в мероприятие');
     }
 
@@ -174,7 +170,6 @@ class EventController extends Controller
                 Storage::disk('public')->delete($participant->evidence_file_path);
             }
             AthleteRankSync::removeForParticipant($participant);
-            PortfolioAchievementSync::removeForParticipant($participant);
             $participant->delete();
         }
 
@@ -229,7 +224,6 @@ class EventController extends Controller
             ]);
 
             $participant = $participant->fresh(['event']);
-            PortfolioAchievementSync::fromParticipant($participant);
             AthleteRankSync::fromParticipant($participant);
         }
 

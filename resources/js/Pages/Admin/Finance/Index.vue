@@ -38,11 +38,11 @@ const form = useForm({
 });
 
 const discountForm = useForm({
-    discount_percent: null,
+    discount: null,
 });
 
 watch(() => props.selectedAthlete, (athlete) => {
-    discountForm.discount_percent = athlete?.discount_percent ?? null;
+    discountForm.discount = athlete?.discount ?? null;
 }, { immediate: true });
 
 const reload = () => {
@@ -208,7 +208,7 @@ const saveDiscount = () => {
                             <div class="w-full sm:w-36">
                                 <label class="text-xs text-gray-500">Скидка, %</label>
                                 <input
-                                    v-model.number="discountForm.discount_percent"
+                                    v-model.number="discountForm.discount"
                                     type="number"
                                     min="10"
                                     max="100"
@@ -226,7 +226,7 @@ const saveDiscount = () => {
                             </button>
                             <button
                                 type="button"
-                                @click="discountForm.discount_percent = null; saveDiscount()"
+                                @click="discountForm.discount = null; saveDiscount()"
                                 class="w-full sm:w-auto border border-slate-300 px-4 py-2.5 rounded-lg text-sm"
                             >
                                 Сбросить

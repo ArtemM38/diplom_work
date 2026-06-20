@@ -12,8 +12,12 @@ import { fieldClass } from '@/utils/formErrors';
 const props = defineProps({
     ranks: Array,
     referee_categories: Array,
-    existingGuardians: Array, // Список родителей из БД
+    existingGuardians: Array,
     isParentRegistering: Boolean,
+    isAdminCreating: {
+        type: Boolean,
+        default: false,
+    },
     prefilledName: {
         type: Object,
         default: null,
@@ -292,7 +296,7 @@ onUnmounted(() => {
 
 <template>
 
-    <Head title="Регистрация спортсмена" />
+    <Head :title="isAdminCreating ? 'Регистрация спортсмена (админ)' : 'Регистрация спортсмена'" />
 
     <div class="min-h-screen bg-gray-100 py-8 px-4 overflow-x-hidden">
         <div class="max-w-6xl mx-auto min-w-0">

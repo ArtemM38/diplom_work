@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -31,8 +32,10 @@ return new class extends Migration
 
             DB::statement("ALTER TABLE athlete_documents MODIFY `type` ENUM('medical', 'insurance', 'identity') NOT NULL");
 
-            DB::statement('UPDATE portfolio_achievements SET event_period = NULL WHERE event_period IS NOT NULL AND event_period NOT REGEXP \'^[0-9]{4}-[0-9]{2}-[0-9]{2}$\'');
-            DB::statement('ALTER TABLE portfolio_achievements MODIFY event_period DATE NULL');
+            if (Schema::hasColumn('portfolio_achievements', 'event_period')) {
+                DB::statement('UPDATE portfolio_achievements SET event_period = NULL WHERE event_period IS NOT NULL AND event_period NOT REGEXP \'^[0-9]{4}-[0-9]{2}-[0-9]{2}$\'');
+                DB::statement('ALTER TABLE portfolio_achievements MODIFY event_period DATE NULL');
+            }
         }
     }
 

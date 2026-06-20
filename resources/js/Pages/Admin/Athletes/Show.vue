@@ -81,7 +81,7 @@ const attachGuardian = () => {
 
 const fullName = `${props.athlete.last_name_nom} ${props.athlete.first_name_nom} ${props.athlete.middle_name_nom || ''}`.trim();
 
-const photoSrc = computed(() => (props.athlete.photo ? `/storage/${props.athlete.photo}` : null));
+const photoSrc = computed(() => props.athlete.photo_url || null);
 
 const inventoryForm = ref({ ...Object.fromEntries(
     Object.keys(inventoryLabels).map((key) => [key, !!(props.athlete.inventory?.[key])])
@@ -267,7 +267,7 @@ const medicalStatus = computed(() => {
                             </p>
                             <a
                                 v-if="doc.file_path"
-                                :href="`/storage/${doc.file_path}`"
+                                :href="doc.file_url"
                                 target="_blank"
                                 class="inline-block mt-1 text-indigo-600 text-xs font-medium hover:underline"
                             >

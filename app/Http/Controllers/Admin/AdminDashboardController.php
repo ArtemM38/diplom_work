@@ -6,8 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Athlete;
 use App\Models\Guardian;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
-use Carbon\Carbon;
+use App\Support\StorageUrl;
 
 class AdminDashboardController extends Controller
 {
@@ -61,6 +62,7 @@ class AdminDashboardController extends Controller
                 'age_label' => $this->formatYears($age),
                 'gender' => $athlete->gender,
                 'photo' => $athlete->photo,
+                'photo_url' => StorageUrl::url($athlete->photo),
                 'started_at' => optional($athlete->created_at)?->toDateString(),
                 'current_rank' => $athlete->rankHistories->sortByDesc('assigned_at')->first()?->rank?->name ?? 'Не присвоен',
                 'documents' => $athlete->documents->map(function ($doc) {
@@ -83,6 +85,7 @@ class AdminDashboardController extends Controller
             'athletes' => $athletes,
             'filters' => $request->only(['search', 'gender', 'sort_age', 'started_from', 'started_to']),
             'canEditAthlete' => $request->user()?->hasRole('admin') ?? false,
+            'canCreateAthlete' => $request->user()?->hasRole('admin') ?? false,
         ]);
     }
 
@@ -102,7 +105,12 @@ class AdminDashboardController extends Controller
         $canEditGuardians = $canEditAthlete;
 
         return Inertia::render('Admin/Athletes/Show', [
-            'athlete' => $athlete,
+            'athlete' => array_merge($athlete->toArray(), [
+                'photo_url' => StorageUrl::url($athlete->photo),
+                'documents' => $athlete->documents->map(fn ($doc) => array_merge($doc->toArray(), [
+                    'file_url' => StorageUrl::url($doc->file_path),
+                ])),
+            ]),
             'age' => Carbon::parse($athlete->birth_date)->age,
             'ageLabel' => $this->formatYears(Carbon::parse($athlete->birth_date)->age),
             'canEditAthlete' => $canEditAthlete,

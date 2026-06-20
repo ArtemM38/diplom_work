@@ -40,7 +40,6 @@ return new class extends Migration
             $table->foreignId('event_type_id')->constrained()->onDelete('restrict');
             $table->string('event_place')->nullable();
             $table->date('event_date')->nullable();
-            $table->string('event_period')->nullable();
             $table->foreignId('event_level_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('event_host_id')->nullable()->constrained()->nullOnDelete();
             $table->string('result_label')->nullable();

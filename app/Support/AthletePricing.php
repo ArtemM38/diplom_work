@@ -9,7 +9,7 @@ class AthletePricing
 {
     public static function discountPercent(?AthleteFinance $finance): int
     {
-        $discount = (int) ($finance?->discount_percent ?? 0);
+        $discount = (float) ($finance?->discount ?? 0);
         if ($discount < 10) {
             return 0;
         }

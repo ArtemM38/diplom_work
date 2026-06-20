@@ -29,17 +29,17 @@ return new class extends Migration
             $table->string('full_name_ins')->nullable(); // Творительный (Петровым Петром Петровичем)
 
             $table->string('photo')->nullable();
-            $table->string('phone')->nullable();
+            $table->string('phone', 20)->nullable();
             $table->date('birth_date');
             $table->enum('gender', ['male', 'female']);
-            $table->string('occupation_type')->nullable();
+            $table->enum('occupation_type', ['study', 'work', 'kindergarten'])->nullable();
 
             // Адрес (будем складывать сюда ответ от DaData)
             $table->text('registration_address')->nullable();
 
             // Место обучения (Таблица "Место обучения" по ТЗ)
             $table->string('school_name')->nullable();
-            $table->string('school_director_dat')->nullable(); // ФИО директора в дат. падеже
+            $table->string('school_director')->nullable(); // ФИО директора в дат. падеже
             $table->string('school_class')->nullable();
 
             $table->string('kindergarten_name')->nullable();

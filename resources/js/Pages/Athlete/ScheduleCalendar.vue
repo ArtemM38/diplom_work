@@ -56,11 +56,21 @@ const daySchedules = computed(() =>
         .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
 );
 
-const attendanceLabel = (status) => {
+const attendanceLabel = (status, isFuture = false) => {
     if (status === 'Я') return { text: 'Явка', class: 'bg-green-100 text-green-800' };
     if (status === 'Н') return { text: 'Неявка', class: 'bg-red-100 text-red-800' };
     if (status === 'У') return { text: 'Уваж. пропуск', class: 'bg-amber-100 text-amber-800' };
-    return { text: 'Не отмечено', class: 'bg-slate-100 text-slate-500' };
+    if (isFuture) return { text: 'Запланировано', class: 'bg-sky-100 text-sky-700' };
+    return { text: 'Не отмечено', class: 'bg-orange-100 text-orange-700' };
+};
+
+const sessionChipClass = (session) => {
+    if (session.is_cancelled) return 'bg-red-50 border-red-200 text-red-700 line-through';
+    if (session.attendance_status === 'Я') return 'bg-green-100 border-green-300 text-green-800';
+    if (session.attendance_status === 'Н') return 'bg-red-100 border-red-300 text-red-800';
+    if (session.attendance_status === 'У') return 'bg-amber-100 border-amber-300 text-amber-800';
+    if (session.is_future) return 'bg-sky-100 border-sky-300 text-sky-800';
+    return 'bg-orange-100 border-orange-300 text-orange-800';
 };
 </script>
 
@@ -132,9 +142,9 @@ const attendanceLabel = (status) => {
                         :key="idx"
                         @click="selectDay(date)"
                         :class="[
-                            'min-h-16 sm:min-h-24 border rounded-xl p-1 sm:p-2 transition-all cursor-pointer relative',
-                            !date ? 'bg-gray-50 border-transparent cursor-default' : 'hover:border-indigo-400',
-                            selectedDate === date ? 'border-indigo-600 bg-indigo-50 ring-2 ring-indigo-100' : 'border-gray-100',
+                            'min-h-16 sm:min-h-24 border rounded-xl p-1 sm:p-2 transition-all cursor-pointer relative bg-white',
+                            !date ? 'bg-gray-50 border-transparent cursor-default' : 'hover:border-indigo-400 border-gray-100',
+                            selectedDate === date ? 'ring-2 ring-indigo-100 border-indigo-600 bg-indigo-50' : '',
                         ]"
                     >
                         <span
@@ -149,7 +159,8 @@ const attendanceLabel = (status) => {
                             <div
                                 v-for="s in schedules.filter((item) => item.lesson_date === date).slice(0, 2)"
                                 :key="s.id"
-                                class="text-[9px] bg-white border border-indigo-100 text-indigo-700 px-1 rounded truncate"
+                                class="text-[9px] border px-1 rounded truncate"
+                                :class="sessionChipClass(s)"
                             >
                                 {{ s.start_time.substring(0, 5) }} - {{ s.end_time.substring(0, 5) }} {{ s.group?.name }}
                             </div>
@@ -190,9 +201,9 @@ const attendanceLabel = (status) => {
                             <span
                                 v-else
                                 class="text-xs font-semibold px-2 py-0.5 rounded shrink-0"
-                                :class="attendanceLabel(s.attendance_status).class"
+                                :class="attendanceLabel(s.attendance_status, s.is_future).class"
                             >
-                                {{ attendanceLabel(s.attendance_status).text }}
+                                {{ attendanceLabel(s.attendance_status, s.is_future).text }}
                             </span>
                         </div>
                         <div class="text-slate-600 mt-1 font-medium">{{ s.group?.name }}</div>
@@ -208,6 +219,14 @@ const attendanceLabel = (status) => {
                         <div class="text-slate-500 mt-1 text-xs">
                             Тренер: {{ s.coach?.name || '—' }}
                         </div>
+                        <a
+                            v-if="!s.is_cancelled && s.attendance_status === 'У' && s.excused_certificate_url"
+                            :href="s.excused_certificate_url"
+                            target="_blank"
+                            class="inline-block mt-2 text-xs font-medium text-indigo-600 hover:underline"
+                        >
+                            Посмотреть справку
+                        </a>
                     </div>
 
                     <div

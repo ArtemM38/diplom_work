@@ -8,6 +8,7 @@ const props = defineProps({
     athletes: Array,
     existingAttendances: Object,
     existingCertificates: Object,
+    existingCertificateUrls: Object,
 });
 
 const form = useForm({
@@ -16,10 +17,11 @@ const form = useForm({
 });
 
 const certificateFiles = ref({});
+const markError = ref('');
 
 onMounted(() => {
     props.athletes.forEach((athlete) => {
-        form.attendance[athlete.id] = props.existingAttendances[athlete.id] || 'Н';
+        form.attendance[athlete.id] = props.existingAttendances[athlete.id] ?? null;
     });
 });
 
@@ -44,6 +46,12 @@ const hasCertificate = (athleteId) =>
     || props.existingCertificates?.[athleteId];
 
 const submit = () => {
+    const unset = props.athletes.filter((a) => !form.attendance[a.id]);
+    if (unset.length) {
+        markError.value = 'Поставьте отметку каждому спортсмену перед сохранением.';
+        return;
+    }
+    markError.value = '';
     form.post(route('admin.attendance.store', props.schedule.id), {
         forceFormData: true,
     });
@@ -118,6 +126,12 @@ const submit = () => {
                                         />
                                         <p v-if="existingCertificates?.[athlete.id] && !certificateFiles[athlete.id]" class="text-xs text-green-600">
                                             Справка уже загружена
+                                            <a
+                                                v-if="existingCertificateUrls?.[athlete.id]"
+                                                :href="existingCertificateUrls[athlete.id]"
+                                                target="_blank"
+                                                class="text-indigo-600 hover:underline ml-1"
+                                            >Открыть</a>
                                         </p>
                                         <p v-if="form.errors[`certificates.${athlete.id}`]" class="text-xs text-red-600">
                                             {{ form.errors[`certificates.${athlete.id}`] }}
@@ -130,7 +144,8 @@ const submit = () => {
                     </table>
                 </div>
 
-                <div class="p-6 bg-gray-50 border-t flex justify-end">
+                <div class="p-6 bg-gray-50 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p v-if="markError" class="text-sm text-red-600">{{ markError }}</p>
                     <button
                         type="button"
                         @click="submit"

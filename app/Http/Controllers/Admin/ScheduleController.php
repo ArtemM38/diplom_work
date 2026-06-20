@@ -14,6 +14,7 @@ use App\Support\AdminPermissions;
 use App\Support\GuardianChildAccess;
 use App\Support\ScheduleAccess;
 use App\Support\DateFormatter;
+use App\Support\StorageUrl;
 use App\Services\AthleteNotificationService;
 use App\Support\ScheduleConflictChecker;
 use Carbon\Carbon;
@@ -101,10 +102,11 @@ class ScheduleController extends Controller
     private function scheduleCalendarPayload(Athlete $athlete, bool $isGuardian, $children, array $filters): array
     {
         $groupIds = $athlete->groups()->pluck('groups.id');
-        $attendanceBySchedule = Attendance::query()
+        $attendancesBySchedule = Attendance::query()
             ->where('athlete_id', $athlete->id)
             ->whereIn('schedule_id', Schedule::query()->whereIn('group_id', $groupIds)->select('id'))
-            ->pluck('status', 'schedule_id');
+            ->get()
+            ->keyBy('schedule_id');
 
         $schedules = Schedule::query()
             ->with(['group', 'location', 'coach', 'initialCoach'])
@@ -112,9 +114,16 @@ class ScheduleController extends Controller
             ->orderBy('lesson_date')
             ->orderBy('start_time')
             ->get()
-            ->map(function (Schedule $s) use ($attendanceBySchedule) {
+            ->map(function (Schedule $s) use ($attendancesBySchedule) {
                 $payload = $this->schedulePayload($s);
-                $payload['attendance_status'] = $attendanceBySchedule->get($s->id);
+                $attendance = $attendancesBySchedule->get($s->id);
+                $payload['attendance_status'] = $attendance?->status;
+                $payload['excused_certificate_url'] = StorageUrl::url($attendance?->excused_certificate);
+                $lessonDate = DateFormatter::toDateString($s->lesson_date);
+                $today = now()->toDateString();
+                $payload['is_past'] = $lessonDate && $lessonDate < $today;
+                $payload['is_future'] = $lessonDate && $lessonDate > $today;
+                $payload['is_today'] = $lessonDate === $today;
 
                 return $payload;
             });

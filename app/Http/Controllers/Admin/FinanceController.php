@@ -53,7 +53,7 @@ class FinanceController extends Controller
                     'id' => $athlete->id,
                     'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
                     'balance' => (float) ($athlete->finance?->balance ?? 0),
-                    'discount_percent' => $athlete->finance?->discount_percent,
+                    'discount' => $athlete->finance?->discount,
                     'user_active' => $athlete->user_id ? (bool) $athlete->user?->is_active : null,
                 ];
             });
@@ -67,7 +67,7 @@ class FinanceController extends Controller
                     'id' => $athlete->id,
                     'full_name' => trim($athlete->last_name_nom . ' ' . $athlete->first_name_nom . ' ' . ($athlete->middle_name_nom ?? '')),
                     'balance' => (float) ($athlete->finance?->balance ?? 0),
-                    'discount_percent' => $athlete->finance?->discount_percent,
+                    'discount' => $athlete->finance?->discount,
                     'groups' => $athlete->groups()->get(['groups.id', 'groups.name', 'groups.tariff_amount'])->map(fn ($g) => [
                         'id' => $g->id,
                         'name' => $g->name,
@@ -116,18 +116,18 @@ class FinanceController extends Controller
 
     public function update(Request $request, Athlete $athlete)
     {
-        if ($request->has('discount_percent')) {
+        if ($request->has('discount')) {
             abort_unless($request->user()?->hasRole('admin'), 403);
 
             $validated = FormValidator::validate($request, [
-                'discount_percent' => 'nullable|integer|min:0|max:100',
+                'discount' => 'nullable|numeric|min:0|max:100',
             ], [
-                'discount_percent.min' => 'Скидка не может быть отрицательной.',
-                'discount_percent.max' => 'Скидка не может превышать 100%.',
+                'discount.min' => 'Скидка не может быть отрицательной.',
+                'discount.max' => 'Скидка не может превышать 100%.',
             ]);
 
             $finance = AthleteFinance::firstOrCreate(['athlete_id' => $athlete->id], ['balance' => 0]);
-            $finance->update(['discount_percent' => $validated['discount_percent'] ?? null]);
+            $finance->update(['discount' => $validated['discount'] ?? null]);
             AthletePricing::applyDiscountToGroups($athlete);
 
             return back()->with('success', 'Скидка применена, стоимость тренировок пересчитана');

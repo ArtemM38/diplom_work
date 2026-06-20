@@ -4,6 +4,7 @@ import { formatDisplayDate } from '@/utils/formatDate';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import debounce from 'lodash/debounce';
+import { storageUrl } from '@/utils/storageUrl';
 
 const props = defineProps({
     athletes: Array,
@@ -166,7 +167,7 @@ const placeLabel = (place) => {
                                 >
                                     <td class="px-4 py-3 font-medium">{{ item.event_name }}</td>
                                     <td class="px-4 py-3 text-slate-600">{{ item.event_type }} · {{ item.event_level || '—' }}</td>
-                                    <td class="px-4 py-3">{{ item.event_date_display || formatDisplayDate(item.event_date) || item.event_period || '—' }}</td>
+                                    <td class="px-4 py-3">{{ item.event_date_display || formatDisplayDate(item.event_date) || item.event_date_range_display || '—' }}</td>
                                     <td class="px-4 py-3">
                                         <span v-if="item.result_place" class="font-semibold">{{ placeLabel(item.result_place) }}</span>
                                         <span v-else-if="item.result_label">{{ item.result_label }}</span>
@@ -190,8 +191,7 @@ const placeLabel = (place) => {
                 <dl class="space-y-2 text-sm">
                     <div><dt class="text-slate-500 inline">Тип: </dt>{{ selectedAchievement.event_type || '—' }}</div>
                     <div><dt class="text-slate-500 inline">Уровень: </dt>{{ selectedAchievement.event_level || '—' }}</div>
-                    <div><dt class="text-slate-500 inline">Дата: </dt>{{ selectedAchievement.event_date_display || formatDisplayDate(selectedAchievement.event_date) || '—' }}</div>
-                    <div><dt class="text-slate-500 inline">Период: </dt>{{ selectedAchievement.event_period || '—' }}</div>
+                    <div><dt class="text-slate-500 inline">Дата: </dt>{{ selectedAchievement.event_date_display || selectedAchievement.event_date_range_display || formatDisplayDate(selectedAchievement.event_date) || '—' }}</div>
                     <div><dt class="text-slate-500 inline">Место: </dt>{{ selectedAchievement.event_place || '—' }}</div>
                     <div><dt class="text-slate-500 inline">Ведущий: </dt>{{ selectedAchievement.event_host?.full_name || '—' }}</div>
                     <div v-if="selectedAchievement.cost != null"><dt class="text-slate-500 inline">Стоимость: </dt>{{ selectedAchievement.cost }} ₽</div>
@@ -202,7 +202,7 @@ const placeLabel = (place) => {
                 </dl>
                 <a
                     v-if="selectedAchievement.evidence_file_path"
-                    :href="`/storage/${selectedAchievement.evidence_file_path}`"
+                    :href="storageUrl(selectedAchievement.evidence_file_path)"
                     target="_blank"
                     class="inline-block mt-3 text-indigo-600 text-sm font-medium"
                 >Открыть подтверждение</a>

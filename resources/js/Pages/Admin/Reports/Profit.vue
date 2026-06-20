@@ -9,6 +9,8 @@ const props = defineProps({
     report: Object,
     coaches: Array,
     athletes: Array,
+    locations: Array,
+    events: Array,
 });
 
 const defaultProfitDates = () => {
@@ -24,6 +26,8 @@ const dateFrom = ref(props.filters?.date_from || '');
 const dateTo = ref(props.filters?.date_to || '');
 const coachId = ref(props.filters?.coach_id || '');
 const athleteId = ref(props.filters?.athlete_id || '');
+const locationId = ref(props.filters?.location_id || '');
+const eventId = ref(props.filters?.event_id || '');
 
 const query = (extra = {}) => {
     const params = {
@@ -33,6 +37,8 @@ const query = (extra = {}) => {
     };
     if (coachId.value) params.coach_id = coachId.value;
     if (athleteId.value) params.athlete_id = athleteId.value;
+    if (locationId.value) params.location_id = locationId.value;
+    if (eventId.value) params.event_id = eventId.value;
     return params;
 };
 
@@ -49,6 +55,8 @@ const resetFilters = () => {
     dateTo.value = defaults.date_to;
     coachId.value = '';
     athleteId.value = '';
+    locationId.value = '';
+    eventId.value = '';
     router.get(route('admin.reports.profit'), defaults, {
         preserveState: true,
         replace: true,
@@ -62,6 +70,18 @@ const download = (format) => {
 };
 
 const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} ₽`;
+
+const rowAmountClass = (row) => {
+    if (row.operation_type === 'refund') return 'text-amber-700';
+    if (row.operation_type === 'deposit') return 'text-blue-700';
+    return 'text-emerald-700';
+};
+
+const formatRowAmount = (row) => {
+    if (row.operation_type === 'refund') return `−${formatMoney(row.amount)}`;
+    if (row.operation_type === 'deposit') return `+${formatMoney(row.amount)}`;
+    return formatMoney(row.amount);
+};
 </script>
 
 <template>
@@ -89,6 +109,22 @@ const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} �
                             <option v-for="c in coaches" :key="c.id" :value="c.id">{{ c.name }}</option>
                         </select>
                     </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Зал</label>
+                        <select v-model="locationId" class="w-full border-gray-300 rounded-lg">
+                            <option value="">Все залы</option>
+                            <option v-for="l in locations" :key="l.id" :value="l.id">{{ l.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-500">Мероприятие</label>
+                        <select v-model="eventId" class="w-full border-gray-300 rounded-lg">
+                            <option value="">Все мероприятия</option>
+                            <option v-for="e in events" :key="e.id" :value="e.id">
+                                {{ e.name }}<span v-if="e.event_date"> ({{ e.event_date }})</span>
+                            </option>
+                        </select>
+                    </div>
                     <div class="sm:col-span-2">
                         <label class="text-xs text-slate-500">Спортсмен</label>
                         <select v-model="athleteId" class="w-full border-gray-300 rounded-lg">
@@ -107,19 +143,42 @@ const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} �
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 <div class="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 md:col-span-2">
-                    <p class="text-sm text-emerald-700">Общая прибыль за период</p>
+                    <p class="text-sm text-emerald-700">Чистая прибыль за период</p>
                     <p class="text-3xl font-bold text-emerald-900 mt-1">{{ formatMoney(report?.total_profit) }}</p>
-                    <p class="text-xs text-emerald-600 mt-2">{{ report?.operations_count || 0 }} списаний</p>
+                    <p class="text-xs text-emerald-600 mt-2">
+                        Списаний: {{ report?.operations_count || 0 }} · возвратов: {{ formatMoney(report?.total_refunds) }}
+                    </p>
                 </div>
+                <div class="bg-blue-50 border border-blue-100 rounded-2xl p-5">
+                    <p class="text-sm text-blue-700">Пополнения баланса</p>
+                    <p class="text-2xl font-bold text-blue-900 mt-1">{{ formatMoney(report?.total_deposits) }}</p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5">
+                    <p class="text-xs text-slate-500">Списания (брутто)</p>
+                    <p class="text-xl font-bold text-slate-900">{{ formatMoney(report?.gross_profit) }}</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="bg-white border border-slate-200 rounded-2xl p-5">
                     <p class="text-xs text-slate-500">Тренировки</p>
                     <p class="text-xl font-bold text-slate-900">{{ formatMoney(report?.by_source?.training) }}</p>
+                    <p v-if="report?.refunds_by_source?.training" class="text-xs text-amber-600 mt-1">
+                        Возвраты: {{ formatMoney(report.refunds_by_source.training) }}
+                    </p>
                 </div>
                 <div class="bg-white border border-slate-200 rounded-2xl p-5">
                     <p class="text-xs text-slate-500">Мероприятия</p>
                     <p class="text-xl font-bold text-slate-900">{{ formatMoney(report?.by_source?.event) }}</p>
+                    <p v-if="report?.refunds_by_source?.event" class="text-xs text-amber-600 mt-1">
+                        Возвраты: {{ formatMoney(report.refunds_by_source.event) }}
+                    </p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 md:col-span-2">
+                    <p class="text-xs text-slate-500">Ручные операции (списания)</p>
+                    <p class="text-xl font-bold text-slate-900">{{ formatMoney(report?.by_source?.manual) }}</p>
                 </div>
             </div>
 
@@ -137,9 +196,11 @@ const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} �
                             <tr>
                                 <th class="px-3 py-2 text-left">Дата</th>
                                 <th class="px-3 py-2 text-left">Спортсмен</th>
+                                <th class="px-3 py-2 text-left">Тип</th>
                                 <th class="px-3 py-2 text-left">Сумма</th>
                                 <th class="px-3 py-2 text-left">Источник</th>
                                 <th class="px-3 py-2 text-left">Группа</th>
+                                <th class="px-3 py-2 text-left">Зал</th>
                                 <th class="px-3 py-2 text-left">Тренер</th>
                                 <th class="px-3 py-2 text-left">Основание</th>
                             </tr>
@@ -148,14 +209,16 @@ const formatMoney = (value) => `${Number(value || 0).toLocaleString('ru-RU')} �
                             <tr v-for="row in report?.rows || []" :key="row.id" class="border-b border-slate-100">
                                 <td class="px-3 py-2">{{ row.date }}</td>
                                 <td class="px-3 py-2 font-medium">{{ row.athlete_name }}</td>
-                                <td class="px-3 py-2">{{ formatMoney(row.amount) }}</td>
+                                <td class="px-3 py-2">{{ row.operation_label }}</td>
+                                <td class="px-3 py-2 font-semibold" :class="rowAmountClass(row)">{{ formatRowAmount(row) }}</td>
                                 <td class="px-3 py-2">{{ row.source_label }}</td>
                                 <td class="px-3 py-2">{{ row.group || '—' }}</td>
+                                <td class="px-3 py-2">{{ row.location || '—' }}</td>
                                 <td class="px-3 py-2">{{ row.coach || '—' }}</td>
                                 <td class="px-3 py-2 text-slate-600">{{ row.reason || '—' }}</td>
                             </tr>
                             <tr v-if="!report?.rows?.length">
-                                <td colspan="7" class="px-3 py-6 text-center text-slate-400">Нет списаний за выбранный период</td>
+                                <td colspan="9" class="px-3 py-6 text-center text-slate-400">Нет операций за выбранный период</td>
                             </tr>
                         </tbody>
                     </table>

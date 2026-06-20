@@ -5,11 +5,13 @@ import Pagination from '@/Components/Pagination.vue';
 import { Head, router, Link } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
 import debounce from 'lodash/debounce';
+import { storageUrl } from '@/utils/storageUrl';
 
 const props = defineProps({
     athletes: Object,
     filters: Object,
     canEditAthlete: { type: Boolean, default: false },
+    canCreateAthlete: { type: Boolean, default: false },
 });
 
 const athletesList = computed(() => props.athletes?.data ?? []);
@@ -72,7 +74,18 @@ const hasActiveFilters = computed(() =>
     <Head title="Реестр спортсменов" />
 
     <AuthenticatedLayout>
-        <template #header>Реестр спортсменов</template>
+        <template #header>
+            <div class="flex flex-wrap items-center justify-between gap-3 w-full">
+                <span>Реестр спортсменов</span>
+                <Link
+                    v-if="canCreateAthlete"
+                    :href="route('admin.athletes.create')"
+                    class="inline-flex items-center px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
+                >
+                    + Зарегистрировать спортсмена
+                </Link>
+            </div>
+        </template>
 
         <div class="max-w-7xl mx-auto space-y-4 min-w-0">
             <!-- Фильтры -->
@@ -141,7 +154,7 @@ const hasActiveFilters = computed(() =>
                     <div class="flex gap-3">
                         <img
                             class="h-12 w-12 rounded-full object-cover shrink-0"
-                            :src="athlete.photo ? '/storage/' + athlete.photo : `https://ui-avatars.com/api/?name=${athlete.full_name}`"
+                            :src="athlete.photo_url || storageUrl(athlete.photo) || `https://ui-avatars.com/api/?name=${athlete.full_name}`"
                             alt=""
                         />
                         <div class="min-w-0 flex-1">
@@ -228,7 +241,7 @@ const hasActiveFilters = computed(() =>
                                 <div class="flex items-center min-w-[200px]">
                                     <img
                                         class="h-10 w-10 rounded-full object-cover shrink-0"
-                                        :src="athlete.photo ? '/storage/' + athlete.photo : `https://ui-avatars.com/api/?name=${athlete.full_name}`"
+                                        :src="athlete.photo_url || storageUrl(athlete.photo) || `https://ui-avatars.com/api/?name=${athlete.full_name}`"
                                         alt=""
                                     />
                                     <div class="ml-3 min-w-0">

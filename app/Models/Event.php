@@ -18,14 +18,13 @@ class Event extends Model
         'event_host_id',
         'event_date',
         'event_date_to',
-        'event_period',
         'status',
     ];
 
     protected function casts(): array
     {
         return [
-            'cost' => 'integer',
+            'cost' => 'decimal:2',
             'event_date' => 'date:Y-m-d',
             'event_date_to' => 'date:Y-m-d',
         ];
@@ -73,8 +72,4 @@ class Event extends Model
         return $this->hasMany(EventParticipant::class);
     }
 
-    public function achievements(): HasMany
-    {
-        return $this->hasMany(PortfolioAchievement::class);
-    }
 }

@@ -42,7 +42,7 @@
                     <td>{{ $row['event_name'] ?? '—' }}</td>
                     <td>{{ $row['event_type'] ?? '—' }}</td>
                     <td>{{ $row['event_level'] ?? '—' }}</td>
-                    <td>{{ $row['event_date'] ?? $row['event_period'] ?? '—' }}</td>
+                    <td>{{ $row['event_date'] ?? '—' }}</td>
                     <td>{{ $row['event_place'] ?? '—' }}</td>
                     <td>{{ $row['event_host'] ?? '—' }}</td>
                     <td>{{ $row['result_label'] ?? '—' }}</td>

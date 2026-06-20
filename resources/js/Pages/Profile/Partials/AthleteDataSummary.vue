@@ -2,6 +2,7 @@
 import AvatarZoomable from '@/Components/AvatarZoomable.vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
+import { storageUrl } from '@/utils/storageUrl';
 
 import FormedDocuments from './FormedDocuments.vue';
 
@@ -43,7 +44,7 @@ const fullName = computed(() =>
 );
 
 const displayAvatarSrc = computed(
-    () => avatarPreview.value || props.userAvatarUrl || (props.athlete.photo ? `/storage/${props.athlete.photo}` : null),
+    () => avatarPreview.value || props.userAvatarUrl || storageUrl(props.athlete.photo) || null,
 );
 
 const genderLabel = computed(() => (props.athlete.gender === 'male' ? 'Мужской' : 'Женский'));
@@ -236,7 +237,7 @@ const uploadAvatar = () => {
                     </div>
                     <a
                         v-if="doc.file_path"
-                        :href="`/storage/${doc.file_path}`"
+                        :href="storageUrl(doc.file_path)"
                         target="_blank"
                         class="text-indigo-600 text-sm font-medium hover:underline shrink-0"
                     >

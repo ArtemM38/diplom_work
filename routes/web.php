@@ -20,12 +20,17 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\ScheduleController;
 use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\ProfileController; // Обязательно добавь этот импорт
+use App\Http\Controllers\PublicStorageController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use App\Models\Athlete;
 use App\Models\Schedule;
 use App\Support\DateFormatter;
+
+Route::get('/files/{path}', [PublicStorageController::class, 'show'])
+    ->where('path', '.*')
+    ->name('files.show');
 
 // 1. Главная страница (Логин)
 Route::get('/', function () {
@@ -140,6 +145,8 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     // АДМИН-ПАНЕЛЬ
     Route::middleware(['can:access-admin-panel'])->group(function () {
         Route::get('/admin/athletes', [AdminDashboardController::class, 'index'])->name('admin.athletes');
+        Route::get('/admin/athletes/create', [AthleteController::class, 'adminCreate'])->name('admin.athletes.create');
+        Route::post('/admin/athletes', [AthleteController::class, 'adminStore'])->name('admin.athletes.store');
         Route::get('/admin/athletes/{athlete}', [AdminDashboardController::class, 'show'])->name('admin.athletes.show');
         Route::post('/admin/athletes/{athlete}/guardians', [AdminDashboardController::class, 'storeGuardian'])->name('admin.athletes.guardians.store');
         Route::post('/admin/athletes/{athlete}/guardians/attach', [AdminDashboardController::class, 'attachGuardian'])->name('admin.athletes.guardians.attach');

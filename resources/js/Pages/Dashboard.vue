@@ -3,6 +3,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateInput from '@/Components/DateInput.vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { ref, watch, computed } from 'vue';
+import { storageUrl } from '@/utils/storageUrl';
 
 const props = defineProps({
     athlete: Object,
@@ -77,7 +78,7 @@ watch([from, to, groupId], () => {
                 <div v-for="child in guardianAthletes" :key="child.id" class="bg-white overflow-hidden shadow-sm rounded-2xl border border-slate-100">
                     <div class="p-6 flex flex-col md:flex-row md:items-center gap-6">
                         <div class="w-24 h-24 rounded-2xl bg-indigo-100 flex items-center justify-center text-2xl font-bold text-indigo-700 overflow-hidden shrink-0">
-                            <img v-if="child.photo" :src="'/storage/' + child.photo" class="w-full h-full object-cover" alt="" />
+                            <img v-if="child.photo" :src="storageUrl(child.photo)" class="w-full h-full object-cover" alt="" />
                             <span v-else>{{ child.first_name_nom?.[0] }}</span>
                         </div>
                         <div class="flex-1">
@@ -122,7 +123,7 @@ watch([from, to, groupId], () => {
             <template v-if="isAthlete && athlete">
                 <div class="bg-white overflow-hidden shadow-sm sm:rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center gap-6 border border-slate-100">
                     <img
-                        :src="athlete?.photo ? '/storage/' + athlete.photo : 'https://ui-avatars.com/api/?name=' + athlete?.first_name_nom"
+                        :src="storageUrl(athlete?.photo) || 'https://ui-avatars.com/api/?name=' + athlete?.first_name_nom"
                         class="w-24 h-24 rounded-full object-cover border-4 border-indigo-100"
                         alt=""
                     />

@@ -33,7 +33,6 @@ class PortfolioController extends Controller
             $legacy = PortfolioAchievement::query()
                 ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
                 ->where('athlete_id', $athleteId)
-                ->whereNull('event_id')
                 ->get()
                 ->map(fn (PortfolioAchievement $a) => $this->mapLegacyAchievement($a));
 
@@ -56,7 +55,7 @@ class PortfolioController extends Controller
             ->map(function (Athlete $athlete) {
                 $base = AthleteDocumentStatus::mapAthleteWithMedical($athlete);
                 $base['achievements_count'] = EventParticipant::where('athlete_id', $athlete->id)->count()
-                    + PortfolioAchievement::where('athlete_id', $athlete->id)->whereNull('event_id')->count();
+                    + PortfolioAchievement::where('athlete_id', $athlete->id)->count();
 
                 return $base;
             });
@@ -137,7 +136,6 @@ class PortfolioController extends Controller
         $legacy = PortfolioAchievement::query()
             ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
             ->where('athlete_id', $athleteId)
-            ->whereNull('event_id')
             ->get();
 
         return $fromEvents->map(fn (EventParticipant $p) => $this->exportRowFromParticipant($p, $athleteName))
@@ -155,7 +153,7 @@ class PortfolioController extends Controller
             fputcsv($out, ['Сформировал', ReportMeta::generatedByName()], ';');
             fputcsv($out, [], ';');
             fputcsv($out, [
-                'Спортсмен', 'Мероприятие', 'Тип', 'Уровень', 'Дата', 'Период',
+                'Спортсмен', 'Мероприятие', 'Тип', 'Уровень', 'Дата',
                 'Место проведения', 'Ведущий', 'Результат', 'Место', 'Разряд', 'ID сертификата',
             ], ';');
 
@@ -166,7 +164,6 @@ class PortfolioController extends Controller
                     $item['event_type'] ?? '',
                     $item['event_level'] ?? '',
                     $item['event_date'] ?? '',
-                    $item['event_period'] ?? '',
                     $item['event_place'] ?? '',
                     $item['event_host'] ?? '',
                     $item['result_label'] ?? '',
@@ -192,8 +189,8 @@ class PortfolioController extends Controller
             'event_id' => $event?->id,
             'event_name' => $event?->name,
             'event_date' => DateFormatter::toDateString($event?->event_date),
-            'event_date_display' => DateFormatter::toDisplayDate($event?->event_date),
-            'event_period' => $event?->event_period,
+            'event_date_display' => $this->formatEventDateDisplay($event),
+            'event_date_range_display' => $event?->event_date_range_display,
             'event_place' => $event?->event_place,
             'cost' => $event?->cost,
             'event_type' => $event?->eventType?->name,
@@ -217,7 +214,6 @@ class PortfolioController extends Controller
             'event_name' => $a->event_name,
             'event_date' => DateFormatter::toDateString($a->event_date),
             'event_date_display' => DateFormatter::toDisplayDate($a->event_date),
-            'event_period' => $a->event_period,
             'event_place' => $a->event_place,
             'event_type' => $a->eventType?->name,
             'event_level' => $a->eventLevel?->name,
@@ -245,7 +241,6 @@ class PortfolioController extends Controller
             'event_type' => $event?->eventType?->name,
             'event_level' => $event?->eventLevel?->name,
             'event_date' => $this->formatEventDateForExport($event),
-            'event_period' => $event?->event_period ? DateFormatter::toDisplayDate($event->event_period) : null,
             'event_place' => $event?->event_place,
             'event_host' => $event?->eventHost?->full_name,
             'result_label' => $p->result_label,
@@ -267,7 +262,6 @@ class PortfolioController extends Controller
             'event_type' => $a->eventType?->name,
             'event_level' => $a->eventLevel?->name,
             'event_date' => DateFormatter::toDisplayDate($a->event_date),
-            'event_period' => $a->event_period ? DateFormatter::toDisplayDate($a->event_period) : null,
             'event_place' => $a->event_place,
             'event_host' => $a->eventHost?->full_name,
             'result_label' => $a->result_label,
@@ -291,7 +285,12 @@ class PortfolioController extends Controller
             return "{$from} — {$to}";
         }
 
-        return $from ?: ($event->event_period ? DateFormatter::toDisplayDate($event->event_period) : null);
+        return $from;
+    }
+
+    private function formatEventDateDisplay(?Event $event): ?string
+    {
+        return $this->formatEventDateForExport($event);
     }
 
     private function athleteFullName(Athlete $athlete): string

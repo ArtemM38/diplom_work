@@ -42,22 +42,10 @@ return new class extends Migration
 
             $table->unique(['event_id', 'athlete_id']);
         });
-
-        Schema::table('portfolio_achievements', function (Blueprint $table) {
-            if (! Schema::hasColumn('portfolio_achievements', 'event_id')) {
-                $table->foreignId('event_id')->nullable()->after('athlete_id')->constrained()->nullOnDelete();
-            }
-        });
     }
 
     public function down(): void
     {
-        Schema::table('portfolio_achievements', function (Blueprint $table) {
-            if (Schema::hasColumn('portfolio_achievements', 'event_id')) {
-                $table->dropConstrainedForeignId('event_id');
-            }
-        });
-
         Schema::dropIfExists('event_participants');
         Schema::dropIfExists('events');
 

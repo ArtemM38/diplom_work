@@ -18,20 +18,25 @@
     <p>Период: {{ $filters['date_from'] }} — {{ $filters['date_to'] }}</p>
     @include('pdf.partials.export-meta')
     <div class="summary">
-        <p><strong>Общая прибыль:</strong> {{ number_format($total_profit, 0, ',', ' ') }} ₽</p>
-        <p><strong>Операций:</strong> {{ $operations_count }}</p>
-        <p>Тренировки: {{ number_format($by_source['training'] ?? 0, 0, ',', ' ') }} ₽</p>
-        <p>Мероприятия: {{ number_format($by_source['event'] ?? 0, 0, ',', ' ') }} ₽</p>
-        <p>Ручные: {{ number_format($by_source['manual'] ?? 0, 0, ',', ' ') }} ₽</p>
+        <p><strong>Чистая прибыль:</strong> {{ number_format($total_profit, 2, ',', ' ') }} ₽</p>
+        <p><strong>Списания (брутто):</strong> {{ number_format($gross_profit, 2, ',', ' ') }} ₽</p>
+        <p><strong>Возвраты:</strong> {{ number_format($total_refunds, 2, ',', ' ') }} ₽</p>
+        <p><strong>Пополнения:</strong> {{ number_format($total_deposits, 2, ',', ' ') }} ₽</p>
+        <p><strong>Списаний:</strong> {{ $operations_count }}</p>
+        <p>Тренировки: {{ number_format($by_source['training'] ?? 0, 2, ',', ' ') }} ₽</p>
+        <p>Мероприятия: {{ number_format($by_source['event'] ?? 0, 2, ',', ' ') }} ₽</p>
+        <p>Ручные: {{ number_format($by_source['manual'] ?? 0, 2, ',', ' ') }} ₽</p>
     </div>
     <table>
         <thead>
             <tr>
                 <th>Дата</th>
                 <th>Спортсмен</th>
+                <th>Тип</th>
                 <th>Сумма</th>
                 <th>Источник</th>
                 <th>Группа</th>
+                <th>Зал</th>
                 <th>Тренер</th>
                 <th>Основание</th>
             </tr>
@@ -41,9 +46,19 @@
                 <tr>
                     <td>{{ $row['date'] }}</td>
                     <td>{{ $row['athlete_name'] }}</td>
-                    <td>{{ number_format($row['amount'], 0, ',', ' ') }}</td>
+                    <td>{{ $row['operation_label'] }}</td>
+                    <td>
+                        @if(($row['operation_type'] ?? '') === 'refund')
+                            −{{ number_format($row['amount'], 2, ',', ' ') }}
+                        @elseif(($row['operation_type'] ?? '') === 'deposit')
+                            +{{ number_format($row['amount'], 2, ',', ' ') }}
+                        @else
+                            {{ number_format($row['amount'], 2, ',', ' ') }}
+                        @endif
+                    </td>
                     <td>{{ $row['source_label'] }}</td>
                     <td>{{ $row['group'] ?? '' }}</td>
+                    <td>{{ $row['location'] ?? '' }}</td>
                     <td>{{ $row['coach'] ?? '' }}</td>
                     <td>{{ $row['reason'] ?? '' }}</td>
                 </tr>

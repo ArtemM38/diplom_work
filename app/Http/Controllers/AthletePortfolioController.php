@@ -32,7 +32,6 @@ class AthletePortfolioController extends Controller
         $legacy = PortfolioAchievement::query()
             ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
             ->where('athlete_id', $athlete->id)
-            ->whereNull('event_id')
             ->orderByDesc('event_date')
             ->get();
 

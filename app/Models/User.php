@@ -50,9 +50,8 @@ class User extends Authenticatable
     public function roleModels(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user')
-            ->withPivot('is_primary')
             ->withTimestamps()
-            ->orderByDesc('role_user.is_primary');
+            ->orderBy('role_user.id');
     }
 
     public function notifications()
@@ -171,11 +170,11 @@ class User extends Authenticatable
         $roleIds = Role::query()->whereIn('slug', $roles)->pluck('id', 'slug');
 
         $sync = [];
-        foreach ($roles as $index => $slug) {
+        foreach ($roles as $slug) {
             if (! isset($roleIds[$slug])) {
                 continue;
             }
-            $sync[$roleIds[$slug]] = ['is_primary' => $index === 0];
+            $sync[$roleIds[$slug]] = [];
         }
 
         $this->roleModels()->sync($sync);

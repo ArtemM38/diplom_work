@@ -1,6 +1,13 @@
 <?php
 
 return [
+    /*
+    | На Windows PDF делается через Microsoft Word/Excel (COM).
+    | На Linux VPS нужен LibreOffice: apt install libreoffice-writer libreoffice-calc
+    | Путь к бинарнику (обычно libreoffice или /usr/bin/libreoffice).
+    */
+    'libreoffice_binary' => env('LIBREOFFICE_BINARY', 'libreoffice'),
+
     'templates' => [
         1 => [
             'title' => 'Заявление (приложение 1)',

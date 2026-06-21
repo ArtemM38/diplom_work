@@ -182,6 +182,11 @@ class AthleteDocumentGenerator
             return response()->download($officePdf, $downloadName)->deleteFileAfterSend(true);
         }
 
+        $libreOfficePdf = $this->convertToPdfViaLibreOffice($sourcePath, $sourceExt);
+        if ($libreOfficePdf && file_exists($libreOfficePdf)) {
+            return response()->download($libreOfficePdf, $downloadName)->deleteFileAfterSend(true);
+        }
+
         $htmlPath = $this->tempFile('html');
 
         if ($sourceExt === 'docx') {
@@ -281,6 +286,111 @@ PS1;
 
         @unlink($pdfPath);
         return null;
+    }
+
+    private function convertToPdfViaLibreOffice(string $sourcePath, string $sourceExt): ?string
+    {
+        if (! in_array($sourceExt, ['docx', 'xls', 'xlsx'], true)) {
+            return null;
+        }
+
+        $binary = $this->resolveLibreOfficeBinary();
+        if ($binary === null) {
+            return null;
+        }
+
+        $outDir = sys_get_temp_dir();
+        $profileDir = $this->tempFile('lo-profile');
+        @mkdir($profileDir, 0775, true);
+
+        $cmd = sprintf(
+            'HOME=%s %s --headless --nologo --norestore --convert-to pdf --outdir %s %s 2>&1',
+            escapeshellarg($profileDir),
+            escapeshellarg($binary),
+            escapeshellarg($outDir),
+            escapeshellarg($sourcePath),
+        );
+
+        @shell_exec($cmd);
+        $this->removeDirectory($profileDir);
+
+        $generatedPdf = $outDir . DIRECTORY_SEPARATOR . pathinfo($sourcePath, PATHINFO_FILENAME) . '.pdf';
+        if (! file_exists($generatedPdf) || filesize($generatedPdf) <= 0) {
+            @unlink($generatedPdf);
+
+            return null;
+        }
+
+        $pdfPath = $this->tempFile('pdf');
+        if (! @rename($generatedPdf, $pdfPath)) {
+            @copy($generatedPdf, $pdfPath);
+            @unlink($generatedPdf);
+        }
+
+        return file_exists($pdfPath) && filesize($pdfPath) > 0 ? $pdfPath : null;
+    }
+
+    private function resolveLibreOfficeBinary(): ?string
+    {
+        $configured = config('athlete_document_templates.libreoffice_binary');
+        if (is_string($configured) && $configured !== '') {
+            $resolved = $this->resolveBinaryPath($configured);
+            if ($resolved !== null) {
+                return $resolved;
+            }
+        }
+
+        foreach (['libreoffice', 'soffice'] as $candidate) {
+            $resolved = $this->resolveBinaryPath($candidate);
+            if ($resolved !== null) {
+                return $resolved;
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveBinaryPath(string $binary): ?string
+    {
+        if (is_file($binary) && is_executable($binary)) {
+            return $binary;
+        }
+
+        if (PHP_OS_FAMILY === 'Windows') {
+            return null;
+        }
+
+        $which = trim((string) shell_exec('command -v ' . escapeshellarg($binary) . ' 2>/dev/null'));
+
+        return ($which !== '' && is_executable($which)) ? $which : null;
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            return;
+        }
+
+        $items = scandir($directory);
+        if ($items === false) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $path = $directory . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($path)) {
+                $this->removeDirectory($path);
+                continue;
+            }
+
+            @unlink($path);
+        }
+
+        @rmdir($directory);
     }
 
 }

@@ -269,10 +269,47 @@ php artisan route:cache
 
 ---
 
+## Часть 10. PDF заявлений из профиля (LibreOffice)
+
+На **Windows** (локально) PDF делается через Microsoft Word/Excel — выглядит как в шаблоне.
+
+На **Linux VPS** без LibreOffice используется упрощённая конвертация (Word → HTML → PDF): ломается вёрстка, шрифты, фото, таблицы.
+
+**Установка на Ubuntu (один раз):**
+
+```bash
+apt update
+apt install -y libreoffice-writer libreoffice-calc
+```
+
+В `.env` на сервере (если бинарник не в PATH):
+
+```env
+LIBREOFFICE_BINARY=/usr/bin/libreoffice
+```
+
+Проверка от пользователя веб-сервера:
+
+```bash
+sudo -u www-data HOME=/tmp libreoffice --headless --convert-to pdf --outdir /tmp /path/to/test.docx
+ls -la /tmp/test.pdf
+```
+
+После правок:
+
+```bash
+php artisan config:cache
+```
+
+Если LibreOffice недоступен — скачивайте **DOCX** (Word), а PDF делайте вручную в Word/LibreOffice на компьютере.
+
+---
+
 ## Если что-то не работает
 
 | Симптом | Что проверить |
 |---------|----------------|
+| PDF заявлений «кривой» | установлен ли LibreOffice, `LIBREOFFICE_BINARY`, тест `sudo -u www-data libreoffice ...` |
 | 502 / пусто | `systemctl status php8.3-fpm nginx` |
 | 500 | `tail -50 /var/www/aikido-crm/storage/logs/laravel.log` |
 | Нет стилей | есть ли `public/build/manifest.json` |

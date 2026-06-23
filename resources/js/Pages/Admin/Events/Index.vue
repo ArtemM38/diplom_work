@@ -176,7 +176,7 @@ const pickCity = (value) => {
                     </div>
                     <div>
                         <label class="text-xs text-slate-500">Стоимость (₽) *</label>
-                        <input v-model="form.cost" type="number" min="0" step="1" required :class="fieldClass(form.errors, 'cost', 'w-full rounded-lg')" />
+                        <input v-model="form.cost" type="number" min="0" step="0.01" required :class="fieldClass(form.errors, 'cost', 'w-full rounded-lg')" />
                         <InputError :message="form.errors.cost" />
                     </div>
                     <div>

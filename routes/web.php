@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GroupController;
+use App\Http\Controllers\Admin\InventoryItemController;
 use App\Http\Controllers\Admin\LocationController;
 use App\Http\Controllers\Admin\MedicalCertificatesController;
 use App\Http\Controllers\Admin\EventController;
@@ -134,6 +135,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
     Route::patch('/profile/guardian', [ProfileController::class, 'updateGuardian'])->name('profile.guardian.update');
     Route::post('/profile/avatar', [ProfileController::class, 'updateAvatar'])->name('profile.avatar.update');
     Route::get('/athlete/portfolio', [AthletePortfolioController::class, 'index'])->name('athlete.portfolio');
+    Route::get('/guardian/portfolio', [AthletePortfolioController::class, 'guardianIndex'])->name('guardian.portfolio');
     Route::get('/finance', [FinanceViewController::class, 'index'])->name('finance');
     Route::get('/athlete/schedule-calendar', [ScheduleController::class, 'athleteCalendar'])->name('athlete.schedule.calendar');
     Route::get('/athlete/attendance', [AthleteAttendanceController::class, 'index'])->name('athlete.attendance');
@@ -174,6 +176,11 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::patch('/admin/locations/{location}', [LocationController::class, 'update'])->name('admin.locations.update');
         Route::delete('/admin/locations/{location}', [LocationController::class, 'destroy'])->name('admin.locations.destroy');
 
+        Route::get('/admin/inventory-items', [InventoryItemController::class, 'index'])->name('admin.inventory-items');
+        Route::post('/admin/inventory-items', [InventoryItemController::class, 'store'])->name('admin.inventory-items.store');
+        Route::patch('/admin/inventory-items/{inventoryItem}', [InventoryItemController::class, 'update'])->name('admin.inventory-items.update');
+        Route::delete('/admin/inventory-items/{inventoryItem}', [InventoryItemController::class, 'destroy'])->name('admin.inventory-items.destroy');
+
         Route::get('/admin/attendance/{schedule}', [AttendanceController::class, 'show'])->name('admin.attendance.show');
         Route::post('/admin/attendance/{schedule}', [AttendanceController::class, 'store'])->name('admin.attendance.store');
         Route::get('/admin/attendance-journal', [AttendanceController::class, 'journal'])->name('admin.attendance.journal');
@@ -203,6 +210,7 @@ Route::middleware(['auth', 'verified', 'active.user', 'profile.completed'])->gro
         Route::post('/admin/events/{event}/athletes', [EventController::class, 'attachAthlete'])->name('admin.events.athletes.attach');
         Route::delete('/admin/events/{event}/athletes/{athlete}', [EventController::class, 'detachAthlete'])->name('admin.events.athletes.detach');
         Route::match(['patch', 'post'], '/admin/events/{event}/results', [EventController::class, 'updateResults'])->name('admin.events.results.update');
+        Route::delete('/admin/events/{event}/evidence/{evidenceFile}', [EventController::class, 'deleteEvidenceFile'])->name('admin.events.evidence.destroy');
         Route::match(['patch', 'post'], '/admin/events/{event}/attendance', [EventController::class, 'updateAttendance'])->name('admin.events.attendance.update');
         Route::post('/admin/events/hosts', [EventController::class, 'storeHost'])->name('admin.events.hosts.store');
         Route::patch('/admin/events/hosts/{host}', [EventController::class, 'updateHost'])->name('admin.events.hosts.update');

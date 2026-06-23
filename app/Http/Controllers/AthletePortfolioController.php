@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\EventParticipant;
-use App\Models\PortfolioAchievement;
-use App\Support\DateFormatter;
+use App\Models\Athlete;
+use App\Support\EventAchievementMapper;
+use App\Support\GuardianChildAccess;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -18,50 +18,41 @@ class AthletePortfolioController extends Controller
         $athlete = $user->athlete;
         abort_unless($athlete, 404);
 
+        return $this->renderPortfolio($request, $athlete, [
+            'pageTitle' => 'Моё портфолио',
+            'headerTitle' => 'Моё портфолио',
+        ]);
+    }
+
+    public function guardianIndex(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user?->hasRole('guardian'), 403);
+
+        $children = GuardianChildAccess::childrenForGuardian($user);
+        abort_if($children->isEmpty(), 404);
+
+        $athleteId = GuardianChildAccess::resolveChildId($user, $request->integer('athlete_id') ?: null);
+        $athlete = Athlete::findOrFail($athleteId);
+
+        return $this->renderPortfolio($request, $athlete, [
+            'pageTitle' => 'Результаты ребёнка',
+            'headerTitle' => 'Результаты мероприятий',
+            'children' => $children,
+            'selectedAthleteId' => $athlete->id,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function renderPortfolio(Request $request, Athlete $athlete, array $meta)
+    {
         $dateFrom = $request->input('date_from');
         $dateTo = $request->input('date_to');
         $resultPlace = $request->input('result_place');
 
-        $fromEvents = EventParticipant::query()
-            ->with(['event.eventType', 'event.eventLevel', 'event.eventHost', 'resultRank'])
-            ->where('athlete_id', $athlete->id)
-            ->get()
-            ->sortByDesc(fn (EventParticipant $p) => $p->event?->event_date ?? '')
-            ->values();
-
-        $legacy = PortfolioAchievement::query()
-            ->with(['eventType', 'eventLevel', 'eventHost', 'resultRank'])
-            ->where('athlete_id', $athlete->id)
-            ->orderByDesc('event_date')
-            ->get();
-
-        $achievements = $fromEvents->map(fn (EventParticipant $p) => [
-            'id' => 'ep-' . $p->id,
-            'event_name' => $p->event?->name,
-            'event_date' => DateFormatter::toDateString($p->event?->event_date),
-            'event_date_display' => DateFormatter::toDisplayDate($p->event?->event_date),
-            'event_place' => $p->event?->event_place,
-            'result_place' => $p->result_place,
-            'event_type' => $p->event?->eventType?->name,
-            'event_level' => $p->event?->eventLevel?->name,
-            'event_host' => $p->event?->eventHost?->full_name,
-            'result_rank' => $p->resultRank?->name,
-            'result_label' => $p->result_label,
-            'evidence_file_path' => $p->evidence_file_path,
-        ])->concat($legacy->map(fn ($a) => [
-            'id' => 'pa-' . $a->id,
-            'event_name' => $a->event_name,
-            'event_date' => DateFormatter::toDateString($a->event_date),
-            'event_date_display' => DateFormatter::toDisplayDate($a->event_date),
-            'event_place' => $a->event_place,
-            'result_place' => $a->result_place,
-            'event_type' => $a->eventType?->name,
-            'event_level' => $a->eventLevel?->name,
-            'event_host' => $a->eventHost?->full_name,
-            'result_rank' => $a->resultRank?->name,
-            'result_label' => $a->result_label,
-            'evidence_file_path' => $a->evidence_file_path,
-        ]))->sortByDesc('event_date')->values();
+        $achievements = EventAchievementMapper::forAthlete($athlete->id);
 
         if ($dateFrom) {
             $achievements = $achievements->filter(fn ($a) => $a['event_date'] && $a['event_date'] >= $dateFrom);
@@ -89,6 +80,11 @@ class AthletePortfolioController extends Controller
                 'places_2' => $achievements->where('result_place', 2)->count(),
                 'places_3' => $achievements->where('result_place', 3)->count(),
             ],
+            'pageTitle' => $meta['pageTitle'] ?? 'Портфолио',
+            'headerTitle' => $meta['headerTitle'] ?? 'Портфолио',
+            'children' => $meta['children'] ?? null,
+            'selectedAthleteId' => $meta['selectedAthleteId'] ?? null,
+            'portfolioRoute' => isset($meta['children']) ? 'guardian.portfolio' : 'athlete.portfolio',
         ]);
     }
 }

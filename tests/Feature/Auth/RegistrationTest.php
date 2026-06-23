@@ -32,7 +32,25 @@ class RegistrationTest extends TestCase
         $response->assertRedirect(route('athlete.create', absolute: false));
     }
 
-    public function test_multiple_accounts_can_share_the_same_email(): void
+    public function test_user_can_register_without_email(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Child User',
+            'login' => 'child.one',
+            'email' => '',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'role' => 'athlete',
+        ]);
+
+        $response->assertRedirect(route('athlete.create', absolute: false));
+        $this->assertDatabaseHas('users', [
+            'login' => 'child.one',
+            'email' => null,
+        ]);
+    }
+
+    public function test_duplicate_email_is_rejected(): void
     {
         User::factory()->create([
             'login' => 'parent.one',
@@ -48,11 +66,6 @@ class RegistrationTest extends TestCase
             'role' => 'athlete',
         ]);
 
-        $response->assertRedirect(route('athlete.create', absolute: false));
-        $this->assertDatabaseCount('users', 2);
-        $this->assertDatabaseHas('users', [
-            'login' => 'child.one',
-            'email' => 'family@example.com',
-        ]);
+        $response->assertSessionHasErrors('email');
     }
 }

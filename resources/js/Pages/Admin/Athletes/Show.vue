@@ -12,6 +12,7 @@ const props = defineProps({
     canEditGuardians: { type: Boolean, default: false },
     canManageInventory: { type: Boolean, default: false },
     availableGuardians: { type: Array, default: () => [] },
+    inventoryCatalog: { type: Array, default: () => [] },
 });
 
 const docTypeLabels = {
@@ -22,27 +23,28 @@ const docTypeLabels = {
 
 const docLabel = (type) => docTypeLabels[type] || type;
 
-const inventoryLabels = {
-    weapon_case: 'Чехол для оружия',
-    jo: 'Дзё',
-    boken: 'Бокен',
-    tanto: 'Танто',
-    tshirt: 'Футболка',
-    olympic_jacket: 'Олимпийка',
-    cap: 'Бейсболка',
-    backpack: 'Рюкзак',
-    shoe_bag: 'Мешок для сменки',
-    budo_passport: 'Будо-паспорт',
-    qual_book: 'Зачетная книжка',
-    referee_book: 'Книжка судьи',
+const formatInventory = (items) => {
+    if (!items?.length) return 'Нет выданного инвентаря';
+    return items.map((item) => item.name).join(', ');
 };
 
-const formatInventory = (inventory) => {
-    if (!inventory) return 'Нет данных';
-    const keys = Object.keys(inventoryLabels).filter((key) => Number(inventory[key]) === 1 || inventory[key] === true);
-    return keys.length ? keys.map((key) => inventoryLabels[key]).join(', ') : 'Нет выданного инвентаря';
+const inventoryForm = ref([...(props.athlete.inventory_items || []).map((item) => item.id)]);
+
+const saveInventory = () => {
+    router.patch(route('admin.athletes.inventory.update', props.athlete.id), {
+        inventory_item_ids: inventoryForm.value,
+    });
 };
 
+const toggleInventoryItem = (itemId) => {
+    const id = Number(itemId);
+    const index = inventoryForm.value.indexOf(id);
+    if (index >= 0) {
+        inventoryForm.value.splice(index, 1);
+    } else {
+        inventoryForm.value.push(id);
+    }
+};
 const editingGuardianId = ref(null);
 const editGuardianForms = ref({});
 
@@ -82,14 +84,6 @@ const attachGuardian = () => {
 const fullName = `${props.athlete.last_name_nom} ${props.athlete.first_name_nom} ${props.athlete.middle_name_nom || ''}`.trim();
 
 const photoSrc = computed(() => props.athlete.photo_url || null);
-
-const inventoryForm = ref({ ...Object.fromEntries(
-    Object.keys(inventoryLabels).map((key) => [key, !!(props.athlete.inventory?.[key])])
-) });
-
-const saveInventory = () => {
-    router.patch(route('admin.athletes.inventory.update', props.athlete.id), inventoryForm.value);
-};
 
 const medicalDoc = computed(() => props.athlete.documents?.find((d) => d.type === 'medical'));
 const medicalStatus = computed(() => {
@@ -280,16 +274,21 @@ const medicalStatus = computed(() => {
 
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                     <h2 class="text-lg font-bold text-slate-800 mb-4">Инвентарь</h2>
-                    <p v-if="!canManageInventory" class="text-sm text-slate-600">{{ formatInventory(athlete.inventory) }}</p>
+                    <p v-if="!canManageInventory" class="text-sm text-slate-600">{{ formatInventory(athlete.inventory_items) }}</p>
                     <template v-else>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-4">
                             <label
-                                v-for="(label, key) in inventoryLabels"
-                                :key="key"
+                                v-for="item in inventoryCatalog"
+                                :key="item.id"
                                 class="flex items-center gap-2 p-2 rounded-lg border border-slate-100 hover:bg-slate-50"
                             >
-                                <input v-model="inventoryForm[key]" type="checkbox" class="rounded text-indigo-600" />
-                                <span>{{ label }}</span>
+                                <input
+                                    type="checkbox"
+                                    :checked="inventoryForm.includes(item.id)"
+                                    class="rounded text-indigo-600"
+                                    @change="toggleInventoryItem(item.id)"
+                                />
+                                <span>{{ item.name }}</span>
                             </label>
                         </div>
                         <button

@@ -11,7 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,7 +35,7 @@ class RegisteredUserController extends Controller
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
             'login' => LoginRules::validation(),
-            'email' => 'required|string|lowercase|email|max:255',
+            'email' => ['nullable', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|in:athlete,guardian',
         ], [
@@ -47,7 +47,7 @@ class RegisteredUserController extends Controller
         $user = User::create([
             'name' => $validated['name'],
             'login' => LoginRules::normalize($validated['login']),
-            'email' => $validated['email'],
+            'email' => $validated['email'] ?: null,
             'password' => $validated['password'],
             'role' => $validated['role'],
             'roles' => [$validated['role']],

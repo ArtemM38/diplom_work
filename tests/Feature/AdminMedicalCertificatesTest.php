@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Athlete;
 use App\Models\AthleteDocument;
+use App\Models\Institution;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,6 +21,8 @@ class AdminMedicalCertificatesTest extends TestCase
             'is_active' => true,
         ]);
 
+        $kindergarten = Institution::create(['type' => 'kindergarten', 'name' => 'ДС №1']);
+
         $athlete = Athlete::create([
             'last_name_nom' => 'Иванов',
             'first_name_nom' => 'Иван',
@@ -27,7 +30,7 @@ class AdminMedicalCertificatesTest extends TestCase
             'birth_date' => '2012-05-15',
             'gender' => 'male',
             'occupation_type' => 'kindergarten',
-            'kindergarten_name' => 'ДС №1',
+            'institution_id' => $kindergarten->id,
         ]);
 
         AthleteDocument::create([
@@ -65,6 +68,8 @@ class AdminMedicalCertificatesTest extends TestCase
             'is_active' => true,
         ]);
 
+        $kindergarten = Institution::create(['type' => 'kindergarten', 'name' => 'ДС №1']);
+
         $athlete = Athlete::create([
             'last_name_nom' => 'Петров',
             'first_name_nom' => 'Пётр',
@@ -72,7 +77,7 @@ class AdminMedicalCertificatesTest extends TestCase
             'birth_date' => '2012-05-15',
             'gender' => 'male',
             'occupation_type' => 'kindergarten',
-            'kindergarten_name' => 'ДС №1',
+            'institution_id' => $kindergarten->id,
         ]);
 
         AthleteDocument::create([

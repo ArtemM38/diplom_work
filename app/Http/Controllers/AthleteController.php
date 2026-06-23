@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Athlete;
 use App\Models\Guardian;
+use App\Models\InventoryItem;
 use App\Models\Rank;
 use App\Models\RefereeCategory;
 use App\Models\User;
 use App\Support\AthleteProfileRules;
 use App\Support\FormValidator;
 use App\Support\FullNameParser;
+use App\Support\InstitutionSync;
 use App\Support\LoginRules;
 use App\Support\RussianNameCases;
 use Illuminate\Http\Request;
@@ -69,6 +71,11 @@ class AthleteController extends Controller
         return [
             'ranks' => Rank::all(),
             'referee_categories' => RefereeCategory::all(),
+            'inventoryItems' => InventoryItem::query()
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name']),
             'existingGuardians' => $canAssignGuardian ? Guardian::orderBy('full_name')->get() : [],
             'canAssignGuardian' => $canAssignGuardian,
         ];
@@ -101,8 +108,9 @@ class AthleteController extends Controller
         $validated = FormValidator::validate($request, $rules, $messages);
 
         $validated = $this->applyOccupationFields($validated);
+        $institutionId = InstitutionSync::resolveId($validated);
 
-        return DB::transaction(function () use ($request, $validated, $user) {
+        return DB::transaction(function () use ($request, $validated, $user, $institutionId) {
             $nameCases = RussianNameCases::buildFullNameCases(
                 $validated['last_name_nom'],
                 $validated['first_name_nom'],
@@ -118,13 +126,10 @@ class AthleteController extends Controller
                 'gender',
                 'occupation_type',
                 'registration_address',
-                'school_name',
-                'school_director_dat',
                 'school_class',
-                'kindergarten_name',
-                'work_place',
                 'work_position',
             ])->toArray();
+            $athleteData['institution_id'] = $institutionId;
             $athleteData['full_name_gen'] = $nameCases['gen'];
             $athleteData['full_name_dat'] = $nameCases['dat'];
             $athleteData['full_name_ins'] = $nameCases['ins'];
@@ -139,7 +144,7 @@ class AthleteController extends Controller
                 $athleteUser = User::create([
                     'name' => $fullName,
                     'login' => LoginRules::normalize($validated['login']),
-                    'email' => strtolower($validated['email']),
+                    'email' => ! empty($validated['email']) ? strtolower($validated['email']) : null,
                     'password' => $validated['password'],
                     'is_active' => true,
                 ]);
@@ -167,21 +172,7 @@ class AthleteController extends Controller
                 $athlete->refereeHistories()->createMany($validated['referees']);
             }
 
-            $inventory = collect($validated['inventory'] ?? [])->only([
-                'weapon_case',
-                'jo',
-                'boken',
-                'tanto',
-                'tshirt',
-                'olympic_jacket',
-                'cap',
-                'backpack',
-                'shoe_bag',
-                'budo_passport',
-                'qual_book',
-                'referee_book',
-            ])->toArray();
-            $athlete->inventory()->create($inventory);
+            $this->syncInventory($athlete, $validated);
 
             if ($request->hasFile('doc_medical_file')) {
                 $athlete->documents()->create([
@@ -230,7 +221,9 @@ class AthleteController extends Controller
 
         return Inertia::render('Athlete/Create', array_merge($this->createFormProps($user), [
             'isParentRegistering' => $user?->hasRole('guardian'),
-            'editingAthlete' => $athlete->load(['rankHistories', 'refereeHistories', 'inventory', 'documents']),
+            'editingAthlete' => array_merge($athlete->load(['rankHistories', 'refereeHistories', 'documents', 'inventoryItems', 'institution'])->toArray(), [
+                'inventory_item_ids' => $athlete->inventoryItems->pluck('id'),
+            ]),
             'submitRoute' => route('athlete.update', $athlete),
             'submitMethod' => 'patch',
             'cancelRoute' => $user?->hasRole('admin')
@@ -256,8 +249,9 @@ class AthleteController extends Controller
         );
 
         $validated = $this->applyOccupationFields($validated);
+        $institutionId = InstitutionSync::resolveId($validated);
 
-        DB::transaction(function () use ($request, $validated, $athlete, $user) {
+        DB::transaction(function () use ($request, $validated, $athlete, $user, $institutionId) {
             $nameCases = RussianNameCases::buildFullNameCases(
                 $validated['last_name_nom'],
                 $validated['first_name_nom'],
@@ -273,13 +267,10 @@ class AthleteController extends Controller
                 'gender',
                 'occupation_type',
                 'registration_address',
-                'school_name',
-                'school_director_dat',
                 'school_class',
-                'kindergarten_name',
-                'work_place',
                 'work_position',
             ])->toArray();
+            $athleteData['institution_id'] = $institutionId;
 
             $athleteData['full_name_gen'] = $nameCases['gen'];
             $athleteData['full_name_dat'] = $nameCases['dat'];
@@ -308,21 +299,7 @@ class AthleteController extends Controller
                 $athlete->refereeHistories()->createMany($validated['referees']);
             }
 
-            $inventory = collect($validated['inventory'] ?? [])->only([
-                'weapon_case',
-                'jo',
-                'boken',
-                'tanto',
-                'tshirt',
-                'olympic_jacket',
-                'cap',
-                'backpack',
-                'shoe_bag',
-                'budo_passport',
-                'qual_book',
-                'referee_book',
-            ])->toArray();
-            $athlete->inventory()->updateOrCreate(['athlete_id' => $athlete->id], $inventory);
+            $this->syncInventory($athlete, $validated);
 
             if ($request->hasFile('doc_medical_file')) {
                 $athlete->documents()->where('type', 'medical')->delete();
@@ -498,5 +475,20 @@ class AthleteController extends Controller
         }
 
         return $validated;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncInventory(Athlete $athlete, array $validated): void
+    {
+        $ids = collect($validated['inventory_item_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $athlete->inventoryItems()->sync($ids);
     }
 }

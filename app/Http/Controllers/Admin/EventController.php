@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Models\EventHost;
 use App\Models\EventLevel;
 use App\Models\EventParticipant;
+use App\Models\EventParticipantEvidenceFile;
 use App\Models\EventType;
 use App\Models\Rank;
 use App\Support\AdminPermissions;
@@ -105,12 +106,12 @@ class EventController extends Controller
         $event->load(['eventType', 'eventLevel', 'eventHost']);
 
         $participants = $event->participants()
-            ->with(['athlete.documents', 'athlete.inventory', 'resultRank'])
+            ->with(['athlete.documents', 'athlete.inventoryItems', 'resultRank', 'evidenceFiles'])
             ->get()
             ->map(fn (EventParticipant $participant) => $this->mapParticipant($participant));
 
         $availableAthletes = Athlete::query()
-            ->with(['documents', 'inventory'])
+            ->with(['documents', 'inventoryItems'])
             ->when($athleteSearch, function ($query) use ($athleteSearch) {
                 $query->where(function ($q) use ($athleteSearch) {
                     $q->where('last_name_nom', 'like', '%' . $athleteSearch . '%')
@@ -166,8 +167,8 @@ class EventController extends Controller
             ->first();
 
         if ($participant) {
-            if ($participant->evidence_file_path) {
-                Storage::disk('public')->delete($participant->evidence_file_path);
+            foreach ($participant->evidenceFiles as $file) {
+                Storage::disk('public')->delete($file->file_path);
             }
             AthleteRankSync::removeForParticipant($participant);
             $participant->delete();
@@ -207,10 +208,15 @@ class EventController extends Controller
 
             $fileKey = 'evidence_' . $participant->id;
             if ($request->hasFile($fileKey)) {
-                if ($participant->evidence_file_path) {
-                    Storage::disk('public')->delete($participant->evidence_file_path);
+                $uploads = $request->file($fileKey);
+                $uploads = is_array($uploads) ? $uploads : [$uploads];
+                foreach ($uploads as $upload) {
+                    $path = $upload->store('portfolio/evidence', 'public');
+                    $participant->evidenceFiles()->create([
+                        'file_path' => $path,
+                        'original_name' => $upload->getClientOriginalName(),
+                    ]);
                 }
-                $row['evidence_file_path'] = $request->file($fileKey)->store('portfolio/evidence', 'public');
             }
 
             $participant->update([
@@ -219,7 +225,6 @@ class EventController extends Controller
                 'result_rank_id' => $row['result_rank_id'] ?? null,
                 'certificate_id' => $row['certificate_id'] ?? null,
                 'result_description' => $row['result_description'] ?? null,
-                'evidence_file_path' => $row['evidence_file_path'] ?? $participant->evidence_file_path,
                 'results_filled_at' => now(),
             ]);
 
@@ -232,6 +237,19 @@ class EventController extends Controller
         }
 
         return back()->with('success', 'Результаты сохранены');
+    }
+
+    public function deleteEvidenceFile(Request $request, Event $event, EventParticipantEvidenceFile $evidenceFile)
+    {
+        $this->ensureCanEdit($request);
+
+        $participant = $evidenceFile->participant;
+        abort_unless($participant && $participant->event_id === $event->id, 404);
+
+        Storage::disk('public')->delete($evidenceFile->file_path);
+        $evidenceFile->delete();
+
+        return back()->with('success', 'Файл удалён');
     }
 
     public function updateAttendance(Request $request, Event $event)
@@ -384,7 +402,7 @@ class EventController extends Controller
     {
         $validated = FormValidator::validate($request, [
             'name' => 'required|string|max:255',
-            'cost' => 'required|integer|min:0',
+            'cost' => 'required|numeric|min:0|regex:/^\d+(\.\d{1,2})?$/',
             'event_type_id' => 'required|exists:event_types,id',
             'event_level_id' => 'nullable|exists:event_levels,id',
             'event_place' => 'nullable|string|max:255',
@@ -427,7 +445,11 @@ class EventController extends Controller
             'result_rank' => $participant->resultRank?->name,
             'certificate_id' => $participant->certificate_id,
             'result_description' => $participant->result_description,
-            'evidence_file_path' => $participant->evidence_file_path,
+            'evidence_files' => $participant->evidenceFiles->map(fn ($file) => [
+                'id' => $file->id,
+                'url' => $file->url,
+                'original_name' => $file->original_name ?? basename($file->file_path),
+            ])->values()->all(),
             'results_filled_at' => $participant->results_filled_at?->toDateTimeString(),
             'has_results' => $participant->hasResults(),
         ]);

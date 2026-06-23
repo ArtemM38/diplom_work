@@ -107,7 +107,7 @@ const normalizeEmail = (event) => {
             </div>
 
             <div>
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" value="Email (необязательно)" />
                 <TextInput
                     id="email"
                     type="email"
@@ -116,7 +116,6 @@ const normalizeEmail = (event) => {
                     :invalid="!!form.errors.email"
                     @input="normalizeEmail"
                     autocomplete="email"
-                    required
                     placeholder="example@mail.ru"
                 />
                 <InputError class="mt-2" :message="form.errors.email" />

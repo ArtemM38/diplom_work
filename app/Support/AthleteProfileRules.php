@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\Rule;
 
 class AthleteProfileRules
 {
@@ -25,7 +26,7 @@ class AthleteProfileRules
             'school_class' => 'nullable|required_if:occupation_type,study|string|max:50',
             'kindergarten_name' => 'nullable|required_if:occupation_type,kindergarten|string',
             'work_place' => 'nullable|required_if:occupation_type,work|string',
-            'work_position' => 'nullable|required_if:occupation_type,work|string',
+            'work_position' => 'nullable|required_if:occupation_type,work|string|max:255',
             'photo' => 'nullable|file|image|max:4096',
 
             'guardian_id' => 'nullable|exists:guardians,id',
@@ -39,19 +40,8 @@ class AthleteProfileRules
             'referees.*.referee_category_id' => 'required_with:referees|exists:referee_categories,id',
             'referees.*.assigned_at' => 'required_with:referees|date',
 
-            'inventory' => 'nullable|array',
-            'inventory.weapon_case' => 'sometimes|boolean',
-            'inventory.jo' => 'sometimes|boolean',
-            'inventory.boken' => 'sometimes|boolean',
-            'inventory.tanto' => 'sometimes|boolean',
-            'inventory.tshirt' => 'sometimes|boolean',
-            'inventory.olympic_jacket' => 'sometimes|boolean',
-            'inventory.cap' => 'sometimes|boolean',
-            'inventory.backpack' => 'sometimes|boolean',
-            'inventory.shoe_bag' => 'sometimes|boolean',
-            'inventory.budo_passport' => 'sometimes|boolean',
-            'inventory.qual_book' => 'sometimes|boolean',
-            'inventory.referee_book' => 'sometimes|boolean',
+            'inventory_item_ids' => 'nullable|array',
+            'inventory_item_ids.*' => 'integer|exists:inventory_items,id',
 
             'doc_medical_file' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:8192',
             'doc_medical_issue' => 'nullable|date|required_with:doc_medical_file,doc_medical_expiry',
@@ -75,7 +65,7 @@ class AthleteProfileRules
     {
         return [
             'login' => LoginRules::validation(),
-            'email' => 'required|email|max:255|unique:users,email',
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')],
             'password' => ['required', 'confirmed', Password::defaults()],
         ];
     }
@@ -87,7 +77,6 @@ class AthleteProfileRules
     {
         return [
             'login.required' => 'Укажите логин для входа спортсмена.',
-            'email.required' => 'Укажите email для аккаунта спортсмена.',
             'email.unique' => 'Этот email уже используется.',
             'password.required' => 'Укажите пароль для аккаунта спортсмена.',
             'password.confirmed' => 'Пароли не совпадают.',

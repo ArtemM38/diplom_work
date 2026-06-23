@@ -87,7 +87,7 @@ class AthleteDocumentStatus
      */
     public static function mapAthleteForEvent(Athlete $athlete): array
     {
-        $athlete->loadMissing(['documents', 'inventory']);
+        $athlete->loadMissing(['documents', 'inventoryItems']);
         $medical = self::medicalForAthlete($athlete);
 
         $documents = ($athlete->documents ?? collect())->map(fn ($doc) => [
@@ -103,29 +103,10 @@ class AthleteDocumentStatus
             'file_path' => $doc->file_path,
         ])->values()->all();
 
-        $inventory = $athlete->inventory;
-        $inventoryItems = [];
-        if ($inventory) {
-            $labels = [
-                'weapon_case' => 'Чехол для оружия',
-                'jo' => 'Дзё',
-                'boken' => 'Бокен',
-                'tanto' => 'Танто',
-                'tshirt' => 'Футболка',
-                'olympic_jacket' => 'Олимпийка',
-                'cap' => 'Бейсболка',
-                'backpack' => 'Рюкзак',
-                'shoe_bag' => 'Мешок для сменки',
-                'budo_passport' => 'Будо-паспорт',
-                'qual_book' => 'Зачётная книжка',
-                'referee_book' => 'Книжка судьи',
-            ];
-            foreach ($labels as $key => $label) {
-                if ($inventory->{$key}) {
-                    $inventoryItems[] = $label;
-                }
-            }
-        }
+        $inventoryItems = ($athlete->inventoryItems ?? collect())
+            ->pluck('name')
+            ->values()
+            ->all();
 
         return [
             'id' => $athlete->id,

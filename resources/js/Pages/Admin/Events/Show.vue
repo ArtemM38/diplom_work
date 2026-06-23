@@ -57,7 +57,11 @@ const resultsForm = useForm({
     })),
 });
 
-const evidenceFiles = ref({});
+const pendingEvidence = ref({});
+
+const pendingFilesFor = (participantId) => pendingEvidence.value[participantId] || [];
+
+const savedEvidenceFiles = (participantId) => participantIndex.value[participantId]?.evidence_files || [];
 
 watch(() => props.participants, (list) => {
     resultsForm.participants = (list || []).map((p) => ({
@@ -108,21 +112,42 @@ const saveResults = () => {
         formData.append(`participants[${index}][result_rank_id]`, p.result_rank_id ?? '');
         formData.append(`participants[${index}][certificate_id]`, p.certificate_id ?? '');
         formData.append(`participants[${index}][result_description]`, p.result_description ?? '');
-        const file = evidenceFiles.value[p.id];
-        if (file) {
-            formData.append(`evidence_${p.id}`, file);
-        }
+        const pending = pendingFilesFor(p.id);
+        pending.forEach((upload) => {
+            formData.append(`evidence_${p.id}[]`, upload);
+        });
     });
 
     formData.append('_method', 'patch');
     router.post(route('admin.events.results.update', props.event.id), formData, {
         forceFormData: true,
         preserveScroll: true,
+        onSuccess: () => {
+            pendingEvidence.value = {};
+        },
     });
 };
 
 const onEvidenceChange = (participantId, event) => {
-    evidenceFiles.value[participantId] = event.target.files?.[0] ?? null;
+    const picked = Array.from(event.target.files || []);
+    if (!picked.length) {
+        return;
+    }
+    pendingEvidence.value[participantId] = [...pendingFilesFor(participantId), ...picked];
+    event.target.value = '';
+};
+
+const removePendingEvidence = (participantId, index) => {
+    const list = [...pendingFilesFor(participantId)];
+    list.splice(index, 1);
+    pendingEvidence.value[participantId] = list;
+};
+
+const deleteEvidenceFile = (fileId) => {
+    if (!confirm('Удалить прикреплённый файл?')) return;
+    router.delete(route('admin.events.evidence.destroy', [props.event.id, fileId]), {
+        preserveScroll: true,
+    });
 };
 
 const onAttendanceCertificateChange = (participantId, event) => {
@@ -217,7 +242,7 @@ const participantIndex = computed(() => {
                     </div>
                     <div class="min-w-0">
                         <label class="text-xs text-slate-500">Стоимость</label>
-                        <input v-model="eventForm.cost" type="number" min="0" step="1" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg" />
+                        <input v-model="eventForm.cost" type="number" min="0" step="0.01" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg" />
                     </div>
                     <div class="min-w-0">
                         <label class="text-xs text-slate-500">Тип</label>
@@ -408,16 +433,51 @@ const participantIndex = computed(() => {
                                 <label class="text-xs text-slate-500">Описание</label>
                                 <input v-model="row.result_description" :readonly="readOnly" class="w-full max-w-full min-w-0 border-gray-300 rounded-lg text-sm" />
                             </div>
-                            <div v-if="!readOnly" class="min-w-0 sm:col-span-2 lg:col-span-1">
-                                <label class="text-xs text-slate-500">Подтверждение (файл)</label>
-                                <input type="file" accept=".pdf,.jpg,.jpeg,.png" class="text-sm w-full max-w-full min-w-0" @change="onEvidenceChange(row.id, $event)" />
-                                <a
-                                    v-if="participantIndex[row.id]?.evidence_file_path"
-                                    :href="storageUrl(participantIndex[row.id].evidence_file_path)"
-                                    target="_blank"
-                                    class="text-xs text-indigo-600 block mt-1"
-                                >Текущий файл</a>
+                        </div>
+                        <div class="min-w-0 border-t border-slate-100 pt-3 mt-3">
+                            <label class="text-xs text-slate-500 block mb-2">Подтверждающие файлы</label>
+                            <div
+                                v-if="savedEvidenceFiles(row.id).length || pendingFilesFor(row.id).length"
+                                class="flex flex-wrap gap-2 mb-2"
+                            >
+                                <div
+                                    v-for="file in savedEvidenceFiles(row.id)"
+                                    :key="'saved-' + file.id"
+                                    class="inline-flex items-center gap-1 max-w-full rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs"
+                                >
+                                    <a :href="file.url" target="_blank" class="text-indigo-700 break-anywhere hover:underline">{{ file.original_name }}</a>
+                                    <button
+                                        v-if="!readOnly"
+                                        type="button"
+                                        class="shrink-0 text-red-600 hover:text-red-800 font-bold leading-none px-1"
+                                        title="Удалить файл"
+                                        @click="deleteEvidenceFile(file.id)"
+                                    >×</button>
+                                </div>
+                                <div
+                                    v-for="(file, idx) in pendingFilesFor(row.id)"
+                                    :key="'pending-' + row.id + '-' + idx"
+                                    class="inline-flex items-center gap-1 max-w-full rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs"
+                                >
+                                    <span class="text-emerald-800 break-anywhere">{{ file.name }} (новый)</span>
+                                    <button
+                                        v-if="!readOnly"
+                                        type="button"
+                                        class="shrink-0 text-red-600 hover:text-red-800 font-bold leading-none px-1"
+                                        title="Убрать из списка"
+                                        @click="removePendingEvidence(row.id, idx)"
+                                    >×</button>
+                                </div>
                             </div>
+                            <p v-else class="text-xs text-slate-400 mb-2">Файлы не прикреплены</p>
+                            <input
+                                v-if="!readOnly"
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                multiple
+                                class="text-sm w-full max-w-full min-w-0"
+                                @change="onEvidenceChange(row.id, $event)"
+                            />
                         </div>
                     </div>
 

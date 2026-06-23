@@ -12,6 +12,7 @@ import { fieldClass } from '@/utils/formErrors';
 const props = defineProps({
     ranks: Array,
     referee_categories: Array,
+    inventoryItems: Array,
     existingGuardians: Array,
     isParentRegistering: Boolean,
     isAdminCreating: {
@@ -73,22 +74,7 @@ const form = useForm({
     guardian_id: null,
     relation: '',
 
-    // Инвентарь (соответствует именам в миграции)
-    inventory: {
-        weapon_case: false,
-        jo: false,
-        boken: false,
-        tanto: false,
-        tshirt: false,
-        olympic_jacket: false,
-        cap: false,
-        backpack: false,
-        shoe_bag: false,
-        budo_passport: false,
-        qual_book: false,
-        referee_book: false,
-
-    },
+    inventory_item_ids: [],
 
     // Документы
     doc_medical_file: null,
@@ -111,6 +97,16 @@ const form = useForm({
     password: '',
     password_confirmation: '',
 });
+
+const toggleInventoryItem = (itemId) => {
+    const id = Number(itemId);
+    const index = form.inventory_item_ids.indexOf(id);
+    if (index >= 0) {
+        form.inventory_item_ids.splice(index, 1);
+    } else {
+        form.inventory_item_ids.push(id);
+    }
+};
 
 // Функции для динамических полей
 const addRank = () => form.ranks.push({ rank_id: '', assigned_at: '' });
@@ -266,6 +262,7 @@ onMounted(() => {
     form.school_name = props.editingAthlete.school_name ?? '';
     form.school_director_dat = props.editingAthlete.school_director_dat ?? '';
     form.school_class = props.editingAthlete.school_class ?? '';
+    form.kindergarten_name = props.editingAthlete.kindergarten_name ?? '';
     form.work_place = props.editingAthlete.work_place ?? '';
     form.work_position = props.editingAthlete.work_position ?? '';
     form.ranks = (props.editingAthlete.rank_histories || []).map((item) => ({
@@ -276,13 +273,10 @@ onMounted(() => {
         referee_category_id: item.referee_category_id,
         assigned_at: item.assigned_at,
     }));
-    form.inventory = {
-        ...form.inventory,
-        ...(props.editingAthlete.inventory || {}),
-    };
+    form.inventory_item_ids = [...(props.editingAthlete.inventory_item_ids || [])];
     form.guardian_id = props.editingAthlete.guardians?.[0]?.id ?? null;
     form.relation = props.editingAthlete.guardians?.[0]?.relation ?? '';
-    form.occupation_type = props.editingAthlete.occupation_type || (props.editingAthlete.school_name ? 'study' : props.editingAthlete.work_place ? 'work' : 'study');
+    form.occupation_type = props.editingAthlete.occupation_type || 'study';
 
     const identityDoc = (props.editingAthlete.documents || []).find((d) => d.type === 'identity');
     if (identityDoc) {
@@ -335,8 +329,8 @@ onUnmounted(() => {
                             <InputError class="mt-1" :message="form.errors.login" />
                         </div>
                         <div>
-                            <InputLabel value="Email" />
-                            <TextInput v-model="form.email" type="email" class="w-full" required :invalid="!!form.errors.email" autocomplete="off" />
+                            <InputLabel value="Email (необязательно)" />
+                            <TextInput v-model="form.email" type="email" class="w-full" :invalid="!!form.errors.email" autocomplete="off" />
                             <InputError class="mt-1" :message="form.errors.email" />
                         </div>
                         <div>
@@ -470,35 +464,58 @@ onUnmounted(() => {
                     <div v-if="form.occupation_type === 'study'" class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <InputLabel value="Наименование ОО (Школа/ВУЗ)" />
-                            <TextInput v-model="form.school_name" class="w-full" />
+                            <TextInput v-model="form.school_name" class="w-full" :class="{ 'border-red-500': form.errors.school_name }" />
+                            <InputError class="mt-1" :message="form.errors.school_name" />
                         </div>
                         <div>
-                            <InputLabel value="ФИО Директора" />
-                            <TextInput v-model="form.school_director_dat" class="w-full" />
+                            <InputLabel value="ФИО директора (дательный падеж)" />
+                            <TextInput v-model="form.school_director_dat" class="w-full" :class="{ 'border-red-500': form.errors.school_director_dat }" />
+                            <InputError class="mt-1" :message="form.errors.school_director_dat" />
                         </div>
                         <div>
                             <InputLabel value="Класс/курс" />
-                            <TextInput v-model="form.school_class" class="w-full" />
+                            <TextInput v-model="form.school_class" class="w-full" :class="{ 'border-red-500': form.errors.school_class }" />
+                            <InputError class="mt-1" :message="form.errors.school_class" />
                         </div>
                     </div>
                     <div v-else-if="form.occupation_type === 'work'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <InputLabel value="Место работы" />
                             <TextInput v-model="form.work_place" class="w-full" :class="{ 'border-red-500': form.errors.work_place }" />
-                            <p v-if="form.errors.work_place" class="text-red-600 text-xs mt-1">{{ form.errors.work_place }}</p>
+                            <InputError class="mt-1" :message="form.errors.work_place" />
                         </div>
                         <div>
                             <InputLabel value="Должность" />
                             <TextInput v-model="form.work_position" class="w-full" :class="{ 'border-red-500': form.errors.work_position }" />
-                            <p v-if="form.errors.work_position" class="text-red-600 text-xs mt-1">{{ form.errors.work_position }}</p>
+                            <InputError class="mt-1" :message="form.errors.work_position" />
                         </div>
                     </div>
                     <div v-else-if="form.occupation_type === 'kindergarten'" class="grid grid-cols-1 gap-4">
                         <div>
                             <InputLabel value="Наименование детского сада" />
                             <TextInput v-model="form.kindergarten_name" class="w-full" :class="{ 'border-red-500': form.errors.kindergarten_name }" />
-                            <p v-if="form.errors.kindergarten_name" class="text-red-600 text-xs mt-1">{{ form.errors.kindergarten_name }}</p>
+                            <InputError class="mt-1" :message="form.errors.kindergarten_name" />
                         </div>
+                    </div>
+                </div>
+
+                <div v-if="inventoryItems?.length" class="bg-white p-6 shadow rounded-lg">
+                    <h2 class="text-xl font-bold mb-4 text-blue-900 border-b pb-2">Выданный инвентарь</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        <label
+                            v-for="item in inventoryItems"
+                            :key="item.id"
+                            class="flex items-center gap-2 cursor-pointer rounded-lg border px-3 py-2"
+                            :class="form.inventory_item_ids.includes(item.id) ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
+                        >
+                            <input
+                                type="checkbox"
+                                :checked="form.inventory_item_ids.includes(item.id)"
+                                class="rounded text-indigo-600"
+                                @change="toggleInventoryItem(item.id)"
+                            />
+                            <span class="text-sm">{{ item.name }}</span>
+                        </label>
                     </div>
                 </div>
 

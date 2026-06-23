@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Athlete;
 use App\Models\Guardian;
+use App\Models\Institution;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,6 +26,12 @@ class AthleteDocumentDownloadTest extends TestCase
             'email_verified_at' => now(),
         ]);
 
+        $school = Institution::create([
+            'type' => 'study',
+            'name' => 'Школа № 1',
+            'director_dat' => 'директору школы № 1',
+        ]);
+
         $athlete = Athlete::create([
             'user_id' => $user->id,
             'last_name_nom' => 'Иванов',
@@ -34,10 +41,9 @@ class AthleteDocumentDownloadTest extends TestCase
             'birth_date' => '2012-05-15',
             'gender' => 'male',
             'occupation_type' => 'study',
+            'institution_id' => $school->id,
             'registration_address' => 'г. Иркутск, ул. Ленина, 1',
-            'school_name' => 'Школа № 1',
             'school_class' => '5А',
-            'school_director_dat' => 'директору школы № 1',
             'full_name_gen' => 'Иванова Ивана Ивановича',
             'full_name_dat' => 'Иванову Ивану Ивановичу',
             'full_name_ins' => 'Ивановым Иваном Ивановичем',

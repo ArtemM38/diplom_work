@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Athlete extends Model
 {
@@ -18,41 +19,55 @@ class Athlete extends Model
         'birth_date',
         'gender',
         'occupation_type',
+        'institution_id',
         'registration_address',
         'photo',
-        'school_name',
-        'school_director_dat',
         'school_class',
-        'kindergarten_name',
-        'work_place',
         'work_position',
     ];
 
-    // Связи
+    protected $appends = [
+        'school_name',
+        'school_director_dat',
+        'kindergarten_name',
+        'work_place',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class);
     }
+
+    public function institution(): BelongsTo
+    {
+        return $this->belongsTo(Institution::class);
+    }
+
     public function rankHistories()
     {
         return $this->hasMany(AthleteRankHistory::class);
     }
+
     public function refereeHistories()
     {
         return $this->hasMany(AthleteRefereeHistory::class);
     }
+
     public function documents()
     {
         return $this->hasMany(AthleteDocument::class);
     }
-    public function inventory()
+
+    public function inventoryItems()
     {
-        return $this->hasOne(AthleteInventory::class);
+        return $this->belongsToMany(InventoryItem::class, 'athlete_inventory');
     }
+
     public function guardians()
     {
         return $this->belongsToMany(Guardian::class, 'athlete_guardian');
     }
+
     public function groups()
     {
         return $this->belongsToMany(Group::class, 'athlete_group');
@@ -71,5 +86,25 @@ class Athlete extends Model
     public function balanceHistory()
     {
         return $this->hasMany(AthleteBalanceHistory::class);
+    }
+
+    public function getSchoolNameAttribute(): ?string
+    {
+        return $this->occupation_type === 'study' ? $this->institution?->name : null;
+    }
+
+    public function getSchoolDirectorDatAttribute(): ?string
+    {
+        return $this->occupation_type === 'study' ? $this->institution?->director_dat : null;
+    }
+
+    public function getKindergartenNameAttribute(): ?string
+    {
+        return $this->occupation_type === 'kindergarten' ? $this->institution?->name : null;
+    }
+
+    public function getWorkPlaceAttribute(): ?string
+    {
+        return $this->occupation_type === 'work' ? $this->institution?->name : null;
     }
 }

@@ -19,7 +19,7 @@ class AdminDashboardController extends Controller
         $startedTo = $request->input('started_to');
 
         // 1. Начинаем запрос с подгрузкой всех связей
-        $query = Athlete::with(['rankHistories.rank', 'documents', 'inventory']);
+        $query = Athlete::with(['rankHistories.rank', 'documents', 'inventoryItems']);
 
         // 2. Фильтрация по поиску (ФИО)
         if ($request->filled('search')) {
@@ -77,7 +77,7 @@ class AdminDashboardController extends Controller
                         'is_warning' => $daysLeft !== null && $daysLeft >= 0 && $daysLeft <= 3,
                     ];
                 }),
-                'inventory_count' => collect($athlete->inventory)->filter(fn ($val) => $val === true || $val === 1)->count(),
+                'inventory_count' => $athlete->inventoryItems->count(),
             ];
         });
 
@@ -95,7 +95,8 @@ class AdminDashboardController extends Controller
             'rankHistories.rank',
             'refereeHistories.refereeCategory',
             'documents',
-            'inventory',
+            'inventoryItems',
+            'institution',
             'guardians',
             'groups',
         ]);
@@ -107,6 +108,10 @@ class AdminDashboardController extends Controller
         return Inertia::render('Admin/Athletes/Show', [
             'athlete' => array_merge($athlete->toArray(), [
                 'photo_url' => StorageUrl::url($athlete->photo),
+                'inventory_items' => $athlete->inventoryItems->map(fn ($item) => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                ])->values(),
                 'documents' => $athlete->documents->map(fn ($doc) => array_merge($doc->toArray(), [
                     'file_url' => StorageUrl::url($doc->file_path),
                 ])),
@@ -116,6 +121,9 @@ class AdminDashboardController extends Controller
             'canEditAthlete' => $canEditAthlete,
             'canEditGuardians' => $canEditGuardians,
             'canManageInventory' => $canEditAthlete,
+            'inventoryCatalog' => $canEditAthlete
+                ? \App\Models\InventoryItem::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'name'])
+                : [],
             'availableGuardians' => $canEditGuardians
                 ? Guardian::orderBy('full_name')->get(['id', 'full_name', 'phone', 'relation'])
                 : [],
@@ -127,24 +135,11 @@ class AdminDashboardController extends Controller
         abort_unless($request->user()?->hasRole('admin'), 403);
 
         $validated = $request->validate([
-            'weapon_case' => 'boolean',
-            'jo' => 'boolean',
-            'boken' => 'boolean',
-            'tanto' => 'boolean',
-            'tshirt' => 'boolean',
-            'olympic_jacket' => 'boolean',
-            'cap' => 'boolean',
-            'backpack' => 'boolean',
-            'shoe_bag' => 'boolean',
-            'budo_passport' => 'boolean',
-            'qual_book' => 'boolean',
-            'referee_book' => 'boolean',
+            'inventory_item_ids' => 'nullable|array',
+            'inventory_item_ids.*' => 'integer|exists:inventory_items,id',
         ]);
 
-        $athlete->inventory()->updateOrCreate(
-            ['athlete_id' => $athlete->id],
-            collect($validated)->map(fn ($v) => (bool) $v)->all()
-        );
+        $athlete->inventoryItems()->sync($validated['inventory_item_ids'] ?? []);
 
         return back()->with('success', 'Инвентарь обновлён');
     }
